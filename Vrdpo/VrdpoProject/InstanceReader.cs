@@ -11,11 +11,12 @@ namespace VrdpoProject
     {
         private List<Node> allNodes = new List<Node>();
         private List<Node> customers = new List<Node>();
-        private double[,] matrix;
+        private double[][] matrix;
         private int cap;
         private Node storage;
 
         public int Cap { get => cap; set => cap = value; }
+        public double[][] Matrix { get => matrix; set => matrix = value; }
         internal List<Node> Customers { get => customers; set => customers = value; }
         internal Node Storage { get => storage; set => storage = value; }
 
@@ -75,13 +76,13 @@ namespace VrdpoProject
             }
 
             int rows = allNodes.Count;
-            matrix = new double[rows, rows];
+            matrix = new double[rows][];
 
             for (int i = 0; i < rows; i++)
             {
                 for(int j = i; j < rows; j++)
                 {
-                    matrix[i,j] = 0.0;
+                    matrix[i][j] = 0.0;
                 }
             }
 
@@ -95,7 +96,7 @@ namespace VrdpoProject
                     a = allNodes[i];
                     b = allNodes[j];
                     dist = Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
-                    matrix[i, j - i] = dist;
+                    matrix[i][j - i] = dist;
                     Console.WriteLine(dist);
                 }
             }
