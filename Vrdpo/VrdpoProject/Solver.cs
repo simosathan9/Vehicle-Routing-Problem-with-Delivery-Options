@@ -11,30 +11,42 @@ namespace VrdpoProject
     internal class Solver
     {
         InstanceReader ir = new InstanceReader();
-        CustomerInsertionAllPositions bestInsertion = null;
-        Route rt = null;
-        List<Route> routes = new List<Route>();
-        void setRoutedToFalse(Node[] nodes)
+        CustomerInsertionAllPositions bestInsertion;
+        Solution sol;
+
+
+        public void solve()
         {
-            foreach(Node node in nodes)
+            setRoutedToFalse(ir.Customers);
+            minimumInsertions();
+            Console.WriteLine(sol.Routes.Length);
+        }
+
+        void setRoutedToFalse(List<Node> nodes)
+        {
+            foreach(Node node1 in nodes)
             {
-                node.IsRouted = false;
+                node1.IsRouted = false;
             }
         }
 
         void alwaysKeepAnEmptyRoute()
         {
-            if (routes.Count < 10)
+            if (sol.Routes.Length < 10)
             {
-                if (routes.Count == 0)
+                if (sol.Routes.Length == 0)
                 {
-                    routes.Add(new Route(ir.Cap, 1000, ir.Storage));
+                    Route newRoute = new Route(ir.Cap, 1000, ir.Storage);
+                    sol.Routes.Append(newRoute);
+                    sol.Cost += newRoute.Cost;
                 }
                 else
                 {
-                    if (routes.Last().SequenceOfNodes.Length > 2)
+                    if (sol.Routes.Last().SequenceOfNodes.Count > 2)
                     {
-                        routes.Add(new Route(ir.Cap, 1000, ir.Storage));
+                        Route newRoute = new Route(ir.Cap, 1000, ir.Storage);
+                        sol.Routes.Append(newRoute);
+                        sol.Cost += newRoute.Cost;
                     }
                 }
             }
@@ -44,10 +56,10 @@ namespace VrdpoProject
         {
             if (n1.Id > n2.Id)
             {
-                return ir.Matrix[n2.Id][n1.Id - n2.Id];
+                return ir.Matrix[n2.Id, n1.Id - n2.Id];
             } else
             {
-                return ir.Matrix[n1.Id][n2.Id - n1.Id];
+                return ir.Matrix[n1.Id, n2.Id - n1.Id];
             }
         }
 
@@ -60,11 +72,11 @@ namespace VrdpoProject
                 candidateCust = ir.Customers[i];
                 if (candidateCust.IsRouted == false)
                 {
-                    foreach (Route rt in routes)
+                    foreach (Route rt in sol.Routes)
                     {
                         if (rt.Load + candidateCust.Dem <= rt.Capacity & rt.Duration + candidateCust.ServiceTime <= rt.MaxDuration)
                         {
-                            for (int j = 0; j < rt.SequenceOfNodes.Length - 1; j++)
+                            for (int j = 0; j < rt.SequenceOfNodes.Count - 1; j++)
                             {
                                 A = rt.SequenceOfNodes[j];
                                 B = rt.SequenceOfNodes[j + 1];
@@ -77,6 +89,7 @@ namespace VrdpoProject
                                     bestInsertion.Route = rt;
                                     bestInsertion.InsertionPosition = j;
                                     bestInsertion.Duration = trialTime + candidateCust.ServiceTime;
+                                    bestInsertion.Cost = Math.Ceiling(calculateDistance(A, B) * 10);
                                 }
                             }
                         }
@@ -89,16 +102,33 @@ namespace VrdpoProject
             }
         }
 
+        void ApplyCustomerInsertionAllPositions(CustomerInsertionAllPositions insertion)
+        {
+            insertion.Route.SequenceOfNodes.Insert(insertion.InsertionPosition + 1, insertion.Customer);
+            insertion.Route.Duration += insertion.Duration;
+            sol.Cost += insertion.Cost;
+            sol.Duration += insertion.Duration;
+            insertion.Route.Load += insertion.Customer.Dem;
+            insertion.Customer.IsRouted = true;
+        }
+
         void minimumInsertions()
         {
             bool modelIsFeasible = true;
-            Solution solution = new Solution();
+            sol = new Solution();
             while(! ir.Customers.All(x => x.IsRouted))
             {
                 bestInsertion = new CustomerInsertionAllPositions();
                 alwaysKeepAnEmptyRoute();
                 IdentifyMinimumCostInsertion(bestInsertion);
-               
+               if (bestInsertion.Customer != null)
+                {
+                    ApplyCustomerInsertionAllPositions(bestInsertion);
+                } else
+                {
+                    modelIsFeasible = false;
+                    break;
+                }
             }
         }
     }

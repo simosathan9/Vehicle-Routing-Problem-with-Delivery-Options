@@ -8,6 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Class1.cs" />
+    <Compile Remove="Main.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="NewFile1.txt" />
     <None Remove="U25small.txt" />
     <None Remove="U_50small.txt" />
