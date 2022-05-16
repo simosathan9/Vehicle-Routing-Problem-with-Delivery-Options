@@ -14,18 +14,20 @@ namespace VrdpoProject
         private double[,] matrix;
         private int cap;
         private Node storage;
+        private List<Option> options = new();
 
         public int Cap { get => cap; set => cap = value; }
         public double[,] Matrix { get => matrix; set => matrix = value; }
         internal List<Node> Customers { get => customers; set => customers = value; }
         internal Node Storage { get => storage; set => storage = value; }
         internal List<Node> AllNodes { get => allNodes; set => allNodes = value; }
+        internal List<Option> Options { get => options; set => options = value; }
 
         public void BuildModel()
         {
             string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
             //string[] instance = System.IO.File.ReadAllLines("U_50large.txt"); 
-             //string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
+            //string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
             var temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             cap = Int32.Parse(temp1[1]);
             int numbLoc = Int32.Parse(temp1[2]);
@@ -68,7 +70,8 @@ namespace VrdpoProject
             {
                 string[] temp2 = Regex.Split(instance[m], @"\t+");
                 Option opt = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]) + 1, Int32.Parse(temp2[3]),
-                    Int32.Parse(temp2[4]), Int32.Parse(temp2[5]));            
+                    Int32.Parse(temp2[4]), Int32.Parse(temp2[5]));         
+                options.Add(opt);
             }
 
             int rows = allNodes.Count;

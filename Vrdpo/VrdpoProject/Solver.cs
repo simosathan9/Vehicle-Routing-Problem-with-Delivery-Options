@@ -17,6 +17,7 @@ namespace VrdpoProject
         private double[,] matrix;
         private int cap;
         private Node storage;
+        private List<Option> options = new();
 
         public Solver(InstanceReader ir)
         {
@@ -25,6 +26,7 @@ namespace VrdpoProject
             this.matrix = ir.Matrix;
             this.cap = ir.Cap;
             this.storage = ir.Storage;
+            this.options = ir.Options;
         }
 
         public void Solve()
@@ -32,16 +34,18 @@ namespace VrdpoProject
             SetRoutedToFalse(customers);
             MinimumInsertions();
            foreach (Route r in sol.Routes)
-            {
+           {
                 for (int i = 0; i < r.SequenceOfNodes.Count; i++)
                 {
                     Console.WriteLine(r.SequenceOfNodes[i].Id);
                 }
-                Console.WriteLine("Max capacity: {1} Load:{0}", r.Capacity, r.Load);
+                Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
                 Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
                 Console.WriteLine("--------------");
-            }
+           }
            Console.WriteLine(sol.Cost);
+           Console.WriteLine();
+           RouteCustomersToSharedLocations();
         }
 
         void SetRoutedToFalse(List<Node> nodes)
@@ -106,8 +110,10 @@ namespace VrdpoProject
                                 timeAdded = CalculateDistance(A, candidateCust) + CalculateDistance(candidateCust, B);
                                 timeRemoved = CalculateDistance(A, B);
                                 trialTime = timeAdded - timeRemoved + candidateCust.ServiceTime;
+                                //if tria
                                 if (trialTime < bestInsertion.Duration & rt.Duration + trialTime <= rt.MaxDuration)
                                 {
+                                    Console.WriteLine("{0} {1}", trialTime, bestInsertion.Duration);
                                     bestInsertion.Customer = candidateCust;
                                     bestInsertion.Route = rt;
                                     bestInsertion.InsertionPosition = j;
@@ -144,10 +150,21 @@ namespace VrdpoProject
                     ApplyCustomerInsertionAllPositions(bestInsertion);
                 } else
                 {
-                    //sol.Routes.Remove(sol.);
                     modelIsFeasible = false;
                     break;
                 }
+            }
+        }
+
+        void RouteCustomersToSharedLocations()
+        {
+            List<Option> sharedLocationsOptions = options.Where(x => x.ServiceTime == 2)
+                                                  .OrderByDescending(p => matrix[storage.Id, p.Cust])
+                                                  .ThenBy(p => p.Prio)
+                                                  .ToList();
+            for (int i = 0; i < sharedLocationsOptions.Count; i++)
+            {
+
             }
         }
     }
