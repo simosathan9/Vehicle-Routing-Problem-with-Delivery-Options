@@ -31,15 +31,17 @@ namespace VrdpoProject
         {
             SetRoutedToFalse(customers);
             MinimumInsertions();
-            //Console.WriteLine(sol.Routes.Length);
            foreach (Route r in sol.Routes)
             {
                 for (int i = 0; i < r.SequenceOfNodes.Count; i++)
                 {
                     Console.WriteLine(r.SequenceOfNodes[i].Id);
                 }
+                Console.WriteLine("Max capacity: {1} Load:{0}", r.Capacity, r.Load);
+                Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
                 Console.WriteLine("--------------");
             }
+           Console.WriteLine(sol.Cost);
         }
 
         void SetRoutedToFalse(List<Node> nodes)
@@ -56,7 +58,7 @@ namespace VrdpoProject
             {
                 if (sol.Routes.Count == 0)
                 {
-                    Route newRoute = new(cap, 100000, storage);
+                    Route newRoute = new(sol.Routes.Count, cap, 100000, storage);
                     sol.Routes.Add(newRoute);
                     sol.Cost += newRoute.Cost;
                 }
@@ -64,7 +66,7 @@ namespace VrdpoProject
                 {
                     if (sol.Routes.Last().SequenceOfNodes.Count > 2)
                     {
-                        Route newRoute = new(cap, 100000, storage);
+                        Route newRoute = new(sol.Routes.Count, cap, 100000, storage);
                         sol.Routes.Add(newRoute);
                         sol.Cost += newRoute.Cost;
                     }
@@ -103,20 +105,16 @@ namespace VrdpoProject
                                 B = rt.SequenceOfNodes[j + 1];
                                 timeAdded = CalculateDistance(A, candidateCust) + CalculateDistance(candidateCust, B);
                                 timeRemoved = CalculateDistance(A, B);
-                                trialTime = timeAdded - timeRemoved;
-                                if (trialTime < bestInsertion.Duration & rt.Duration + trialTime + candidateCust.ServiceTime <= rt.MaxDuration)
+                                trialTime = timeAdded - timeRemoved + candidateCust.ServiceTime;
+                                if (trialTime < bestInsertion.Duration & rt.Duration + trialTime <= rt.MaxDuration)
                                 {
                                     bestInsertion.Customer = candidateCust;
                                     bestInsertion.Route = rt;
                                     bestInsertion.InsertionPosition = j;
-                                    bestInsertion.Duration = trialTime + candidateCust.ServiceTime;
+                                    bestInsertion.Duration = trialTime;
                                     bestInsertion.Cost = Math.Ceiling(CalculateDistance(A, B) * 10);
                                 }
                             }
-                        }
-                        else
-                        {
-                            continue;
                         }
                     }
                 }
@@ -136,18 +134,17 @@ namespace VrdpoProject
         void MinimumInsertions()
         {
             bool modelIsFeasible = true;
-            //sol = new Solution();
-            while(! customers.All(x => x.IsRouted))
+            while(customers.Any(x => !x.IsRouted))
             {   
                 bestInsertion = new CustomerInsertionAllPositions();
                 AlwaysKeepAnEmptyRoute();
                 IdentifyMinimumCostInsertion(bestInsertion);
-                //Console.WriteLine(bestInsertion.Customer.Id);
                 if (bestInsertion.Customer != null)
                 {
                     ApplyCustomerInsertionAllPositions(bestInsertion);
                 } else
                 {
+                    //sol.Routes.Remove(sol.);
                     modelIsFeasible = false;
                     break;
                 }

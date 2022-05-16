@@ -23,9 +23,9 @@ namespace VrdpoProject
 
         public void BuildModel()
         {
-            //string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
+            string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
             //string[] instance = System.IO.File.ReadAllLines("U_50large.txt"); 
-             string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
+             //string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
             var temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             cap = Int32.Parse(temp1[1]);
             int numbLoc = Int32.Parse(temp1[2]);

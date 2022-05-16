@@ -17,7 +17,7 @@ namespace VrdpoProject
         private double cost;
         private double fixedCost;
 
-        public Route(double capacity, double maxDuration, Node storage)
+        public Route(int id, double capacity, double maxDuration, Node storage)
         {
             this.sequenceOfNodes.Add(storage);
             this.sequenceOfNodes.Add(storage);
@@ -27,6 +27,7 @@ namespace VrdpoProject
             this.maxDuration = maxDuration;
             this.fixedCost = 1000000;
             this.cost = fixedCost;
+            this.Id = id;
         }
 
         public int Id { get => id; set => id = value; }
