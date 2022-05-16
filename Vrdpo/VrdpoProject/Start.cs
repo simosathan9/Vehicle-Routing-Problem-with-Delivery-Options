@@ -8,12 +8,12 @@ namespace VrdpoProject
 {
     internal class Start
     {
-        static void Main(string[] args)
+        static void Main()
         {
-            InstanceReader model = new InstanceReader();
-            model.buildModel();
-            Solver solver = new Solver();
-            solver.solve();
+            InstanceReader model = new();
+            model.BuildModel();
+            Solver solver = new(model);
+            solver.Solve();
         }
     }
 }

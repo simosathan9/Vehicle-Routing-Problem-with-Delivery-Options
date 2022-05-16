@@ -13,19 +13,29 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="NewFile1.txt" />
     <None Remove="U25small.txt" />
     <None Remove="U_50small.txt" />
     <None Remove="V_25sma" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="OxyPlot.Core" Version="2.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="NewFile1.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="U_25medium.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="U_50large.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Instances\" />
   </ItemGroup>
 
 </Project>

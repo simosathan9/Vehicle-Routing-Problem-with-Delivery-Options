@@ -9,7 +9,7 @@ namespace VrdpoProject
     internal class Route
     {
         private int id;
-        private List<Node> sequenceOfNodes;
+        private List<Node> sequenceOfNodes = new();
         private double load;
         private double capacity;
         private double duration;

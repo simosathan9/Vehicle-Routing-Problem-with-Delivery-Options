@@ -29,8 +29,8 @@ namespace VrdpoProject
             this.customer = null;
             this.route = null;
             this.insertionPosition = 0;
-            this.cost = 0;    
-            this.duration = 0;
+            this.cost = 1000000;    
+            this.duration = 10000000;
         }
 
         public int InsertionPosition { get => insertionPosition; set => insertionPosition = value; }

@@ -10,19 +10,39 @@ namespace VrdpoProject
 {
     internal class Solver
     {
-        InstanceReader ir = new InstanceReader();
-        CustomerInsertionAllPositions bestInsertion;
-        Solution sol;
+        private CustomerInsertionAllPositions bestInsertion = new();
+        private Solution sol = new();
+        private List<Node> allNodes = new();
+        private List<Node> customers = new();
+        private double[,] matrix;
+        private int cap;
+        private Node storage;
 
-
-        public void solve()
+        public Solver(InstanceReader ir)
         {
-            setRoutedToFalse(ir.Customers);
-            minimumInsertions();
-            Console.WriteLine(sol.Routes.Length);
+            this.allNodes = ir.AllNodes;
+            this.customers = ir.Customers;
+            this.matrix = ir.Matrix;
+            this.cap = ir.Cap;
+            this.storage = ir.Storage;
         }
 
-        void setRoutedToFalse(List<Node> nodes)
+        public void Solve()
+        {
+            SetRoutedToFalse(customers);
+            MinimumInsertions();
+            //Console.WriteLine(sol.Routes.Length);
+           foreach (Route r in sol.Routes)
+            {
+                for (int i = 0; i < r.SequenceOfNodes.Count; i++)
+                {
+                    Console.WriteLine(r.SequenceOfNodes[i].Id);
+                }
+                Console.WriteLine("--------------");
+            }
+        }
+
+        void SetRoutedToFalse(List<Node> nodes)
         {
             foreach(Node node1 in nodes)
             {
@@ -30,46 +50,47 @@ namespace VrdpoProject
             }
         }
 
-        void alwaysKeepAnEmptyRoute()
+        void AlwaysKeepAnEmptyRoute()
         {
-            if (sol.Routes.Length < 10)
+            if (sol.Routes.Count < 10)
             {
-                if (sol.Routes.Length == 0)
+                if (sol.Routes.Count == 0)
                 {
-                    Route newRoute = new Route(ir.Cap, 1000, ir.Storage);
-                    sol.Routes.Append(newRoute);
+                    Route newRoute = new(cap, 100000, storage);
+                    sol.Routes.Add(newRoute);
                     sol.Cost += newRoute.Cost;
                 }
                 else
                 {
                     if (sol.Routes.Last().SequenceOfNodes.Count > 2)
                     {
-                        Route newRoute = new Route(ir.Cap, 1000, ir.Storage);
-                        sol.Routes.Append(newRoute);
+                        Route newRoute = new(cap, 100000, storage);
+                        sol.Routes.Add(newRoute);
                         sol.Cost += newRoute.Cost;
                     }
                 }
             }
         }
 
-        double calculateDistance(Node n1, Node n2)
+        double CalculateDistance(Node n1, Node n2)
         {
             if (n1.Id > n2.Id)
             {
-                return ir.Matrix[n2.Id, n1.Id - n2.Id];
+                return matrix[n2.Id, n1.Id - n2.Id];
             } else
             {
-                return ir.Matrix[n1.Id, n2.Id - n1.Id];
+                return matrix[n1.Id, n2.Id - n1.Id];
             }
         }
 
         Node candidateCust, A, B;
-        double timeAdded, timeRemoved, trialTime;  
+        double timeAdded, timeRemoved, trialTime;
+
         void IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion)
         {
-            for (int i = 0; i < ir.Customers.Count ; i++)
+            for (int i = 0; i < customers.Count ; i++)
             {
-                candidateCust = ir.Customers[i];
+                candidateCust = customers[i];
                 if (candidateCust.IsRouted == false)
                 {
                     foreach (Route rt in sol.Routes)
@@ -80,8 +101,8 @@ namespace VrdpoProject
                             {
                                 A = rt.SequenceOfNodes[j];
                                 B = rt.SequenceOfNodes[j + 1];
-                                timeAdded = calculateDistance(A, candidateCust) + calculateDistance(candidateCust, B);
-                                timeRemoved = calculateDistance(A, B);
+                                timeAdded = CalculateDistance(A, candidateCust) + CalculateDistance(candidateCust, B);
+                                timeRemoved = CalculateDistance(A, B);
                                 trialTime = timeAdded - timeRemoved;
                                 if (trialTime < bestInsertion.Duration & rt.Duration + trialTime + candidateCust.ServiceTime <= rt.MaxDuration)
                                 {
@@ -89,7 +110,7 @@ namespace VrdpoProject
                                     bestInsertion.Route = rt;
                                     bestInsertion.InsertionPosition = j;
                                     bestInsertion.Duration = trialTime + candidateCust.ServiceTime;
-                                    bestInsertion.Cost = Math.Ceiling(calculateDistance(A, B) * 10);
+                                    bestInsertion.Cost = Math.Ceiling(CalculateDistance(A, B) * 10);
                                 }
                             }
                         }
@@ -112,16 +133,17 @@ namespace VrdpoProject
             insertion.Customer.IsRouted = true;
         }
 
-        void minimumInsertions()
+        void MinimumInsertions()
         {
             bool modelIsFeasible = true;
-            sol = new Solution();
-            while(! ir.Customers.All(x => x.IsRouted))
-            {
+            //sol = new Solution();
+            while(! customers.All(x => x.IsRouted))
+            {   
                 bestInsertion = new CustomerInsertionAllPositions();
-                alwaysKeepAnEmptyRoute();
+                AlwaysKeepAnEmptyRoute();
                 IdentifyMinimumCostInsertion(bestInsertion);
-               if (bestInsertion.Customer != null)
+                //Console.WriteLine(bestInsertion.Customer.Id);
+                if (bestInsertion.Customer != null)
                 {
                     ApplyCustomerInsertionAllPositions(bestInsertion);
                 } else
