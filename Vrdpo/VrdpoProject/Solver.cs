@@ -37,14 +37,14 @@ namespace VrdpoProject
            {
                 for (int i = 0; i < r.SequenceOfNodes.Count; i++)
                 {
-                    Console.WriteLine(r.SequenceOfNodes[i].Id);
+                    //Console.WriteLine(r.SequenceOfNodes[i].Id);
                 }
-                Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
-                Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
-                Console.WriteLine("--------------");
+                //Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
+                //Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
+                //Console.WriteLine("--------------");
            }
-           Console.WriteLine(sol.Cost);
-           Console.WriteLine();
+           //Console.WriteLine(sol.Cost);
+           //Console.WriteLine();
            RouteCustomersToSharedLocations();
         }
 
@@ -89,6 +89,18 @@ namespace VrdpoProject
             }
         }
 
+        double FindMatrix(int id1, int id2)
+        {
+            if (id1 > id2)
+            {
+                return matrix[id2, id1 - id2];
+            }
+            else
+            {
+                return matrix[id1, id2 - id1];
+            }
+        }
+
         Node candidateCust, A, B;
         double timeAdded, timeRemoved, trialTime;
 
@@ -113,7 +125,7 @@ namespace VrdpoProject
                                 //if tria
                                 if (trialTime < bestInsertion.Duration & rt.Duration + trialTime <= rt.MaxDuration)
                                 {
-                                    Console.WriteLine("{0} {1}", trialTime, bestInsertion.Duration);
+                                    //Console.WriteLine("{0} {1}", trialTime, bestInsertion.Duration);
                                     bestInsertion.Customer = candidateCust;
                                     bestInsertion.Route = rt;
                                     bestInsertion.InsertionPosition = j;
@@ -156,15 +168,68 @@ namespace VrdpoProject
             }
         }
 
+        void GroupSharedLocations(List<Option> shList)
+        {
+            List<Option> query = shList.GroupBy(x => x.Location).Select(x => x.First()).ToList();
+            double numOfRoutes = Math.Ceiling(query.Count() * 0.8);
+
+            List<List<int>> couples = new();
+            for (int i = 0; i < numOfRoutes / 2; i++)
+            {
+                Console.WriteLine("------------------");
+                double minDist = 1000000;
+                List<int> couple = new();
+                int l1 = -1;
+                int l2 = -1;
+                int index1 = -1;
+                int index2 = -1;
+                for (int j = 0; j < query.Count - 1; j++)
+                {
+                    for (int k = j + 1; k < query.Count; k++)
+                    {
+                        Console.WriteLine(FindMatrix(query[j].Location, query[j + 1].Location));
+                        if (FindMatrix(query[j].Location, query[k].Location) < minDist)
+                        {
+                            Console.WriteLine("{0} {1} {2}", query[j].Location, query[k].Location, FindMatrix(query[j].Location, query[k].Location));
+                            minDist = FindMatrix(query[j].Location, query[k].Location);
+                            l1 = query[j].Location;
+                            l2 = query[k].Location;
+                            index1 = j;
+                            index2 = k;
+                        }
+                    }
+                }
+                Console.WriteLine("{0} {1} {2}", query[index1].Location, query[index2].Location, FindMatrix(query[index1].Location, query[index2].Location));
+                couple.Add(l1);
+                couple.Add(l2);
+                query.RemoveAt(index1);
+                query.RemoveAt(index2 - 1);
+                couples.Add(couple);
+            }
+            for (int i = 0; i < couples.Count; i++)
+            {
+                for(int j = 0; j < couples[i].Count; j++)
+                {
+                    Console.WriteLine(couples[i][j]);
+                }
+            }
+        }
+
         void RouteCustomersToSharedLocations()
         {
             List<Option> sharedLocationsOptions = options.Where(x => x.ServiceTime == 2)
-                                                  .OrderByDescending(p => matrix[storage.Id, p.Cust])
+                                                  .OrderByDescending(p => FindMatrix(storage.Id, p.Cust))
                                                   .ThenBy(p => p.Prio)
                                                   .ToList();
-            for (int i = 0; i < sharedLocationsOptions.Count; i++)
-            {
 
+            IEnumerable<Option> query = sharedLocationsOptions.GroupBy(x => x.Cust).Select(x => x.First());
+            List<Option> copy = query.ToList();
+
+            GroupSharedLocations(query.ToList());
+
+            for (int i = 0; i < copy.Count; i++)
+            {
+                
             }
         }
     }
