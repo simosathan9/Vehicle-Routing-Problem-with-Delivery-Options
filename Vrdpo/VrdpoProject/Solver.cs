@@ -12,20 +12,20 @@ namespace VrdpoProject
     {
         private CustomerInsertionAllPositions bestInsertion = new();
         private Solution sol = new();
-        private List<Node> allNodes = new();
-        private List<Node> customers = new();
-        private double[,] matrix;
+        private List<Customer> customers = new();
+        private double[,] distanceMatrix;
+        private double[,] timeMatrix;
         private int cap;
-        private Node storage;
+        private Location depot;
         private List<Option> options = new();
 
         public Solver(InstanceReader ir)
         {
-            this.allNodes = ir.AllNodes;
-            this.customers = ir.Customers;
-            this.matrix = ir.Matrix;
+            this.customers = ir.AllCustomers;
+            this.distanceMatrix = ir.DistanceMatrix;
+            this.timeMatrix = ir.TimeMatrix;
             this.cap = ir.Cap;
-            this.storage = ir.Storage;
+            this.depot = ir.Depot;
             this.options = ir.Options;
         }
 
@@ -35,9 +35,9 @@ namespace VrdpoProject
             MinimumInsertions();
            foreach (Route r in sol.Routes)
            {
-                for (int i = 0; i < r.SequenceOfNodes.Count; i++)
+                for (int i = 0; i < r.SequenceOfOptions.Count; i++)
                 {
-                    Console.WriteLine(r.SequenceOfNodes[i].Id);
+                    Console.WriteLine("{0} {1}", r.SequenceOfOptions[i].Location.Id, r.SequenceOfOptions[i].Cust.Id);
                 }
                 Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
                 Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
@@ -48,11 +48,11 @@ namespace VrdpoProject
            //RouteCustomersToSharedLocations();
         }
 
-        void SetRoutedToFalse(List<Node> nodes)
+        void SetRoutedToFalse(List<Customer> customers)
         {
-            foreach(Node node1 in nodes)
+            foreach(Customer customer1 in customers)
             {
-                node1.IsRouted = false;
+                customer1.IsRouted = false;
             }
         }
 
@@ -62,15 +62,15 @@ namespace VrdpoProject
             {
                 if (sol.Routes.Count == 0)
                 {
-                    Route newRoute = new(sol.Routes.Count, cap, 100000, storage);
+                    Route newRoute = new(sol.Routes.Count, cap, 100000, depot);
                     sol.Routes.Add(newRoute);
                     sol.Cost += newRoute.Cost;
                 }
                 else
                 {
-                    if (sol.Routes.Last().SequenceOfNodes.Count > 2)
+                    if (sol.Routes.Last().SequenceOfLocations.Count > 2)
                     {
-                        Route newRoute = new(sol.Routes.Count, cap, 100000, storage);
+                        Route newRoute = new(sol.Routes.Count, cap, 100000, depot);
                         sol.Routes.Add(newRoute);
                         sol.Cost += newRoute.Cost;
                     }
@@ -78,14 +78,26 @@ namespace VrdpoProject
             }
         }
 
-        double CalculateDistance(Node n1, Node n2)
+        double CalculateDistance(Location n1, Location n2)
         {
             if (n1.Id > n2.Id)
             {
-                return matrix[n2.Id, n1.Id - n2.Id];
+                return distanceMatrix[n2.Id, n1.Id - n2.Id];
             } else
             {
-                return matrix[n1.Id, n2.Id - n1.Id];
+                return distanceMatrix[n1.Id, n2.Id - n1.Id];
+            }
+        }
+
+        double CalculateTime(Location n1, Location n2)
+        {
+            if (n1.Id > n2.Id)
+            {
+                return timeMatrix[n2.Id, n1.Id - n2.Id];
+            }
+            else
+            {
+                return timeMatrix[n1.Id, n2.Id - n1.Id];
             }
         }
 
@@ -93,17 +105,18 @@ namespace VrdpoProject
         {
             if (id1 > id2)
             {
-                return matrix[id2, id1 - id2];
+                return distanceMatrix[id2, id1 - id2];
             }
             else
             {
-                return matrix[id1, id2 - id1];
+                return distanceMatrix[id1, id2 - id1];
             }
         }
 
         Option candidateOpt;
-        Node A, B;
+        Location A, B;
         double timeAdded, timeRemoved, trialTime;
+        double costAdded, costRemoved, trialCost;
 
         void IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion)
         {
@@ -119,12 +132,15 @@ namespace VrdpoProject
                         {
                             for (int j = 0; j < rt.SequenceOfLocations.Count - 1; j++)
                             {
-                                A = rt.SequenceOfNodes[j];
-                                B = rt.SequenceOfNodes[j + 1];
-                                timeAdded = CalculateDistance(A, candidateOpt.Cust) + CalculateDistance(candidateOpt.Cust, B);
-                                timeRemoved = CalculateDistance(A, B);
-                                trialTime = timeAdded - timeRemoved + candidateOpt.Cust.ServiceTime;
-                                if (trialTime < bestInsertion.Duration & rt.Duration + trialTime <= rt.MaxDuration)
+                                A = rt.SequenceOfLocations[j];
+                                B = rt.SequenceOfLocations[j + 1];
+                                timeAdded = CalculateTime(A, candidateOpt.Location) + CalculateTime(candidateOpt.Location, B);
+                                timeRemoved = CalculateTime(A, B);
+                                costAdded = CalculateDistance(A, candidateOpt.Location) + CalculateDistance(candidateOpt.Location, B);
+                                costRemoved = CalculateDistance(A, B);
+                                trialCost = costAdded - costRemoved;
+                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;
+                                if (trialTime < bestInsertion.Duration & rt.Duration + trialTime <= rt.MaxDuration & trialCost < bestInsertion.Cost)
                                 {
                                     //if respects time window()
                                     //decide starting time = max(starting time allowed, time of arrival)
@@ -132,10 +148,11 @@ namespace VrdpoProject
                                     //calculate time windows for the next customers of route
                                     bestInsertion.Option = candidateOpt;
                                     bestInsertion.Customer = candidateOpt.Cust;
+                                    bestInsertion.Location = candidateOpt.Location;
                                     bestInsertion.Route = rt;
                                     bestInsertion.InsertionPosition = j;
                                     bestInsertion.Duration = trialTime;
-                                    bestInsertion.Cost = Math.Ceiling(CalculateDistance(A, B) * 10);
+                                    bestInsertion.Cost = trialCost;
                                 }
                             }
                         }
@@ -146,14 +163,15 @@ namespace VrdpoProject
 
         void ApplyCustomerInsertionAllPositions(CustomerInsertionAllPositions insertion)
         {
-            insertion.Route.SequenceOfNodes.Insert(insertion.InsertionPosition + 1, insertion.Customer);
+            insertion.Route.SequenceOfLocations.Insert(insertion.InsertionPosition + 1, insertion.Location);
+            insertion.Route.SequenceOfCustomers.Insert(insertion.InsertionPosition, insertion.Customer);
+            insertion.Route.SequenceOfOptions.Insert(insertion.InsertionPosition, insertion.Option);
             insertion.Route.Duration += insertion.Duration;
-            sol.Cost += insertion.Cost;
-            sol.Duration += insertion.Duration;
             insertion.Route.Load += insertion.Customer.Dem;
             insertion.Customer.IsRouted = true;
-            //allNodes[insertion.Customer.Id].IsRouted = true; 
             insertion.Option.IsServed = true;
+            sol.Cost += insertion.Cost;
+            sol.Duration += insertion.Duration;
             //update sequences of time
         }
 
@@ -175,7 +193,7 @@ namespace VrdpoProject
                 }
             }
         }
-
+        /*
         List<List<int>> GroupSharedLocations(List<Option> shList)
         {
             List<Option> query = shList.GroupBy(x => x.Location).Select(x => x.First()).ToList();
@@ -216,11 +234,11 @@ namespace VrdpoProject
             }
             return couples;
         }
-
+        
         void RouteCustomersToSharedLocations()
         {
             List<Option> sharedLocationsOptions = options.Where(x => x.ServiceTime == 2)
-                                                  .OrderByDescending(p => FindMatrix(storage.Id, p.Cust.Id))
+                                                  .OrderByDescending(p => FindMatrix(depot.Id, p.Cust.Id))
                                                   .ThenBy(p => p.Prio)
                                                   .ToList();
 
@@ -229,19 +247,19 @@ namespace VrdpoProject
             double costOfInsertions = 0;
             for (int i = 0; i < sharedLocationGroups.Count; i++)
             {
-                Route newRoute = new(sol.Routes.Count, cap, 100000, storage);
+                Route newRoute = new(sol.Routes.Count, cap, 100000, depot);
                 for (int j = 0; j < sharedLocationGroups[i].Count; j++)
                 {
                     newRoute.SequenceOfNodes.Insert(newRoute.SequenceOfNodes.Count - 2,
                                             allNodes[sharedLocationGroups[i][j]]);
                 }
-                costOfInsertions += FindMatrix(sharedLocationGroups[i][0], storage.Id)
-                                    + FindMatrix(sharedLocationGroups[i][1], storage.Id)
+                costOfInsertions += FindMatrix(sharedLocationGroups[i][0], depot.Id)
+                                    + FindMatrix(sharedLocationGroups[i][1], depot.Id)
                                     +FindMatrix(sharedLocationGroups[i][0], sharedLocationGroups[i][1]);
                 newRoute.Cost += costOfInsertions;
                 sol.Routes.Add(newRoute);
                 sol.Cost += newRoute.Cost;
             }
-        }
+        }*/
     }
 }

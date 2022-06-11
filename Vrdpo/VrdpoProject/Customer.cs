@@ -12,21 +12,18 @@ namespace VrdpoProject
         private List<Location> locations;
         private List<Option> options;
         private int dem;
-        private int serviceTime;
         private bool isRouted;
         //option routed
 
-        public Customer(int id, int dem, int serviceTime, bool isRouted)
+        public Customer(int id, int dem, bool isRouted)
         {
             this.id = id;
             this.dem = dem;
-            this.serviceTime = serviceTime;
             this.isRouted = isRouted;
         }
 
         public int Id { get => id; set => id = value; }
         public int Dem { get => dem; set => dem = value; }
-        public int ServiceTime { get => serviceTime; set => serviceTime = value; }
         public bool IsRouted { get => isRouted; set => isRouted = value; }
         internal List<Location> Locations { get => locations; set => locations = value; }
         internal List<Option> Options { get => options; set => options = value; }

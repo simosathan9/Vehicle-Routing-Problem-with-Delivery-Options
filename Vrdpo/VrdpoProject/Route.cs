@@ -9,7 +9,7 @@ namespace VrdpoProject
     internal class Route
     {
         private int id;
-        private List<Customer> sequenceOfCustomer = new();
+        private List<Customer> sequenceOfCustomers = new();
         private List<Location> sequenceOfLocations = new();
         private List<Option> sequenceOfOptions = new();
         private double load;
@@ -42,7 +42,8 @@ namespace VrdpoProject
         public double FixedCost { get => fixedCost; set => fixedCost = value; }
         public int[] SequenceOfStartingTime { get => sequenceOfStartingTime; set => sequenceOfStartingTime = value; }
         public int[] SequenceOfEndingTime { get => sequenceOfEndingTime; set => sequenceOfEndingTime = value; }
-        internal List<Location> SequenceOfNodes { get => sequenceOfLocations; set => sequenceOfLocations = value; }
+        internal List<Option> SequenceOfOptions{ get => sequenceOfOptions; set => sequenceOfOptions = value; }
         internal List<Location> SequenceOfLocations { get => sequenceOfLocations; set => sequenceOfLocations = value; }
+        internal List<Customer> SequenceOfCustomers { get => sequenceOfCustomers; set => sequenceOfCustomers = value; }
     }
 }
