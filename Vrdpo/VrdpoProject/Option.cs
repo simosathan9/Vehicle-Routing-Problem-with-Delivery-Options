@@ -9,13 +9,18 @@ namespace VrdpoProject
     internal class Option
     {
         private int id;
-        private int location;
-        private int cust;
+        private Location location;
+        private Customer cust;
         private int prio;
         private int serviceTime;
         private int cost;
+        private bool isServed;
+        //service time pelati + service time option
+        //Customer
+        private int ready;
+        private int due;
 
-        public Option(int id, int location, int cust, int prio, int serviceTime, int cost)
+        public Option(int id, Location location, Customer cust, int prio, int serviceTime, int cost, int ready, int due)
         {
             this.id = id;
             this.location = location;
@@ -23,13 +28,19 @@ namespace VrdpoProject
             this.prio = prio;
             this.serviceTime = serviceTime;
             this.cost = cost;
+            isServed = false;
+            this.ready = ready;
+            this.due = due;
         }
 
         public int Id { get => id; set => id = value; }
-        public int Location { get => location; set => location = value; }
-        public int Cust { get => cust; set => cust = value; }
+        public Location Location { get => location; set => location = value; }
+        public Customer Cust { get => cust; set => cust = value; }
         public int Prio { get => prio; set => prio = value; }
         public int ServiceTime { get => serviceTime; set => serviceTime = value; }
         public int Cost { get => cost; set => cost = value; }
+        public bool IsServed { get => isServed; set => isServed = value; }
+        public int Ready { get => ready; set => ready = value; }
+        public int Due { get => due; set => due = value; }
     }
 }
