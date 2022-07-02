@@ -140,9 +140,12 @@ namespace VrdpoProject
                                 costRemoved = CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
                                 trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;
-                                if (trialTime < bestInsertion.Duration & rt.Duration + trialTime <= rt.MaxDuration & trialCost < bestInsertion.Cost)
+                                //if respects time window(Rt rt, j, trialtime)
+                                // j - 1 take earliest completion time
+                                // j + 1 take latest arrival time
+                                // return (ect + trialtime <= lat) (if true feasible)
+                                if (rt.Duration + trialTime <= rt.MaxDuration & trialCost < bestInsertion.Cost)
                                 {
-                                    //if respects time window()
                                     //decide starting time = max(starting time allowed, time of arrival)
                                     //if starting time + service time  <= finishing time allowed
                                     //calculate time windows for the next customers of route
@@ -172,7 +175,9 @@ namespace VrdpoProject
             insertion.Option.IsServed = true;
             sol.Cost += insertion.Cost;
             sol.Duration += insertion.Duration;
-            //update sequences of time
+            //update sequences of time(Rt rt)
+            //ect = max(arrival time, starting time window) + service time
+            //lat = min(due time window next + travel time, due time window - service time)
         }
 
         void MinimumInsertions()
