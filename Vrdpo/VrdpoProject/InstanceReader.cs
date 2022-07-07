@@ -90,7 +90,7 @@ namespace VrdpoProject
                     b = allLocations[j];
                     dist = Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
                     timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                    distanceMatrix[i, j - i] = (int)(Math.Ceiling(10*dist));
+                    distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
                 }
             }
             //Update all data structures

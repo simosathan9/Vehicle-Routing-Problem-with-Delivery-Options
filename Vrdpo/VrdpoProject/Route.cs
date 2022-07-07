@@ -20,6 +20,9 @@ namespace VrdpoProject
         private double fixedCost;
         private int[] sequenceOfStartingTime;
         private int[] sequenceOfEndingTime;
+        private List<double> sequenceOfEct = new();
+        private List<double> sequenceOfLat = new();
+
         public Route(int id, double capacity, double maxDuration, Location storage)
         {
             this.sequenceOfLocations.Add(storage);
@@ -31,6 +34,11 @@ namespace VrdpoProject
             this.fixedCost = 1000000;
             this.cost = fixedCost;
             this.Id = id;
+            this.sequenceOfEct.Add(0);
+            this.sequenceOfEct.Add(0);
+            this.sequenceOfLat.Add(720);
+            this.sequenceOfLat.Add(720);
+
         }
 
         public int Id { get => id; set => id = value; }
@@ -42,6 +50,8 @@ namespace VrdpoProject
         public double FixedCost { get => fixedCost; set => fixedCost = value; }
         public int[] SequenceOfStartingTime { get => sequenceOfStartingTime; set => sequenceOfStartingTime = value; }
         public int[] SequenceOfEndingTime { get => sequenceOfEndingTime; set => sequenceOfEndingTime = value; }
+        public List<double> SequenceOfEct { get => sequenceOfEct; set => sequenceOfEct = value; }
+        public List<double> SequenceOfLat { get => sequenceOfLat; set => sequenceOfLat = value; }
         internal List<Option> SequenceOfOptions{ get => sequenceOfOptions; set => sequenceOfOptions = value; }
         internal List<Location> SequenceOfLocations { get => sequenceOfLocations; set => sequenceOfLocations = value; }
         internal List<Customer> SequenceOfCustomers { get => sequenceOfCustomers; set => sequenceOfCustomers = value; }

@@ -42,8 +42,9 @@ namespace VrdpoProject
                 Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
                 Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
                 Console.WriteLine("--------------");
-           }
-           Console.WriteLine(sol.Cost);
+
+            }
+            Console.WriteLine(sol.Cost);
            //Console.WriteLine();
            //RouteCustomersToSharedLocations();
         }
@@ -105,17 +106,36 @@ namespace VrdpoProject
         {
             if (id1 > id2)
             {
-                return distanceMatrix[id2, id1 - id2];
+                return timeMatrix[id2, id1 - id2];
             }
             else
             {
-                return distanceMatrix[id1, id2 - id1];
+                return timeMatrix[id1, id2 - id1];
             }
         }
 
+        /**bool RespectsTimeWindow(Route rt, int loc, Location l)
+        {
+            double lat = Math.Min(l.Due - l.ServiceTime, rt.SequenceOfLat[loc + 1] - CalculateDistance(l, rt.SequenceOfLocations[loc + 1]) - l.ServiceTime);
+
+            double ect = Math.Max(l.Ready + l.ServiceTime, rt.SequenceOfEct[loc] + CalculateDistance(rt.SequenceOfLocations[loc], l) + l.ServiceTime);
+            return (ect <= lat);
+        }
+        **/
+        bool RespectsTimeWindow(Route rt, int loc, Location l)
+        {
+            double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateDistance(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);//+1???
+            double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateDistance(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime) ;
+
+            return (ect <= lat);
+        }
+        
+
+        //void UpdateTimeWindows
+
         Option candidateOpt;
         Location A, B;
-        double timeAdded, timeRemoved, trialTime;
+        double timeAdded, timeRemoved, trialTime, startingTime;
         double costAdded, costRemoved, trialCost;
 
         void IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion)
@@ -139,28 +159,42 @@ namespace VrdpoProject
                                 costAdded = CalculateDistance(A, candidateOpt.Location) + CalculateDistance(candidateOpt.Location, B);
                                 costRemoved = CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
-                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;
-                                //if respects time window(Rt rt, j, trialtime)
-                                // j - 1 take earliest completion time
-                                // j + 1 take latest arrival time
-                                // return (ect + trialtime <= lat) (if true feasible)
-                                if (rt.Duration + trialTime <= rt.MaxDuration & trialCost < bestInsertion.Cost)
-                                {
-                                    //decide starting time = max(starting time allowed, time of arrival)
-                                    //if starting time + service time  <= finishing time allowed
-                                    //calculate time windows for the next customers of route
-                                    bestInsertion.Option = candidateOpt;
-                                    bestInsertion.Customer = candidateOpt.Cust;
-                                    bestInsertion.Location = candidateOpt.Location;
-                                    bestInsertion.Route = rt;
-                                    bestInsertion.InsertionPosition = j;
-                                    bestInsertion.Duration = trialTime;
-                                    bestInsertion.Cost = trialCost;
+                                trialTime = timeAdded - timeRemoved + candidateOpt.ServiceTime;
+                                if (RespectsTimeWindow(rt, j, candidateOpt.Location)) { 
+
+                                    if (rt.Duration + trialTime <= rt.MaxDuration & trialCost < bestInsertion.Cost &
+                                        candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
+                                    {
+                                        bestInsertion.Option = candidateOpt;
+                                        bestInsertion.Customer = candidateOpt.Cust;
+                                        bestInsertion.Location = candidateOpt.Location;
+                                        bestInsertion.Route = rt;
+                                        bestInsertion.InsertionPosition = j;
+                                        bestInsertion.Duration = trialTime;
+                                        bestInsertion.Cost = trialCost;
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+
+
+
+        void UpdateTimes(Route rt, int loc) 
+        {
+            for (int i = loc; i < rt.SequenceOfLocations.Count; i++)
+            {
+                rt.SequenceOfEct[i] = Math.Max(rt.SequenceOfLocations[i].Ready + rt.SequenceOfLocations[i].ServiceTime,
+                                               rt.SequenceOfEct[i - 1] + FindMatrix(i - 1, i) + rt.SequenceOfLocations[i].ServiceTime);
+            }
+
+            for (int j = loc; j > 0; j--)
+            {
+                rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
+                                               rt.SequenceOfLat[j + 1] - FindMatrix(j, j + 1) - rt.SequenceOfLocations[j].ServiceTime);
             }
         }
 
@@ -175,9 +209,20 @@ namespace VrdpoProject
             insertion.Option.IsServed = true;
             sol.Cost += insertion.Cost;
             sol.Duration += insertion.Duration;
+            insertion.Location.Cap += 1;
+            double tempEct = Math.Max(insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].Ready + insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime,
+                                      insertion.Route.SequenceOfEct[insertion.InsertionPosition] + FindMatrix(insertion.InsertionPosition, insertion.InsertionPosition + 1) + insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime);
+            double tempLat = Math.Min(insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].Due - insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime,
+                                      insertion.Route.SequenceOfLat[insertion.InsertionPosition + 1] - FindMatrix(insertion.InsertionPosition + 1, insertion.InsertionPosition + 2) - insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime);
+            insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition + 1, tempEct);
+            insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition + 1, tempLat);
+            UpdateTimes(insertion.Route, insertion.InsertionPosition + 1);
+            //
             //update sequences of time(Rt rt)
+            //for i to n
             //ect = max(arrival time, starting time window) + service time
-            //lat = min(due time window next + travel time, due time window - service time)
+            //for n to i
+            //lat = min(ending time previous + travel time, due time window - service time)
         }
 
         void MinimumInsertions()
