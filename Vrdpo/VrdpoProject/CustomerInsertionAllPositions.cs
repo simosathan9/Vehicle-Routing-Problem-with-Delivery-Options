@@ -16,6 +16,8 @@ namespace VrdpoProject
         private double duration;
         private Option option;
         private Location location;
+        private double ect;
+        private double lat;
 
         public CustomerInsertionAllPositions(Customer customer, Route route, int insertionPosition, double cost, double duration, Option option, Location location)
         {
@@ -45,5 +47,7 @@ namespace VrdpoProject
         internal Route Route { get => route; set => route = value; }
         internal Option Option { get => option; set => option = value; }
         internal Location Location { get => location; set => location = value; }
+        public double Ect { get => ect; set => ect = value; }
+        public double Lat { get => lat; set => lat = value; }
     }
 }

@@ -36,8 +36,8 @@ namespace VrdpoProject
             this.Id = id;
             this.sequenceOfEct.Add(0);
             this.sequenceOfEct.Add(0);
-            this.sequenceOfLat.Add(720);
-            this.sequenceOfLat.Add(720);
+            this.sequenceOfLat.Add(7200);
+            this.sequenceOfLat.Add(7200);
 
         }
 

@@ -29,8 +29,8 @@ namespace VrdpoProject
 
         public void BuildModel()
         {
-            string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
-            //string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
+            //string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
+            string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
             //string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
             var temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             cap = Int32.Parse(temp1[1]);
@@ -39,7 +39,7 @@ namespace VrdpoProject
             int numbOpt = Int32.Parse(temp1[4]);
             temp1 = instance[8+numbCus].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             depot = new Location(Int32.Parse(temp1[0]), Int32.Parse(temp1[1]), Int32.Parse(temp1[2]),
-                Int32.Parse(temp1[3]), Int32.Parse(temp1[4]), Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[6]));
+                Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[6]));
             allLocations.Add(depot);
 
             for (var i = 6; i < 6 + numbCus; i++)
@@ -54,7 +54,7 @@ namespace VrdpoProject
             {
                 string[] temp2 = Regex.Split(instance[j], @"\t+");
                 Location loc = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]),
-                   Int32.Parse(temp2[3]), Int32.Parse(temp2[4]), Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), Int32.Parse(temp2[7]));
+                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), Int32.Parse(temp2[7]));
                 allLocations.Add(loc);
             }
             

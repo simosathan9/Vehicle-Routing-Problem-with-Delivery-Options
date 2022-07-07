@@ -41,6 +41,15 @@ namespace VrdpoProject
                 }
                 Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
                 Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
+                /*for (int i = 0; i < r.SequenceOfEct.Count; i++)
+                {
+                    Console.WriteLine(r.SequenceOfEct[i]);
+                }
+                Console.WriteLine("///");
+                for (int i = 0; i < r.SequenceOfLat.Count; i++)
+                {
+                    Console.WriteLine(r.SequenceOfLat[i]);
+                }*/
                 Console.WriteLine("--------------");
 
             }
@@ -122,12 +131,12 @@ namespace VrdpoProject
             return (ect <= lat);
         }
         **/
-        bool RespectsTimeWindow(Route rt, int loc, Location l)
+        double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
             double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateDistance(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);//+1???
             double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateDistance(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime) ;
-
-            return (ect <= lat);
+            double[] tw = new double[]{ ect, lat };
+            return tw;
         }
         
 
@@ -135,8 +144,9 @@ namespace VrdpoProject
 
         Option candidateOpt;
         Location A, B;
-        double timeAdded, timeRemoved, trialTime, startingTime;
+        double timeAdded, timeRemoved, trialTime;
         double costAdded, costRemoved, trialCost;
+        double[] tw;
 
         void IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion)
         {
@@ -160,18 +170,23 @@ namespace VrdpoProject
                                 costRemoved = CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
                                 trialTime = timeAdded - timeRemoved + candidateOpt.ServiceTime;
-                                if (RespectsTimeWindow(rt, j, candidateOpt.Location)) { 
+                                tw = RespectsTimeWindow(rt, j, candidateOpt.Location);
+                                if (tw[0] <= tw[1]) { 
 
-                                    if (rt.Duration + trialTime <= rt.MaxDuration & trialCost < bestInsertion.Cost &
-                                        candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
+                                    if (trialCost < bestInsertion.Cost)
                                     {
-                                        bestInsertion.Option = candidateOpt;
-                                        bestInsertion.Customer = candidateOpt.Cust;
-                                        bestInsertion.Location = candidateOpt.Location;
-                                        bestInsertion.Route = rt;
-                                        bestInsertion.InsertionPosition = j;
-                                        bestInsertion.Duration = trialTime;
-                                        bestInsertion.Cost = trialCost;
+                                        if (candidateOpt.Location.Type == 2 | candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
+                                        {
+                                            bestInsertion.Option = candidateOpt;
+                                            bestInsertion.Customer = candidateOpt.Cust;
+                                            bestInsertion.Location = candidateOpt.Location;
+                                            bestInsertion.Route = rt;
+                                            bestInsertion.InsertionPosition = j;
+                                            bestInsertion.Duration = trialTime;
+                                            bestInsertion.Cost = trialCost;
+                                            bestInsertion.Ect = tw[0];
+                                            bestInsertion.Lat = tw[1];
+                                        }
                                     }
                                 }
                             }
@@ -188,13 +203,15 @@ namespace VrdpoProject
             for (int i = loc; i < rt.SequenceOfLocations.Count; i++)
             {
                 rt.SequenceOfEct[i] = Math.Max(rt.SequenceOfLocations[i].Ready + rt.SequenceOfLocations[i].ServiceTime,
-                                               rt.SequenceOfEct[i - 1] + FindMatrix(i - 1, i) + rt.SequenceOfLocations[i].ServiceTime);
+                                               rt.SequenceOfEct[i - 1] + CalculateDistance(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i - 1])
+                                               + rt.SequenceOfLocations[i].ServiceTime);
             }
 
-            for (int j = loc; j > 0; j--)
+            for (int j = loc; j > -1; j--)
             {
                 rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
-                                               rt.SequenceOfLat[j + 1] - FindMatrix(j, j + 1) - rt.SequenceOfLocations[j].ServiceTime);
+                                               rt.SequenceOfLat[j + 1] - CalculateDistance(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
+                                               - rt.SequenceOfLocations[j].ServiceTime);
             }
         }
 
@@ -210,19 +227,33 @@ namespace VrdpoProject
             sol.Cost += insertion.Cost;
             sol.Duration += insertion.Duration;
             insertion.Location.Cap += 1;
-            double tempEct = Math.Max(insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].Ready + insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime,
-                                      insertion.Route.SequenceOfEct[insertion.InsertionPosition] + FindMatrix(insertion.InsertionPosition, insertion.InsertionPosition + 1) + insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime);
-            double tempLat = Math.Min(insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].Due - insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime,
-                                      insertion.Route.SequenceOfLat[insertion.InsertionPosition + 1] - FindMatrix(insertion.InsertionPosition + 1, insertion.InsertionPosition + 2) - insertion.Route.SequenceOfLocations[insertion.InsertionPosition + 1].ServiceTime);
-            insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition + 1, tempEct);
-            insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition + 1, tempLat);
+            insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition + 1, insertion.Ect);
+            insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition + 1, insertion.Lat);
+            Console.WriteLine();
+            Console.Write("ect");
+            for (int i = 0; i < insertion.Route.SequenceOfEct.Count; i++)
+            {
+                Console.Write(" {0}", insertion.Route.SequenceOfEct[i]);
+            }
+            Console.WriteLine();
+            Console.Write("lat");
+            for (int i = 0; i < insertion.Route.SequenceOfLat.Count; i++)
+            {
+                Console.Write(" {0}", insertion.Route.SequenceOfLat[i]);
+            }
             UpdateTimes(insertion.Route, insertion.InsertionPosition + 1);
-            //
-            //update sequences of time(Rt rt)
-            //for i to n
-            //ect = max(arrival time, starting time window) + service time
-            //for n to i
-            //lat = min(ending time previous + travel time, due time window - service time)
+            Console.WriteLine();
+            Console.Write("ect");
+            for (int i = 0; i < insertion.Route.SequenceOfEct.Count; i++)
+            {
+                Console.Write(" {0}", insertion.Route.SequenceOfEct[i]);
+            }
+            Console.WriteLine();
+            Console.Write("lat");
+            for (int i = 0; i < insertion.Route.SequenceOfLat.Count; i++)
+            {
+                Console.Write(" {0}", insertion.Route.SequenceOfLat[i]);
+            }
         }
 
         void MinimumInsertions()
