@@ -15,8 +15,6 @@ namespace VrdpoProject
         private int serviceTime;
         private int cost;
         private bool isServed;
-        //service time pelati + service time option
-        //Customer
         private int ready;
         private int due;
 

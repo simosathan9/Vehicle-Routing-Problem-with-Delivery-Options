@@ -54,6 +54,7 @@ namespace VrdpoProject
 
             }
             Console.WriteLine(sol.Cost);
+            CalculateServiceLevel(sol);
            //Console.WriteLine();
            //RouteCustomersToSharedLocations();
         }
@@ -123,14 +124,6 @@ namespace VrdpoProject
             }
         }
 
-        /**bool RespectsTimeWindow(Route rt, int loc, Location l)
-        {
-            double lat = Math.Min(l.Due - l.ServiceTime, rt.SequenceOfLat[loc + 1] - CalculateDistance(l, rt.SequenceOfLocations[loc + 1]) - l.ServiceTime);
-
-            double ect = Math.Max(l.Ready + l.ServiceTime, rt.SequenceOfEct[loc] + CalculateDistance(rt.SequenceOfLocations[loc], l) + l.ServiceTime);
-            return (ect <= lat);
-        }
-        **/
         double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
             double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateDistance(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);//+1???
@@ -138,9 +131,6 @@ namespace VrdpoProject
             double[] tw = new double[]{ ect, lat };
             return tw;
         }
-        
-
-        //void UpdateTimeWindows
 
         Option candidateOpt;
         Location A, B;
@@ -229,31 +219,7 @@ namespace VrdpoProject
             insertion.Location.Cap += 1;
             insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition + 1, insertion.Ect);
             insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition + 1, insertion.Lat);
-            Console.WriteLine();
-            Console.Write("ect");
-            for (int i = 0; i < insertion.Route.SequenceOfEct.Count; i++)
-            {
-                Console.Write(" {0}", insertion.Route.SequenceOfEct[i]);
-            }
-            Console.WriteLine();
-            Console.Write("lat");
-            for (int i = 0; i < insertion.Route.SequenceOfLat.Count; i++)
-            {
-                Console.Write(" {0}", insertion.Route.SequenceOfLat[i]);
-            }
             UpdateTimes(insertion.Route, insertion.InsertionPosition + 1);
-            Console.WriteLine();
-            Console.Write("ect");
-            for (int i = 0; i < insertion.Route.SequenceOfEct.Count; i++)
-            {
-                Console.Write(" {0}", insertion.Route.SequenceOfEct[i]);
-            }
-            Console.WriteLine();
-            Console.Write("lat");
-            for (int i = 0; i < insertion.Route.SequenceOfLat.Count; i++)
-            {
-                Console.Write(" {0}", insertion.Route.SequenceOfLat[i]);
-            }
         }
 
         void MinimumInsertions()
@@ -273,6 +239,38 @@ namespace VrdpoProject
                     break;
                 }
             }
+        }
+        void CalculateServiceLevel(Solution sol)
+        {
+            int po0Sum = 0;
+            int po1Sum = 0;
+            int po2Sum = 0;
+            double sum = 0;
+            int po = -1;
+
+            for (int r = 0; r < sol.Routes.Count; r++)
+            {
+                for (int c = 0; c < sol.Routes[r].SequenceOfOptions.Count; c++)
+                {
+                    po = sol.Routes[r].SequenceOfOptions[c].Prio;
+                    switch (po)
+                    {
+                        case 0:
+                            po0Sum++;
+                            break;
+                        case 1:
+                            po1Sum++;
+                            break;
+                        case 2:
+                            po2Sum++;
+                            break;
+                    }
+                }
+            }
+            sum = po0Sum + po1Sum + po2Sum;
+            Console.WriteLine("Priority 1: {0}", po0Sum/sum);
+            Console.WriteLine("Priority 2: {0}", po1Sum/sum);
+            Console.WriteLine("Priority 3: {0}", po2Sum/sum);
         }
         /*
         List<List<int>> GroupSharedLocations(List<Option> shList)

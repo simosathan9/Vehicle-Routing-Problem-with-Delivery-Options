@@ -18,7 +18,6 @@ namespace VrdpoProject
         private int cap;
         private Location depot;
         private List<Option> options = new();
-        //travel time travel cost
         public int Cap { get => cap; set => cap = value; }
         public double[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
         public double[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
@@ -29,8 +28,8 @@ namespace VrdpoProject
 
         public void BuildModel()
         {
-            //string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
-            string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
+            string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
+            //string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
             //string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
             var temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             cap = Int32.Parse(temp1[1]);
