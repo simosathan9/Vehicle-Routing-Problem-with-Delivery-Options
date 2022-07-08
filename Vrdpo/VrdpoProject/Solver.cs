@@ -124,6 +124,32 @@ namespace VrdpoProject
             }
         }
 
+
+        void ReportSolution(Solution sol)
+        {
+            using StreamWriter writetext = new StreamWriter("write.txt");
+
+            writetext.WriteLine("Total cost: " + sol.Cost + "\n");
+            writetext.WriteLine("\n");
+
+            for (int i = 0; i < sol.Routes.Count; i++)
+            {
+                writetext.WriteLine("Route " + Convert.ToString(i) + " " + "Location " + "Option " + "Customer" + "\n");
+                Route rt = sol.Routes[i];
+                for (int j = 0; j < rt.SequenceOfOptions.Count; j++)
+                {
+                    if (j == 0 | j == rt.SequenceOfOptions.Count - 1)
+                    {
+                        writetext.WriteLine(rt.SequenceOfLocations[j] + " " + "-" + " " + "-" + "\n");
+                    }
+                    else
+                    {
+                        writetext.WriteLine(rt.SequenceOfLocations[j] + " " + rt.SequenceOfOptions[j - 1] + " " + rt.SequenceOfCustomers[j - 1] + "\n");
+                    }
+                }
+            }
+            writetext.Close();
+        }
         double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
             double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateDistance(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);//+1???
@@ -239,6 +265,7 @@ namespace VrdpoProject
                     break;
                 }
             }
+            ReportSolution(sol);
         }
         void CalculateServiceLevel(Solution sol)
         {
