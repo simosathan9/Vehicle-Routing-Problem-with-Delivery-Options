@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace VrdpoProject
 {
-    internal class Location
+    public class Location
     {
         private int id;
         private int xx;

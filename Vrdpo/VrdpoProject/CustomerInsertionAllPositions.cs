@@ -19,7 +19,8 @@ namespace VrdpoProject
         private double ect;
         private double lat;
 
-        public CustomerInsertionAllPositions(Customer customer, Route route, int insertionPosition, double cost, double duration, Option option, Location location)
+        public CustomerInsertionAllPositions(Customer customer, Route route, int insertionPosition,
+            double cost, double duration, Option option, Location location)
         {
             this.customer = customer;
             this.route = route;

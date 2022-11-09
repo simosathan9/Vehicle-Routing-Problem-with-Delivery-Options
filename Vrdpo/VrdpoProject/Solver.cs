@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace VrdpoProject
 {
-    internal class Solver
+    public class Solver
     {
         private CustomerInsertionAllPositions bestInsertion = new();
         private Solution sol = new();
@@ -22,41 +22,59 @@ namespace VrdpoProject
         public Solver(InstanceReader ir)
         {
             this.customers = ir.AllCustomers;
-            this.distanceMatrix = ir.DistanceMatrix;
+            this.DistanceMatrix = ir.DistanceMatrix;
             this.timeMatrix = ir.TimeMatrix;
             this.cap = ir.Cap;
             this.depot = ir.Depot;
             this.options = ir.Options;
         }
 
+        public Solver()
+        {
+            this.Sol = Sol;
+            this.customers = customers;
+            this.DistanceMatrix = DistanceMatrix;
+            this.timeMatrix = timeMatrix;
+            this.depot = depot;
+            this.options = options;
+        }
+
         public void Solve()
         {
+            LocalSearch ls = new();
             SetRoutedToFalse(customers);
             MinimumInsertions();
-           foreach (Route r in sol.Routes)
-           {
+            foreach (Route r in Sol.Routes)
+            {
+                Console.WriteLine("LOCATION | CUSTOMER");
                 for (int i = 0; i < r.SequenceOfOptions.Count; i++)
                 {
                     Console.WriteLine("{0} {1}", r.SequenceOfOptions[i].Location.Id, r.SequenceOfOptions[i].Cust.Id);
                 }
                 Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
                 Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
-                /*for (int i = 0; i < r.SequenceOfEct.Count; i++)
-                {
-                    Console.WriteLine(r.SequenceOfEct[i]);
-                }
-                Console.WriteLine("///");
-                for (int i = 0; i < r.SequenceOfLat.Count; i++)
-                {
-                    Console.WriteLine(r.SequenceOfLat[i]);
-                }*/
                 Console.WriteLine("--------------");
 
             }
-            Console.WriteLine(sol.Cost);
-            CalculateServiceLevel(sol);
-           //Console.WriteLine();
-           //RouteCustomersToSharedLocations();
+            Console.WriteLine(Sol.Cost);
+            CalculateServiceLevel(Sol);
+            Relocation rm = new();
+            ls.FindBestRelocationMove(rm, this);
+            foreach (Route r in Sol.Routes)
+            {
+                Console.WriteLine("LOCATION | CUSTOMER");
+                for (int i = 0; i < r.SequenceOfOptions.Count; i++)
+                {
+                    Console.WriteLine("{0} {1}", r.SequenceOfOptions[i].Location.Id, r.SequenceOfOptions[i].Cust.Id);
+                }
+                Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
+                Console.WriteLine("Max duration: {0} Duration:{1}", r.MaxDuration, r.Duration);
+                Console.WriteLine("--------------");
+            
+            }
+            Console.WriteLine(Sol.Cost);
+            CalculateServiceLevel(Sol);
+            //RouteCustomersToSharedLocations();
         }
 
         void SetRoutedToFalse(List<Customer> customers)
@@ -69,34 +87,34 @@ namespace VrdpoProject
 
         void AlwaysKeepAnEmptyRoute()
         {
-            if (sol.Routes.Count < 10)
+            if (Sol.Routes.Count < 10)
             {
-                if (sol.Routes.Count == 0)
+                if (Sol.Routes.Count == 0)
                 {
-                    Route newRoute = new(sol.Routes.Count, cap, 100000, depot);
-                    sol.Routes.Add(newRoute);
-                    sol.Cost += newRoute.Cost;
+                    Route newRoute = new(Sol.Routes.Count, cap, 100000, depot);
+                    Sol.Routes.Add(newRoute);
+                    Sol.Cost += newRoute.Cost;
                 }
                 else
                 {
-                    if (sol.Routes.Last().SequenceOfLocations.Count > 2)
+                    if (Sol.Routes.Last().SequenceOfLocations.Count > 2)
                     {
-                        Route newRoute = new(sol.Routes.Count, cap, 100000, depot);
-                        sol.Routes.Add(newRoute);
-                        sol.Cost += newRoute.Cost;
+                        Route newRoute = new(Sol.Routes.Count, cap, 100000, depot);
+                        Sol.Routes.Add(newRoute);
+                        Sol.Cost += newRoute.Cost;
                     }
                 }
             }
         }
 
-        double CalculateDistance(Location n1, Location n2)
+        public double CalculateDistance(Location n1, Location n2)
         {
             if (n1.Id > n2.Id)
             {
-                return distanceMatrix[n2.Id, n1.Id - n2.Id];
+                return DistanceMatrix[n2.Id, n1.Id - n2.Id];
             } else
             {
-                return distanceMatrix[n1.Id, n2.Id - n1.Id];
+                return DistanceMatrix[n1.Id, n2.Id - n1.Id];
             }
         }
 
@@ -127,7 +145,7 @@ namespace VrdpoProject
 
         void ReportSolution(Solution sol)
         {
-            using StreamWriter writetext = new StreamWriter("write.txt");
+            StreamWriter writetext = new("write.txt");
 
             writetext.WriteLine("Total cost: " + sol.Cost + "\n");
             writetext.WriteLine("\n");
@@ -150,10 +168,11 @@ namespace VrdpoProject
             }
             writetext.Close();
         }
-        double[] RespectsTimeWindow(Route rt, int loc, Location l)
+        public double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
-            double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateDistance(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);//+1???
-            double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateDistance(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime) ;
+            // loc: the position to be after
+            double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateTime(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);
+            double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateTime(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime);
             double[] tw = new double[]{ ect, lat };
             return tw;
         }
@@ -164,6 +183,9 @@ namespace VrdpoProject
         double costAdded, costRemoved, trialCost;
         double[] tw;
 
+        public double[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
+        public Solution Sol { get => sol; set => sol = value; }
+
         void IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion)
         {
             //goodoptions list
@@ -172,7 +194,7 @@ namespace VrdpoProject
                 candidateOpt = options[i];
                 if (candidateOpt.Cust.IsRouted == false & candidateOpt.IsServed == false)
                 {
-                    foreach (Route rt in sol.Routes)
+                    foreach (Route rt in Sol.Routes)
                     {
                         if (rt.Load + candidateOpt.Cust.Dem <= rt.Capacity)
                         {
@@ -219,14 +241,14 @@ namespace VrdpoProject
             for (int i = loc; i < rt.SequenceOfLocations.Count; i++)
             {
                 rt.SequenceOfEct[i] = Math.Max(rt.SequenceOfLocations[i].Ready + rt.SequenceOfLocations[i].ServiceTime,
-                                               rt.SequenceOfEct[i - 1] + CalculateDistance(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i - 1])
+                                               rt.SequenceOfEct[i - 1] + CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i - 1])
                                                + rt.SequenceOfLocations[i].ServiceTime);
             }
 
             for (int j = loc; j > -1; j--)
             {
                 rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
-                                               rt.SequenceOfLat[j + 1] - CalculateDistance(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
+                                               rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
                                                - rt.SequenceOfLocations[j].ServiceTime);
             }
         }
@@ -240,8 +262,8 @@ namespace VrdpoProject
             insertion.Route.Load += insertion.Customer.Dem;
             insertion.Customer.IsRouted = true;
             insertion.Option.IsServed = true;
-            sol.Cost += insertion.Cost;
-            sol.Duration += insertion.Duration;
+            Sol.Cost += insertion.Cost;
+            Sol.Duration += insertion.Duration;
             insertion.Location.Cap += 1;
             insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition + 1, insertion.Ect);
             insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition + 1, insertion.Lat);
@@ -265,7 +287,7 @@ namespace VrdpoProject
                     break;
                 }
             }
-            ReportSolution(sol);
+            ReportSolution(Sol);
         }
         void CalculateServiceLevel(Solution sol)
         {

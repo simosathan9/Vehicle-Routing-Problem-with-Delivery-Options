@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace VrdpoProject
 {
-    internal class Route
+    public class Route
     {
         private int id;
         private List<Customer> sequenceOfCustomers = new();

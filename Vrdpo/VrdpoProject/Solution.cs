@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 namespace VrdpoProject
 {
 
-    internal class Solution
+    public class Solution
     {
         private double duration;
         private double cost;
         private List<Route> routes;
-
+        //priority
         public Solution()
         {
             this.duration = 0;
@@ -24,5 +24,13 @@ namespace VrdpoProject
         public double Cost { get => cost; set => cost = value; }
         internal List<Route> Routes { get => routes; set => routes = value; }
     }
+    //Checkverything bool
+    //objective
+    //customers served
+    //location?
+    //time windows
+    //priority
+    //max routes
+    //depot first last
 }
 
