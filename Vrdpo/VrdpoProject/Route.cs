@@ -8,6 +8,7 @@ namespace VrdpoProject
 {
     public class Route
     {
+        private InstanceReader ir = new();
         private int id;
         private List<Customer> sequenceOfCustomers = new();
         private List<Location> sequenceOfLocations = new();
@@ -15,22 +16,28 @@ namespace VrdpoProject
         private double load;
         private double capacity;
         private double duration;
-        private double maxDuration;
         private double cost;
         private double fixedCost;
         private int[] sequenceOfStartingTime;
         private int[] sequenceOfEndingTime;
         private List<double> sequenceOfEct = new();
         private List<double> sequenceOfLat = new();
+        Customer fakeCustomer = new(1000, 0, true);
 
-        public Route(int id, double capacity, double maxDuration, Location storage)
+        public Route(int id, double capacity, Location storage)
         {
+            Location depot = ir.Depot;
             this.sequenceOfLocations.Add(storage);
             this.sequenceOfLocations.Add(storage);
+            this.sequenceOfCustomers.Add(fakeCustomer);
+            this.sequenceOfCustomers.Add(fakeCustomer);
+            Option fakeOpt = new(ir.NumbOpt, storage, fakeCustomer, 0, 0, 0, 0, 7200);
+            fakeOpt.IsServed = true;
+            this.sequenceOfOptions.Add(fakeOpt);
+            this.sequenceOfOptions.Add(fakeOpt);
             this.load = 0;
             this.capacity = capacity;
             this.duration = 0;
-            this.maxDuration = maxDuration;
             this.fixedCost = 1000000;
             this.cost = fixedCost;
             this.Id = id;
@@ -38,14 +45,12 @@ namespace VrdpoProject
             this.sequenceOfEct.Add(0);
             this.sequenceOfLat.Add(7200);
             this.sequenceOfLat.Add(7200);
-
         }
 
         public int Id { get => id; set => id = value; }
         public double Load { get => load; set => load = value; }
         public double Capacity { get => capacity; set => capacity = value; }
         public double Duration { get => duration; set => duration = value; }
-        public double MaxDuration { get => maxDuration; set => maxDuration = value; }
         public double Cost { get => cost; set => cost = value; }
         public double FixedCost { get => fixedCost; set => fixedCost = value; }
         public int[] SequenceOfStartingTime { get => sequenceOfStartingTime; set => sequenceOfStartingTime = value; }

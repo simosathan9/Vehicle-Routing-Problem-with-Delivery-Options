@@ -18,25 +18,38 @@ namespace VrdpoProject
         private int cap;
         private Location depot;
         private List<Option> options = new();
+        private string[] temp1;
+        private int numbLoc;
+        private int numbOpt;
+        private int numbCus;
+        private string[] instance;
+
+
+        public InstanceReader()
+        {
+            instance = System.IO.File.ReadAllLines("U_25medium_6.txt");
+            //string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
+            //string[] instance = System.IO.File.ReadAllLines("V_50medium_5.txt");
+            //string[] instance = System.IO.File.ReadAllLines("U_50large_7.txt");
+            temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
+            cap = Int32.Parse(temp1[1]);
+            numbLoc = Int32.Parse(temp1[2]);
+            numbCus = Int32.Parse(temp1[3]);
+            numbOpt = Int32.Parse(temp1[4]);
+            temp1 = instance[8 + numbCus].Split('\t', StringSplitOptions.RemoveEmptyEntries);
+        }
+
         public int Cap { get => cap; set => cap = value; }
         public double[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
         public double[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
         internal List<Customer> AllCustomers { get => allCustomers; set => allCustomers = value; }
-        internal Location Depot { get => depot; set => depot = value; }
+        public Location Depot { get => depot; set => depot = value; }
         internal List<Node> AllNodes { get => allNodes; set => allNodes = value; }
         internal List<Option> Options { get => options; set => options = value; }
+        internal int NumbOpt { get => numbOpt; set => numbOpt = value; }
 
         public void BuildModel()
         {
-            string[] instance = System.IO.File.ReadAllLines("U_25medium.txt");
-            //string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
-            //string[] instance = System.IO.File.ReadAllLines("newFile1.txt");
-            var temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
-            cap = Int32.Parse(temp1[1]);
-            int numbLoc = Int32.Parse(temp1[2]);
-            int numbCus = Int32.Parse(temp1[3]);
-            int numbOpt = Int32.Parse(temp1[4]);
-            temp1 = instance[8+numbCus].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             depot = new Location(Int32.Parse(temp1[0]), Int32.Parse(temp1[1]), Int32.Parse(temp1[2]),
                 Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[6]));
             allLocations.Add(depot);
@@ -53,7 +66,14 @@ namespace VrdpoProject
             {
                 string[] temp2 = Regex.Split(instance[j], @"\t+");
                 Location loc = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]),
-                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), Int32.Parse(temp2[7]));
+                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), 10*Int32.Parse(temp2[7]));
+                if (loc.Type == 1)
+                {
+                    loc.Due += 20;
+                } else if (loc.Type == 2)
+                {
+                    loc.Due += 50;
+                }
                 allLocations.Add(loc);
             }
             
@@ -61,7 +81,7 @@ namespace VrdpoProject
             {
                 string[] temp2 = Regex.Split(instance[m], @"\t+");
                 Option opt = new(Int32.Parse(temp2[0]), allLocations[Int32.Parse(temp2[1])], allCustomers[Int32.Parse(temp2[2])], Int32.Parse(temp2[3]),
-                    Int32.Parse(temp2[4]), Int32.Parse(temp2[5]), allLocations[Int32.Parse(temp2[1])].Ready, allLocations[Int32.Parse(temp2[1])].Due);         
+                    Int32.Parse(temp2[4]), Int32.Parse(temp2[5]), allLocations[Int32.Parse(temp2[1])].Ready, allLocations[Int32.Parse(temp2[1])].Due);
                 options.Add(opt);
             }
 

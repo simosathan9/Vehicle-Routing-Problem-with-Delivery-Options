@@ -20,6 +20,19 @@ namespace VrdpoProject
             this.routes = new List<Route>();
         }
 
+        public Solution(double duration, double cost, List<Route> routes)
+        {
+            this.Duration = duration;
+            this.Cost = cost;
+            this.Routes = routes;
+        }
+
+        public Solution DeepCopy()
+        {
+            Solution deepCopySol = new Solution(this.Duration, this.Cost, this.Routes);
+            return deepCopySol;
+        }
+
         public double Duration { get => duration; set => duration = value; }
         public double Cost { get => cost; set => cost = value; }
         internal List<Route> Routes { get => routes; set => routes = value; }

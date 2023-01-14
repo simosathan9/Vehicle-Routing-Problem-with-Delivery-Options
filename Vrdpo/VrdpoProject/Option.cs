@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace VrdpoProject
 {
-    internal class Option
+    public class Option
     {
         private int id;
         private Location location;
@@ -24,7 +24,7 @@ namespace VrdpoProject
             this.location = location;
             this.cust = cust;
             this.prio = prio;
-            this.serviceTime = serviceTime + location.ServiceTime;
+            this.serviceTime = (serviceTime * 10) + location.ServiceTime;
             this.cost = cost;
             isServed = false;
             this.ready = ready;
