@@ -275,56 +275,162 @@ namespace VrdpoProject
             }
         }
 
-        public TwoOpt FindBestTwoOptMove(TwoOpt top) {
-            for (int rtInd1 in range(0, len(self.sol.routes))) {
-                Route rt1 = self.sol.routes[rtInd1];
-                for (int rtInd2 in range(rtInd1, len(self.sol.routes))) {
-                    Route rt2 = self.sol.routes[rtInd2];
-                    for (int optInd1 in range(0, len(rt1.sequenceOfNodes) - 1)) {
+        public TwoOpt FindBestTwoOptMove(TwoOpt top, Solver solver) {
+            for (int rtInd1 = 0; rtInd1 < solver.Sol.Routes.Count; rtInd1++) {
+                Route rt1 = solver.Sol.Routes[rtInd1];
+                for (int rtInd2 = 0; rtInd2 < solver.Sol.Routes.Count; rtInd2++) {
+                    Route rt2 = solver.Sol.Routes[rtInd2];
+                    for (int optInd1 = 0; optInd1 < rt1.SequenceOfOptions.Count - 1; optInd1++) {
                         int start2 = 0;
                         if (rt1 == rt2) {
-                            start2 = nodeInd1 + 2;
+                            start2 = optInd1 + 2;
                         }
-                        for (int OptInd2 in range(start2, len(rt2.sequenceOfNodes) - 1)) {
-                            int moveCost = 10 * *9;
-                            Option A = rt1.sequenceOfOptions[optionInd1];
-                            Option B = rt1.sequenceOfOptions[optionInd1 + 1];
-                            Option K = rt2.sequenceOfOptions[optionInd2];
-                            Option L = rt2.sequenceOfOptions[optionInd2 + 1];
+                        for (int optInd2 = start2; optInd2 < rt2.SequenceOfOptions.Count - 1; optInd2++) {
+                            double moveCost = Math.Pow(10, 9);
+                            double costAdded;
+                            double costRemoved;
+
+                            Option A = rt1.SequenceOfOptions[optInd1];
+                            Option B = rt1.SequenceOfOptions[optInd1 + 1];
+                            Option K = rt2.SequenceOfOptions[optInd2];
+                            Option L = rt2.SequenceOfOptions[optInd2 + 1];
+
+                            double[] tw1 = solver.RespectsTimeWindow(rt1, optInd1, L.Location);
+                            double[] tw2 = solver.RespectsTimeWindow(rt2, optInd2, K.Location);
+                            double ect1 = tw1[0];
+                            double lat1 = tw1[1];
+                            double ect2 = tw2[0];
+                            double lat2 = tw2[1];
+
+                            if (ect1 > lat1 || ect2 > lat2) { continue; }
+
                             if (rt1 == rt2) {
-                                if (nodeInd1 == 0 & nodeInd2 == len(rt1.sequenceOfNodes) - 2) {
-                                    continue;
-                                }
-                                double costAdded = self.distanceMatrix[A.ID][K.ID] + self.distanceMatrix[B.ID][L.ID];
-                                double costRemoved = self.distanceMatrix[A.ID][B.ID] + self.distanceMatrix[K.ID][L.ID];
+                                if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
+
+                                costAdded = solver.CalculateDistance(A.Location, K.Location) + solver.CalculateDistance(B.Location, L.Location);
+                                costRemoved = solver.CalculateDistance(A.Location, B.Location) + solver.CalculateDistance(K.Location, L.Location);
                                 moveCost = costAdded - costRemoved;
-                            else {
-                                    if (nodeInd1 == 0 && nodeInd2 == 0) {
-                                        continue;
-                                    }
-                                    if (nodeInd1 == len(rt1.sequenceOfNodes) - 2 and nodeInd2 == len(rt2.sequenceOfNodes) - 2) {
-                                        continue;
-                                    }
-                                    if (self.CapacityIsViolated(rt1, nodeInd1, rt2, nodeInd2)) {
-                                        continue;
-                                    }
-                                    costAdded = self.distanceMatrix[A.ID][L.ID] + self.distanceMatrix[B.ID][K.ID];
-                                    costRemoved = self.distanceMatrix[A.ID][B.ID] + self.distanceMatrix[K.ID][L.ID];
-                                    moveCost = costAdded - costRemoved;
-                                }
-                                if (self.MoveIsTabuArc(A, K, iterator, moveCost) or self.MoveIsTabuArc(B, L, iterator, moveCost)) {
-                                    continue;
-                                }
-                                if moveCost < top.moveCost and abs(moveCost) {
-                                        self.StoreBestTwoOptMove(rtInd1, rtInd2, nodeInd1, nodeInd2, moveCost, top);
+
+                            } else {
+                                if (optInd1 == 0 && optInd2 == 0) { continue; }
+
+                                if (optInd1 == rt1.SequenceOfOptions.Count - 2 & optInd2 == rt2.SequenceOfOptions.Count - 2) { continue; }
+
+                                if (CapacityIsViolated(rt1, optInd1, rt2, optInd2)) { continue; }
+
+                                costAdded = solver.CalculateDistance(A.Location, L.Location) + solver.CalculateDistance(B.Location, K.Location);
+                                costRemoved = solver.CalculateDistance(A.Location, B.Location) + solver.CalculateDistance(K.Location, L.Location);
+                                moveCost = costAdded - costRemoved;
+
+                                if (moveCost < top.MoveCost)
+                                {
+                                    List<Option[]> arcs = new();
+                                    arcs.Add(new Option[] { A, L });
+                                    arcs.Add(new Option[] { B, K });
+                                    if (!CheckPromises(arcs, moveCost + solver.Sol.Cost, solver)) { continue; }
+                                    top.PositionOfFirstRoute = rtInd1;
+                                    top.PositionOfSecondRoute = rtInd2;
+                                    top.PositionOfFirstOption = optInd1;
+                                    top.PositionOfSecondOption = optInd2;
+                                    top.MoveCost = moveCost;
                                 }
                             }
                         }
                     }
                 }
             }
+            return top;
         }
- 
+
+        public bool CapacityIsViolated(Route rt1, int optionInd1, Route rt2, int optionInd2) {
+            double rt1FirstSegmentLoad = 0;
+            for (int i = 0; i < optionInd1 + 1; i++) {
+                Option n = rt1.SequenceOfOptions[i];
+                rt1FirstSegmentLoad += n.Cust.Dem;
+            }
+            double rt1SecondSegmentLoad = rt1.Load - rt1FirstSegmentLoad;
+            double rt2FirstSegmentLoad = 0;
+            for (int i = 0; i < optionInd2 + 1; i++) {
+                Option n = rt2.SequenceOfOptions[i];
+                rt2FirstSegmentLoad += n.Cust.Dem;
+            }
+            double rt2SecondSegmentLoad = rt2.Load - rt2FirstSegmentLoad;
+            if (rt1FirstSegmentLoad + rt2SecondSegmentLoad > rt1.Capacity) {
+                return true;
+            }
+            if (rt2FirstSegmentLoad + rt1SecondSegmentLoad > rt2.Capacity) {
+                return true;
+            }
+            return false;
+        }
+
+        public void ApplyTwoOptMove(TwoOpt top, Solver solver) {
+            Solution currentSol = solver.Sol;
+            if (top.PositionOfFirstOption != 0)
+            {
+                Route rt1 = solver.Sol.Routes[top.PositionOfFirstRoute];
+                Route rt2 = solver.Sol.Routes[top.PositionOfSecondRoute];
+                Option A = rt1.SequenceOfOptions[top.PositionOfFirstOption];
+                Option B = rt1.SequenceOfOptions[top.PositionOfFirstOption + 1];
+                Option K = rt2.SequenceOfOptions[top.PositionOfSecondOption];
+                Option L = rt2.SequenceOfOptions[top.PositionOfSecondOption + 1];
+                if (rt1 == rt2)
+                {
+                    // reverses the nodes in the segment [positionOfFirstNode + 1,  top.positionOfSecondNode]
+                    int frombase = top.PositionOfFirstOption + 1;
+                    int fromend = top.PositionOfSecondOption + 1;
+                    List<Option> reversedSegment = Enumerable.Reverse(rt1.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
+                    //rt1.SequenceOfOptions[frombase..fromend] = reversedSegment;//???
+                    rt1.SequenceOfOptions.RemoveRange(frombase, fromend - frombase);
+                    rt1.SequenceOfOptions.InsertRange(frombase, reversedSegment);
+                    rt1.Cost += top.MoveCost;
+                    solver.UpdateTimes(rt1);
+                }
+                else
+                {
+                    int frombase = top.PositionOfFirstOption + 1;
+                    int fromend = top.PositionOfSecondOption + 1;
+                    // slice with the nodes from position top.positionOfFirstNode + 1 onwards
+                    List<Option> relocatedSegmentOfRt1 = rt1.SequenceOfOptions.GetRange(frombase, rt1.SequenceOfOptions.Count - frombase).ToList();
+                    // slice with the nodes from position top.positionOfFirstNode + 1 onwards
+                    List<Option> relocatedSegmentOfRt2 = rt2.SequenceOfOptions.GetRange(fromend, rt2.SequenceOfOptions.Count - fromend).ToList();
+
+                    int length = rt1.SequenceOfOptions.Count - 1;
+                    for (int i = length; i >= top.PositionOfFirstOption + 1; i--)
+                    {
+                        rt1.SequenceOfOptions.RemoveAt(i);
+                    }
+                    length = rt2.SequenceOfOptions.Count - 1;
+                    for (int i = length; i >= top.PositionOfSecondOption + 1; i--)
+                    {
+                        rt2.SequenceOfOptions.RemoveAt(i);
+                    }
+                    rt1.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt2);
+                    rt2.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt1);
+                    UpdateRouteCostAndLoad(rt1, solver);
+                    UpdateRouteCostAndLoad(rt2, solver);
+                    solver.UpdateTimes(rt1);
+                    solver.UpdateTimes(rt2);
+                }
+                solver.Sol.Cost += top.MoveCost;
+                solver.Promises[A.Id, L.Id] = currentSol.Cost;
+                solver.Promises[B.Id, K.Id] = currentSol.Cost;
+            }
+        }
+
+        public void UpdateRouteCostAndLoad(Route rt, Solver solver) {
+            double tc = 0;
+            double tl = 0;
+            for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++) {
+                Option A = rt.SequenceOfOptions[i];
+                Option B = rt.SequenceOfOptions[i + 1];
+                tc += solver.CalculateDistance(A.Location, B.Location);
+                tl += A.Cust.Dem;
+            }
+            rt.Load = tl;
+            rt.Cost = tc;
+        }
+
         bool CheckPromises(List<Option[]> arcs, double newCost, Solver solver)
         {
             foreach(Option[] arc in arcs)

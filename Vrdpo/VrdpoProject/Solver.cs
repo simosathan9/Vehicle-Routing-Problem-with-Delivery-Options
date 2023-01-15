@@ -73,6 +73,7 @@ namespace VrdpoProject
             {
                 Relocation rm = new();
                 Swap sm = new();
+                TwoOpt top = new();
                 if (reinitCount == options.Count*2)
                 {
                     for (int j = 0; j < Math.Pow(Options.Count + 1, 2); j++) promises[j % (Options.Count + 1), j / (Options.Count + 1)] = double.MaxValue;
@@ -80,6 +81,7 @@ namespace VrdpoProject
                 }
                 rm = ls.FindBestRelocationMove(rm, this);
                 sm = ls.FindBestSwapMove(sm, this);
+                top = ls.FindBestTwoOptMove(top, this);
                 if (rm.MoveCost == 1000000000 & rm.TargetRoutePosition != 0)//null checks
                 {
                     for (int j = 0; j < Math.Pow(Options.Count + 1, 2); j++) promises[j % (Options.Count + 1), j / (Options.Count + 1)] = double.MaxValue;
@@ -91,17 +93,21 @@ namespace VrdpoProject
                 } else if (rm.MoveCost == 1000000000)//null check
                 {
                     ls.ApplySwapMove(sm, this);
-                //} else if (rm.MoveCost < sm.MoveCost)
-                //{
-                //    ls.ApplyRelocationMove(rm, this);
+                } else if (top.MoveCost == 1000000)
+                {
+                    ls.ApplyTwoOptMove(top, this);
                 } else
                 {
-                    if (rnd.Next(1, 3) == 1)
+                    int k = rnd.Next(1, 4);
+                    if (k == 1)
                     {
                         ls.ApplySwapMove(sm, this);
-                    } else
+                    } else if (k == 2)
                     {
                         ls.ApplyRelocationMove(rm, this);
+                    } else
+                    {
+                        ls.ApplyTwoOptMove(top, this);
                     }
                 }
                 reinitCount++;

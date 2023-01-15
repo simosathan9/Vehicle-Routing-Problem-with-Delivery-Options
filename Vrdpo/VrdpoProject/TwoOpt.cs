@@ -14,9 +14,16 @@ namespace VrdpoProject
         int positionOfSecondOption;
         double moveCost = 1000000;
 
-        public TwoOpt(int positionOfSecondOption)
+        public TwoOpt()
         {
 
         }
+
+        public int PositionOfFirstRoute { get => positionOfFirstRoute; set => positionOfFirstRoute = value; }
+        public int PositionOfSecondRoute { get => positionOfSecondRoute; set => positionOfSecondRoute = value; }
+        public int PositionOfFirstOption { get => positionOfFirstOption; set => positionOfFirstOption = value; }
+        public int PositionOfSecondOption { get => positionOfSecondOption; set => positionOfSecondOption = value; }
+        public double MoveCost { get => moveCost; set => moveCost = value; }
+
     }
 }
