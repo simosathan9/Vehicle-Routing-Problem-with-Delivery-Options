@@ -295,14 +295,12 @@ namespace VrdpoProject
                             Option K = rt2.SequenceOfOptions[optInd2];
                             Option L = rt2.SequenceOfOptions[optInd2 + 1];
 
-                            double[] tw1 = solver.RespectsTimeWindow(rt1, optInd1, L.Location);
-                            double[] tw2 = solver.RespectsTimeWindow(rt2, optInd2, K.Location);
-                            double ect1 = tw1[0];
-                            double lat1 = tw1[1];
-                            double ect2 = tw2[0];
-                            double lat2 = tw2[1];
-
-                            if (ect1 > lat1 || ect2 > lat2) { continue; }
+                            bool respectsTw1 = solver.RespectsTimeWindow(rt1, optInd1,
+                                            rt2.SequenceOfLocations.GetRange(optInd2 + 1, rt2.SequenceOfLocations.Count - (optInd2 + 1)));
+                            bool respectsTw2 = solver.RespectsTimeWindow(rt2, optInd2,
+                                            rt1.SequenceOfLocations.GetRange(optInd1 + 1, rt1.SequenceOfLocations.Count - (optInd1 + 1)));
+                            
+                            if (!respectsTw1 || !respectsTw2) { continue; }
 
                             if (rt1 == rt2) {
                                 if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
@@ -366,56 +364,53 @@ namespace VrdpoProject
 
         public void ApplyTwoOptMove(TwoOpt top, Solver solver) {
             Solution currentSol = solver.Sol;
-            if (top.PositionOfFirstOption != 0)
+            Route rt1 = solver.Sol.Routes[top.PositionOfFirstRoute];
+            Route rt2 = solver.Sol.Routes[top.PositionOfSecondRoute];
+            Option A = rt1.SequenceOfOptions[top.PositionOfFirstOption];
+            Option B = rt1.SequenceOfOptions[top.PositionOfFirstOption + 1];
+            Option K = rt2.SequenceOfOptions[top.PositionOfSecondOption];
+            Option L = rt2.SequenceOfOptions[top.PositionOfSecondOption + 1];
+            if (rt1 == rt2)
             {
-                Route rt1 = solver.Sol.Routes[top.PositionOfFirstRoute];
-                Route rt2 = solver.Sol.Routes[top.PositionOfSecondRoute];
-                Option A = rt1.SequenceOfOptions[top.PositionOfFirstOption];
-                Option B = rt1.SequenceOfOptions[top.PositionOfFirstOption + 1];
-                Option K = rt2.SequenceOfOptions[top.PositionOfSecondOption];
-                Option L = rt2.SequenceOfOptions[top.PositionOfSecondOption + 1];
-                if (rt1 == rt2)
-                {
-                    // reverses the nodes in the segment [positionOfFirstNode + 1,  top.positionOfSecondNode]
-                    int frombase = top.PositionOfFirstOption + 1;
-                    int fromend = top.PositionOfSecondOption + 1;
-                    List<Option> reversedSegment = Enumerable.Reverse(rt1.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
-                    //rt1.SequenceOfOptions[frombase..fromend] = reversedSegment;//???
-                    rt1.SequenceOfOptions.RemoveRange(frombase, fromend - frombase);
-                    rt1.SequenceOfOptions.InsertRange(frombase, reversedSegment);
-                    rt1.Cost += top.MoveCost;
-                    solver.UpdateTimes(rt1);
-                }
-                else
-                {
-                    int frombase = top.PositionOfFirstOption + 1;
-                    int fromend = top.PositionOfSecondOption + 1;
-                    // slice with the nodes from position top.positionOfFirstNode + 1 onwards
-                    List<Option> relocatedSegmentOfRt1 = rt1.SequenceOfOptions.GetRange(frombase, rt1.SequenceOfOptions.Count - frombase).ToList();
-                    // slice with the nodes from position top.positionOfFirstNode + 1 onwards
-                    List<Option> relocatedSegmentOfRt2 = rt2.SequenceOfOptions.GetRange(fromend, rt2.SequenceOfOptions.Count - fromend).ToList();
-
-                    int length = rt1.SequenceOfOptions.Count - 1;
-                    for (int i = length; i >= top.PositionOfFirstOption + 1; i--)
-                    {
-                        rt1.SequenceOfOptions.RemoveAt(i);
-                    }
-                    length = rt2.SequenceOfOptions.Count - 1;
-                    for (int i = length; i >= top.PositionOfSecondOption + 1; i--)
-                    {
-                        rt2.SequenceOfOptions.RemoveAt(i);
-                    }
-                    rt1.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt2);
-                    rt2.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt1);
-                    UpdateRouteCostAndLoad(rt1, solver);
-                    UpdateRouteCostAndLoad(rt2, solver);
-                    solver.UpdateTimes(rt1);
-                    solver.UpdateTimes(rt2);
-                }
-                solver.Sol.Cost += top.MoveCost;
-                solver.Promises[A.Id, L.Id] = currentSol.Cost;
-                solver.Promises[B.Id, K.Id] = currentSol.Cost;
+                // reverses the nodes in the segment [positionOfFirstNode + 1,  top.positionOfSecondNode]
+                int frombase = top.PositionOfFirstOption + 1;
+                int fromend = top.PositionOfSecondOption + 1;
+                List<Option> reversedSegment = Enumerable.Reverse(rt1.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
+                //rt1.SequenceOfOptions[frombase..fromend] = reversedSegment;//???
+                rt1.SequenceOfOptions.RemoveRange(frombase, fromend - frombase);
+                rt1.SequenceOfOptions.InsertRange(frombase, reversedSegment);
+                rt1.Cost += top.MoveCost;
+                solver.UpdateTimes(rt1);
             }
+            else
+            {
+                int frombase = top.PositionOfFirstOption + 1;
+                int fromend = top.PositionOfSecondOption + 1;
+                // slice with the nodes from position top.positionOfFirstNode + 1 onwards
+                List<Option> relocatedSegmentOfRt1 = rt1.SequenceOfOptions.GetRange(frombase, rt1.SequenceOfOptions.Count - frombase).ToList();
+                // slice with the nodes from position top.positionOfFirstNode + 1 onwards
+                List<Option> relocatedSegmentOfRt2 = rt2.SequenceOfOptions.GetRange(fromend, rt2.SequenceOfOptions.Count - fromend).ToList();
+
+                int length = rt1.SequenceOfOptions.Count - 1;
+                for (int i = length; i >= top.PositionOfFirstOption + 1; i--)
+                {
+                    rt1.SequenceOfOptions.RemoveAt(i);
+                }
+                length = rt2.SequenceOfOptions.Count - 1;
+                for (int i = length; i >= top.PositionOfSecondOption + 1; i--)
+                {
+                    rt2.SequenceOfOptions.RemoveAt(i);
+                }
+                rt1.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt2);
+                rt2.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt1);
+                UpdateRouteCostAndLoad(rt1, solver);
+                UpdateRouteCostAndLoad(rt2, solver);
+                solver.UpdateTimes(rt1);
+                solver.UpdateTimes(rt2);
+            }
+            solver.Sol.Cost += top.MoveCost;
+            solver.Promises[A.Id, L.Id] = currentSol.Cost;
+            solver.Promises[B.Id, K.Id] = currentSol.Cost;
         }
 
         public void UpdateRouteCostAndLoad(Route rt, Solver solver) {

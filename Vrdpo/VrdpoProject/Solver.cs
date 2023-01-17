@@ -82,18 +82,22 @@ namespace VrdpoProject
                 rm = ls.FindBestRelocationMove(rm, this);
                 sm = ls.FindBestSwapMove(sm, this);
                 top = ls.FindBestTwoOptMove(top, this);
-                if (rm.MoveCost == 1000000000 & rm.TargetRoutePosition != 0)//null checks
+                bool topIsNull = top.MoveCost == 100000000;
+                bool smIsNull = sm.PositionOfFirstOption == 0;
+                bool rmIsNull = rm.MoveCost == 1000000000 & rm.TargetRoutePosition != 0;
+                if (rmIsNull || smIsNull || topIsNull)//null checks
                 {
                     for (int j = 0; j < Math.Pow(Options.Count + 1, 2); j++) promises[j % (Options.Count + 1), j / (Options.Count + 1)] = double.MaxValue;
                     reinitCount = 0;
                     continue;
-                } else if (sm.PositionOfFirstOption == 0)//null check
+                }
+                if (smIsNull && topIsNull)//null check
                 {
                     ls.ApplyRelocationMove(rm, this);
-                } else if (rm.MoveCost == 1000000000)//null check
+                } else if (rmIsNull && topIsNull)//null check
                 {
                     ls.ApplySwapMove(sm, this);
-                } else if (top.MoveCost == 1000000)
+                } else if (rmIsNull && smIsNull)
                 {
                     ls.ApplyTwoOptMove(top, this);
                 } else
@@ -269,7 +273,7 @@ namespace VrdpoProject
         }
         public double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
-            // loc: the position to be placed after
+            /// loc: the position to be placed after
             double lat = Math.Min(rt.SequenceOfLat[loc+1] - CalculateTime(l, rt.SequenceOfLocations[loc+1]) - l.ServiceTime,l.Due - l.ServiceTime);
             if (l == rt.SequenceOfLocations[loc + 1])
             {
@@ -282,6 +286,57 @@ namespace VrdpoProject
             }
             double[] tw = new double[]{ ect, lat };
             return tw;
+        }
+
+
+
+        /// <summary>
+        /// Calculates the time windows of the route <paramref>rt</paramref> for
+        /// all the <paramref>locations</paramref> to be visited after the specified
+        /// index <paramref>loc</paramref>
+        /// </summary>
+        public bool RespectsTimeWindow(Route rt, int loc, List<Location> locations)
+        {
+            List<double> ects = new();
+            List<double> lats = new();
+            Route tempRoute = new(44, 150, depot);
+            tempRoute.SequenceOfLocations = rt.SequenceOfLocations.Take(loc + 1).ToList();
+            tempRoute.SequenceOfLocations.AddRange(locations);
+            loc = 0;
+            foreach (Location l in tempRoute.SequenceOfLocations.Skip(1))
+            {
+                double ect = Math.Max(tempRoute.SequenceOfEct[loc] + CalculateTime(tempRoute.SequenceOfLocations[loc], l) + l.ServiceTime,
+                                l.Ready + l.ServiceTime);
+                if (l == tempRoute.SequenceOfLocations[loc])
+                {
+                    ect -= l.ServiceTime;
+                }
+                loc++;
+                tempRoute.SequenceOfEct.Insert(tempRoute.SequenceOfEct.Count - 1, ect);
+            }
+            tempRoute.SequenceOfLocations = tempRoute.SequenceOfLocations.Take(tempRoute.SequenceOfLocations.Count - 1).Reverse().ToList();
+            loc = -1;
+            foreach (Location l in tempRoute.SequenceOfLocations.Take(tempRoute.SequenceOfLocations.Count - 1))
+            {
+                double lat = Math.Min(tempRoute.SequenceOfLat[loc + 1] - CalculateTime(l, tempRoute.SequenceOfLocations[loc + 1]) - l.ServiceTime,
+                                l.Due - l.ServiceTime);
+                if (l == tempRoute.SequenceOfLocations[loc + 1])
+                {
+                    lat += l.ServiceTime;
+                }
+                loc++;
+                tempRoute.SequenceOfLat.Insert(1, lat);
+            }
+            ects = tempRoute.SequenceOfEct.ToList();
+            lats = tempRoute.SequenceOfLat.ToList();
+            if (!ects.SequenceEqual(ects.OrderBy(x => x)) || !lats.SequenceEqual(ects.OrderBy(x => x))
+                || ects.Last() > 7200 || ects.Last() > lats.Last())
+            {
+                return false;
+            } else
+            {
+                return true;
+            }
         }
 
         Option candidateOpt;

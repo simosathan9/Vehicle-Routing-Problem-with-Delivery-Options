@@ -12,7 +12,7 @@ namespace VrdpoProject
         int positionOfSecondRoute;
         int positionOfFirstOption;
         int positionOfSecondOption;
-        double moveCost = 1000000;
+        double moveCost = 100000000;
 
         public TwoOpt()
         {
