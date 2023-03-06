@@ -12,11 +12,15 @@ namespace VrdpoProject
         int positionOfSecondRoute;
         int positionOfFirstOption;
         int positionOfSecondOption;
+        double[] ect1;
+        double[] ect2;
+        double[] lat1;
+        double[] lat2;
         double moveCost = 100000000;
 
         public TwoOpt()
         {
-
+            this.MoveCost = 100000000;
         }
 
         public int PositionOfFirstRoute { get => positionOfFirstRoute; set => positionOfFirstRoute = value; }
@@ -24,6 +28,9 @@ namespace VrdpoProject
         public int PositionOfFirstOption { get => positionOfFirstOption; set => positionOfFirstOption = value; }
         public int PositionOfSecondOption { get => positionOfSecondOption; set => positionOfSecondOption = value; }
         public double MoveCost { get => moveCost; set => moveCost = value; }
-
+        public double[] Ect1 { get => ect1; set => ect1 = value; }
+        public double[] Ect2 { get => ect2; set => ect2 = value; }
+        public double[] Lat1 { get => lat1; set => lat1 = value; }
+        public double[] Lat2 { get => lat2; set => lat2 = value; }
     }
 }

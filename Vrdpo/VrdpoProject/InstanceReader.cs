@@ -27,7 +27,7 @@ namespace VrdpoProject
 
         public InstanceReader()
         {
-            instance = System.IO.File.ReadAllLines("U_25medium_6.txt");
+            instance = System.IO.File.ReadAllLines("U_25small_4.txt");
             //string[] instance = System.IO.File.ReadAllLines("U_50large.txt");
             //string[] instance = System.IO.File.ReadAllLines("V_50medium_5.txt");
             //string[] instance = System.IO.File.ReadAllLines("U_50large_7.txt");

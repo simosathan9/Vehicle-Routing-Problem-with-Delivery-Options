@@ -50,8 +50,15 @@ namespace VrdpoProject
             Random rnd = new(25);//25
             SetRoutedToFalse(customers);
             MinimumInsertions();
+            Route empty = new Route(166, 0, depot);
             foreach (Route r in Sol.Routes)
             {
+                if(r.SequenceOfLocations.Count == 2)
+                {
+                    sol.Cost -= r.Cost;
+                    empty = r;
+                    continue;
+                }
                 Console.WriteLine("LOCATION | CUSTOMER");
                 for (int i = 0; i < r.SequenceOfOptions.Count; i++)
                 {
@@ -61,6 +68,7 @@ namespace VrdpoProject
                 if (!CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE"); }
                 Console.WriteLine("--------------");
             }
+            sol.Routes.Remove(empty);
             Console.WriteLine(Sol.Cost);
             CalculateServiceLevel(Sol);
             Console.WriteLine("---------------------------");
@@ -68,13 +76,14 @@ namespace VrdpoProject
             Console.WriteLine("---------------------------");
 
             double bestSolCost = 10000000;
-            int reinitCount = 0;
+            int reinitCount = -1;
             for (int i = 0; i < 100000; i++)
             {
+                reinitCount++;
                 Relocation rm = new();
                 Swap sm = new();
                 TwoOpt top = new();
-                if (reinitCount == options.Count*2)
+                if (reinitCount == options.Count*1.4)
                 {
                     for (int j = 0; j < Math.Pow(Options.Count + 1, 2); j++) promises[j % (Options.Count + 1), j / (Options.Count + 1)] = double.MaxValue;
                     reinitCount = 0;
@@ -85,7 +94,7 @@ namespace VrdpoProject
                 bool topIsNull = top.MoveCost == 100000000;
                 bool smIsNull = sm.PositionOfFirstOption == 0;
                 bool rmIsNull = rm.MoveCost == 1000000000 & rm.TargetRoutePosition != 0;
-                if (rmIsNull || smIsNull || topIsNull)//null checks
+                if (rmIsNull)//null checks
                 {
                     for (int j = 0; j < Math.Pow(Options.Count + 1, 2); j++) promises[j % (Options.Count + 1), j / (Options.Count + 1)] = double.MaxValue;
                     reinitCount = 0;
@@ -102,19 +111,30 @@ namespace VrdpoProject
                     ls.ApplyTwoOptMove(top, this);
                 } else
                 {
-                    int k = rnd.Next(1, 4);
+                    int k = rnd.Next(1, 5);
                     if (k == 1)
                     {
                         ls.ApplySwapMove(sm, this);
                     } else if (k == 2)
                     {
                         ls.ApplyRelocationMove(rm, this);
-                    } else
+                    } else if (k== 3)
                     {
                         ls.ApplyTwoOptMove(top, this);
+                    } else
+                    {
+                        if (rm.MoveCost < sm.MoveCost && rm.MoveCost < top.MoveCost)
+                        {
+                            ls.ApplyRelocationMove(rm, this);
+                        } else if (sm.MoveCost < top.MoveCost && sm.MoveCost < rm.MoveCost)
+                        {
+                            ls.ApplySwapMove(sm, this);
+                        } else
+                        {
+                            ls.ApplyTwoOptMove(top, this);
+                        }
                     }
                 }
-                reinitCount++;
                 
                 if (Sol.Cost < bestSolCost)
                 {
@@ -295,47 +315,62 @@ namespace VrdpoProject
         /// all the <paramref>locations</paramref> to be visited after the specified
         /// index <paramref>loc</paramref>
         /// </summary>
-        public bool RespectsTimeWindow(Route rt, int loc, List<Location> locations)
+        public Tuple<bool, double[], double[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
         {
+            tw = RespectsTimeWindow(rt, loc, locations.First());
+            if (tw[0] > tw[1])
+            {
+                return new Tuple<bool, double[], double[]>(false, new double[1], new double[1]);
+            }
             List<double> ects = new();
             List<double> lats = new();
             Route tempRoute = new(44, 150, depot);
             tempRoute.SequenceOfLocations = rt.SequenceOfLocations.Take(loc + 1).ToList();
             tempRoute.SequenceOfLocations.AddRange(locations);
-            loc = 0;
-            foreach (Location l in tempRoute.SequenceOfLocations.Skip(1))
+            tempRoute.SequenceOfLat.AddRange(Enumerable.Repeat((double)7200, tempRoute.SequenceOfLocations.Count - 2).ToList());
+            for (int i = 1; i < tempRoute.SequenceOfLocations.Count; i++)
             {
-                double ect = Math.Max(tempRoute.SequenceOfEct[loc] + CalculateTime(tempRoute.SequenceOfLocations[loc], l) + l.ServiceTime,
-                                l.Ready + l.ServiceTime);
-                if (l == tempRoute.SequenceOfLocations[loc])
+                double ect = Math.Max(tempRoute.SequenceOfLocations[i].Ready + tempRoute.SequenceOfLocations[i].ServiceTime,
+                                               tempRoute.SequenceOfEct[i - 1] + CalculateTime(tempRoute.SequenceOfLocations[i], tempRoute.SequenceOfLocations[i - 1])
+                                               + tempRoute.SequenceOfLocations[i].ServiceTime);
+                if (tempRoute.SequenceOfLocations[i - 1] == tempRoute.SequenceOfLocations[i])
                 {
-                    ect -= l.ServiceTime;
+                    tempRoute.SequenceOfEct[i] -= (tempRoute.SequenceOfLocations[i].ServiceTime - 20);
                 }
-                loc++;
                 tempRoute.SequenceOfEct.Insert(tempRoute.SequenceOfEct.Count - 1, ect);
             }
-            tempRoute.SequenceOfLocations = tempRoute.SequenceOfLocations.Take(tempRoute.SequenceOfLocations.Count - 1).Reverse().ToList();
-            loc = -1;
-            foreach (Location l in tempRoute.SequenceOfLocations.Take(tempRoute.SequenceOfLocations.Count - 1))
+            tempRoute.SequenceOfEct.RemoveAt(tempRoute.SequenceOfEct.Count - 1);
+            for (int j = tempRoute.SequenceOfLocations.Count - 2; j > - 1; j--)
             {
-                double lat = Math.Min(tempRoute.SequenceOfLat[loc + 1] - CalculateTime(l, tempRoute.SequenceOfLocations[loc + 1]) - l.ServiceTime,
-                                l.Due - l.ServiceTime);
-                if (l == tempRoute.SequenceOfLocations[loc + 1])
+                double lat = Math.Min(tempRoute.SequenceOfLocations[j].Due - tempRoute.SequenceOfLocations[j].ServiceTime,
+                                               tempRoute.SequenceOfLat[j + 1] - CalculateTime(tempRoute.SequenceOfLocations[j], tempRoute.SequenceOfLocations[j + 1])
+                                               - tempRoute.SequenceOfLocations[j].ServiceTime);
+                if (tempRoute.SequenceOfLocations[j + 1] == tempRoute.SequenceOfLocations[j])
                 {
-                    lat += l.ServiceTime;
+                    tempRoute.SequenceOfLat[j] += (tempRoute.SequenceOfLocations[j].ServiceTime - 20);
                 }
-                loc++;
-                tempRoute.SequenceOfLat.Insert(1, lat);
+                tempRoute.SequenceOfLat.RemoveAt(0);
+                tempRoute.SequenceOfLat.Insert(j, lat);
             }
+            //tempRoute.SequenceOfLat.RemoveAt(0);
             ects = tempRoute.SequenceOfEct.ToList();
             lats = tempRoute.SequenceOfLat.ToList();
-            if (!ects.SequenceEqual(ects.OrderBy(x => x)) || !lats.SequenceEqual(ects.OrderBy(x => x))
-                || ects.Last() > 7200 || ects.Last() > lats.Last())
+            bool xs = !lats.SequenceEqual(lats.OrderBy(x => x));
+            if (!ects.SequenceEqual(ects.OrderBy(x => x)) || !lats.SequenceEqual(lats.OrderBy(x => x))
+                || ects.Last() > 7200)
             {
-                return false;
+                return new Tuple<bool, double[], double[]>(false, tempRoute.SequenceOfEct.ToArray(), tempRoute.SequenceOfLat.ToArray());
             } else
             {
-                return true;
+                bool feasible = true;
+                for(int i = 0; i < tempRoute.SequenceOfEct.Count; i++)
+                {
+                    if (tempRoute.SequenceOfEct[i] > tempRoute.SequenceOfLat[i])
+                    {
+                        feasible = false;
+                    }
+                }
+                return new Tuple<bool, double[], double[]>(feasible, tempRoute.SequenceOfEct.ToArray(), tempRoute.SequenceOfLat.ToArray());
             }
         }
 
@@ -353,6 +388,7 @@ namespace VrdpoProject
         void IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion)
         {
             //goodoptions list
+            Random rnd = new();
             for (int i = 0; i < Options.Count ; i++)
             {
                 candidateOpt = Options[i];

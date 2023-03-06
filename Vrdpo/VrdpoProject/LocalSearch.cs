@@ -63,7 +63,7 @@ namespace VrdpoProject
                             double costChangeTargetRt = solver.CalculateDistance(F.Location, B.Location) + solver.CalculateDistance(B.Location, G.Location)
                                                 - solver.CalculateDistance(F.Location, G.Location);
 
-                            if (moveCost < rm.MoveCost & targetRouteIndex != 0)
+                            if (moveCost < rm.MoveCost & targetRouteIndex != 0 & moveCost!=0)
                             {
                                 List<Option[]> arcs = new();
                                 arcs.Add(new Option[] { F, B });
@@ -210,7 +210,7 @@ namespace VrdpoProject
                                 costChangeFirstRoute = costAdded1 - costRemoved1;
                                 costChangeSecondRoute = costAdded2 - costRemoved2;
                                 moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
-                                if (moveCost < sm.MoveCost)
+                                if (moveCost < sm.MoveCost & moveCost !=0)
                                 {
                                     List<Option[]> arcs = new();
                                     arcs.Add(new Option[] { a1, b2 });
@@ -295,10 +295,13 @@ namespace VrdpoProject
                             Option K = rt2.SequenceOfOptions[optInd2];
                             Option L = rt2.SequenceOfOptions[optInd2 + 1];
 
-                            bool respectsTw1 = solver.RespectsTimeWindow(rt1, optInd1,
+                            var tw1 = solver.RespectsTimeWindow(rt1, optInd1,
                                             rt2.SequenceOfLocations.GetRange(optInd2 + 1, rt2.SequenceOfLocations.Count - (optInd2 + 1)));
-                            bool respectsTw2 = solver.RespectsTimeWindow(rt2, optInd2,
+                            var tw2 = solver.RespectsTimeWindow(rt2, optInd2,
                                             rt1.SequenceOfLocations.GetRange(optInd1 + 1, rt1.SequenceOfLocations.Count - (optInd1 + 1)));
+
+                            bool respectsTw1 = tw1.Item1;
+                            bool respectsTw2 = tw2.Item1;
                             
                             if (!respectsTw1 || !respectsTw2) { continue; }
 
@@ -320,7 +323,7 @@ namespace VrdpoProject
                                 costRemoved = solver.CalculateDistance(A.Location, B.Location) + solver.CalculateDistance(K.Location, L.Location);
                                 moveCost = costAdded - costRemoved;
 
-                                if (moveCost < top.MoveCost)
+                                if (moveCost < top.MoveCost & moveCost != 0)
                                 {
                                     List<Option[]> arcs = new();
                                     arcs.Add(new Option[] { A, L });
@@ -330,6 +333,10 @@ namespace VrdpoProject
                                     top.PositionOfSecondRoute = rtInd2;
                                     top.PositionOfFirstOption = optInd1;
                                     top.PositionOfSecondOption = optInd2;
+                                    top.Ect1 = tw1.Item2;
+                                    top.Ect2 = tw2.Item2;
+                                    top.Lat1 = tw1.Item3;
+                                    top.Lat2 = tw2.Item3;
                                     top.MoveCost = moveCost;
                                 }
                             }
@@ -363,6 +370,7 @@ namespace VrdpoProject
         }
 
         public void ApplyTwoOptMove(TwoOpt top, Solver solver) {
+            if (top.Ect1 == null) { return; }
             Solution currentSol = solver.Sol;
             Route rt1 = solver.Sol.Routes[top.PositionOfFirstRoute];
             Route rt2 = solver.Sol.Routes[top.PositionOfSecondRoute];
@@ -376,9 +384,14 @@ namespace VrdpoProject
                 int frombase = top.PositionOfFirstOption + 1;
                 int fromend = top.PositionOfSecondOption + 1;
                 List<Option> reversedSegment = Enumerable.Reverse(rt1.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
-                //rt1.SequenceOfOptions[frombase..fromend] = reversedSegment;//???
+                List<Location> reversedLocations = Enumerable.Reverse(rt1.SequenceOfLocations.GetRange(frombase, fromend - frombase)).ToList();
+                List<Customer> reversedCustomers = Enumerable.Reverse(rt1.SequenceOfCustomers.GetRange(frombase, fromend - frombase)).ToList();
                 rt1.SequenceOfOptions.RemoveRange(frombase, fromend - frombase);
                 rt1.SequenceOfOptions.InsertRange(frombase, reversedSegment);
+                rt1.SequenceOfLocations.RemoveRange(frombase, fromend - frombase);
+                rt1.SequenceOfLocations.InsertRange(frombase, reversedLocations);
+                rt1.SequenceOfCustomers.RemoveRange(frombase, fromend - frombase);
+                rt1.SequenceOfCustomers.InsertRange(frombase, reversedCustomers);
                 rt1.Cost += top.MoveCost;
                 solver.UpdateTimes(rt1);
             }
@@ -388,25 +401,40 @@ namespace VrdpoProject
                 int fromend = top.PositionOfSecondOption + 1;
                 // slice with the nodes from position top.positionOfFirstNode + 1 onwards
                 List<Option> relocatedSegmentOfRt1 = rt1.SequenceOfOptions.GetRange(frombase, rt1.SequenceOfOptions.Count - frombase).ToList();
+                List<Location> relocatedLocations1 = rt1.SequenceOfLocations.GetRange(frombase, rt1.SequenceOfLocations.Count - frombase).ToList();
+                List<Customer> relocatedCustomers1 = rt1.SequenceOfCustomers.GetRange(frombase, rt1.SequenceOfCustomers.Count - frombase).ToList();
                 // slice with the nodes from position top.positionOfFirstNode + 1 onwards
                 List<Option> relocatedSegmentOfRt2 = rt2.SequenceOfOptions.GetRange(fromend, rt2.SequenceOfOptions.Count - fromend).ToList();
+                List<Location> relocatedLocations2 = rt2.SequenceOfLocations.GetRange(fromend, rt2.SequenceOfLocations.Count - fromend).ToList();
+                List<Customer> relocatedCustomers2 = rt2.SequenceOfCustomers.GetRange(fromend, rt2.SequenceOfCustomers.Count - fromend).ToList();
 
                 int length = rt1.SequenceOfOptions.Count - 1;
                 for (int i = length; i >= top.PositionOfFirstOption + 1; i--)
                 {
                     rt1.SequenceOfOptions.RemoveAt(i);
+                    rt1.SequenceOfLocations.RemoveAt(i);
+                    rt1.SequenceOfCustomers.RemoveAt(i);
                 }
                 length = rt2.SequenceOfOptions.Count - 1;
                 for (int i = length; i >= top.PositionOfSecondOption + 1; i--)
                 {
                     rt2.SequenceOfOptions.RemoveAt(i);
+                    rt2.SequenceOfLocations.RemoveAt(i);
+                    rt2.SequenceOfCustomers.RemoveAt(i);
                 }
-                rt1.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt2);
-                rt2.SequenceOfOptions.InsertRange(0, relocatedSegmentOfRt1);
+                rt1.SequenceOfOptions.AddRange(relocatedSegmentOfRt2);
+                rt2.SequenceOfOptions.AddRange(relocatedSegmentOfRt1);
+                rt1.SequenceOfLocations.AddRange(relocatedLocations2);
+                rt2.SequenceOfLocations.AddRange(relocatedLocations1);
+                rt1.SequenceOfCustomers.AddRange(relocatedCustomers2);
+                rt2.SequenceOfCustomers.AddRange(relocatedCustomers1);
                 UpdateRouteCostAndLoad(rt1, solver);
                 UpdateRouteCostAndLoad(rt2, solver);
-                solver.UpdateTimes(rt1);
-                solver.UpdateTimes(rt2);
+                rt1.SequenceOfEct = top.Ect1.ToList();
+                rt2.SequenceOfEct = top.Ect2.ToList();
+                rt1.SequenceOfLat = top.Lat1.ToList();
+                rt2.SequenceOfLat = top.Lat2.ToList();
+
             }
             solver.Sol.Cost += top.MoveCost;
             solver.Promises[A.Id, L.Id] = currentSol.Cost;
