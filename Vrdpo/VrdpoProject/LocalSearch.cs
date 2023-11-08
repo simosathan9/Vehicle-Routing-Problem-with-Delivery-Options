@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ namespace VrdpoProject
     {
 
         private Route rt1, rt2;
-        public Relocation FindBestRelocationMove(Relocation rm, Solver solver)
+        public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
         {
             Solution currentSol = solver.Sol;
             for (int originRouteIndex = 0; originRouteIndex < currentSol.Routes.Count; originRouteIndex++)
@@ -86,7 +87,7 @@ namespace VrdpoProject
         }
         public void ApplyRelocationMove(Relocation rm, Solver solver)
         {
-            if (rm.TargetRoutePosition != 0)
+            if ((rm.MoveCost != Math.Pow(10, 9)) & (rm.TargetRoutePosition != 0))
             {
                 Solution currentSol = solver.Sol;
                 Route originRt = currentSol.Routes[rm.OriginRoutePosition];
@@ -142,6 +143,7 @@ namespace VrdpoProject
                 solver.Promises[A.Id, C.Id] = currentSol.Cost;
                 solver.Promises[F.Id, B.Id] = currentSol.Cost;
                 solver.Promises[B.Id, G.Id] = currentSol.Cost;
+                solver.Sol = currentSol;
             }
         }
 
@@ -236,7 +238,7 @@ namespace VrdpoProject
 
         public void ApplySwapMove(Swap sm, Solver solver)
         {
-            if (sm.PositionOfFirstOption != 0)
+            if ((sm.PositionOfFirstOption != 0) & (sm.MoveCost != Math.Pow(10, 9)))
             {
                 Solution currentSol = solver.Sol;
                 Route rt1 = solver.Sol.Routes[sm.PositionOfFirstRoute];
@@ -268,10 +270,10 @@ namespace VrdpoProject
                     solver.UpdateTimes(rt2);
                 }
                 solver.Sol.Cost += sm.MoveCost;
-                solver.Promises[a1.Id, b2.Id] = currentSol.Cost;
-                solver.Promises[b2.Id, c1.Id] = currentSol.Cost;
-                solver.Promises[a2.Id, b1.Id] = currentSol.Cost;
-                solver.Promises[b1.Id, c2.Id] = currentSol.Cost;
+                solver.Promises[a1.Id, b2.Id] = solver.Sol.Cost;
+                solver.Promises[b2.Id, c1.Id] = solver.Sol.Cost;
+                solver.Promises[a2.Id, b1.Id] = solver.Sol.Cost;
+                solver.Promises[b1.Id, c2.Id] = solver.Sol.Cost;
             }
         }
 
@@ -370,7 +372,7 @@ namespace VrdpoProject
         }
 
         public void ApplyTwoOptMove(TwoOpt top, Solver solver) {
-            if (top.Ect1 == null) { return; }
+            if ((top.Ect1 == null) || (top.MoveCost == Math.Pow(10, 9))) { return; }
             Solution currentSol = solver.Sol;
             Route rt1 = solver.Sol.Routes[top.PositionOfFirstRoute];
             Route rt2 = solver.Sol.Routes[top.PositionOfSecondRoute];
@@ -437,9 +439,196 @@ namespace VrdpoProject
 
             }
             solver.Sol.Cost += top.MoveCost;
-            solver.Promises[A.Id, L.Id] = currentSol.Cost;
-            solver.Promises[B.Id, K.Id] = currentSol.Cost;
+            solver.Promises[A.Id, L.Id] = solver.Sol.Cost;
+            solver.Promises[B.Id, K.Id] = solver.Sol.Cost;
         }
+
+        public Flip FindBestFlipMove(Flip flip, Solver solver)
+        {
+            for (int rtInd1 = 0; rtInd1 < solver.Sol.Routes.Count; rtInd1++)
+            {
+                Route rt1 = solver.Sol.Routes[rtInd1];
+
+                for (int custInd1 = 1; custInd1 < rt1.SequenceOfCustomers.Count - 1; custInd1++)
+                {
+                    Customer custA = rt1.SequenceOfCustomers[custInd1 - 1];
+                    Customer custB = rt1.SequenceOfCustomers[custInd1];
+                    Customer custC = rt1.SequenceOfCustomers[custInd1 + 1];
+
+                    // check if cust has more than 1 option
+                    // new route copy of rt1 = solver.Sol.Routes[rtInd1]
+                    //Route rt1_copy = solver.Sol.Routes[rtInd1];
+                    Route rt1_copy = new Route(rt1);
+                    rt1_copy.SequenceOfCustomers.RemoveAt(custInd1);
+                    rt1_copy.SequenceOfOptions.RemoveAt(custInd1);
+                    rt1_copy.SequenceOfLocations.RemoveAt(custInd1);
+                    rt1_copy.SequenceOfEct.RemoveAt(custInd1);
+                    rt1_copy.SequenceOfLat.RemoveAt(custInd1);
+                    solver.UpdateTimes(rt1_copy);
+                    rt1_copy.Load = rt1_copy.Load - custB.Dem;
+
+                    // remove customer and update time windows and capacity
+                    for (int optInd = 0; optInd < custB.Options.Count; optInd++)
+                    {
+                        for (int rtInd2 = 0; rtInd2 < solver.Sol.Routes.Count; rtInd2++)
+                        {
+                            Route rt2 = solver.Sol.Routes[rtInd2];
+                            int indCust = rt1.SequenceOfCustomers.IndexOf(custB);
+                            int targetRouteIndex = 0;
+
+                            if (rt2 == rt1)
+                            {
+                                targetRouteIndex = custInd1 + 1;
+                            }
+
+                            if (custB.Options[optInd] == rt1.SequenceOfOptions[indCust])
+                            {
+                                continue;
+                            }
+                            if (rt2.Load + custB.Dem > rt2.Capacity)
+                            {
+                                continue;
+                            }
+
+                            for (int targetOptionIndex = targetRouteIndex; targetOptionIndex < rt2.SequenceOfOptions.Count - 2; targetOptionIndex++) //-1
+                            {
+
+                                double[] tw = solver.RespectsTimeWindow(rt2, targetOptionIndex, custB.Options[optInd].Location);
+                                double ect = tw[0];
+                                double lat = tw[1];
+
+                                if (ect > lat) { continue; }
+
+                                if (rt1.SequenceOfOptions[custInd1].Prio < custB.Options[optInd].Prio)
+                                {
+                                    continue;
+                                }
+
+                                Option A = rt1.SequenceOfOptions[custInd1 - 1];
+                                Option B1 = rt1.SequenceOfOptions[custInd1];
+                                Option C = rt1.SequenceOfOptions[custInd1 + 1];
+
+                                Option F = rt2.SequenceOfOptions[targetOptionIndex];
+                                Option B2 = custB.Options[optInd];
+                                Option G = rt2.SequenceOfOptions[targetOptionIndex + 1];
+
+                                if (rt1 != rt2)
+                                {
+                                    if (rt2.Load + custB.Dem > rt2.Capacity)
+                                    {
+                                        continue;
+                                    }
+                                }
+
+                                double costAdded = solver.CalculateDistance(A.Location, C.Location) + solver.CalculateDistance(F.Location, B2.Location)
+                                                    + solver.CalculateDistance(B2.Location, G.Location);
+                                double costRemoved = solver.CalculateDistance(A.Location, B1.Location) + solver.CalculateDistance(B1.Location, C.Location)
+                                                    + solver.CalculateDistance(F.Location, G.Location);
+                                double moveCost = costAdded - costRemoved;
+
+                                double costChangeOriginRt = solver.CalculateDistance(A.Location, C.Location) - solver.CalculateDistance(A.Location, B1.Location)
+                                                    - solver.CalculateDistance(B1.Location, C.Location);
+                                double costChangeTargetRt = solver.CalculateDistance(F.Location, B2.Location) + solver.CalculateDistance(B2.Location, G.Location)
+                                                    - solver.CalculateDistance(F.Location, G.Location);
+
+                                if (moveCost < flip.MoveCost & rtInd2 != 0)
+                                {
+                                    List<Option[]> arcs = new();
+                                    arcs.Add(new Option[] { F, B2 });
+                                    arcs.Add(new Option[] { B2, G });
+                                    arcs.Add(new Option[] { A, C });
+                                    if (!CheckPromises(arcs, moveCost + solver.Sol.Cost, solver)) continue;
+                                    flip.MoveCost = moveCost;
+                                    flip.OriginRoutePosition = rtInd1;
+                                    flip.TargetRoutePosition = rtInd2;
+                                    flip.TargetOptionPosition = targetOptionIndex;
+                                    flip.OriginOptionPosition = custInd1;
+                                    flip.CostChangeOriginRt = costChangeOriginRt;
+                                    flip.CostChangeTargetRt = costChangeTargetRt;
+                                    flip.NewOptionIndex = optInd;
+                                }
+                            }
+                        }
+                        //solver.Sol.Routes[rtInd1] = rt1;
+                    }
+                    solver.Sol.Routes[rtInd1] = rt1;
+                }
+            }
+            return flip;
+        }
+
+        public void ApplyFlipMove(Flip flip, Solver solver)
+        { 
+            if (flip.TargetRoutePosition != 0 && flip.MoveCost != Math.Pow(10,9))
+            {
+                Solution currentSol = solver.Sol;
+                Route originRt = currentSol.Routes[flip.OriginRoutePosition];
+                Route targetRt = currentSol.Routes[flip.TargetRoutePosition];
+                Option A = originRt.SequenceOfOptions[flip.OriginOptionPosition - 1];
+                Option B1 = originRt.SequenceOfOptions[flip.OriginOptionPosition];
+                Option C = originRt.SequenceOfOptions[flip.OriginOptionPosition + 1];
+                Option F = targetRt.SequenceOfOptions[flip.TargetOptionPosition];
+                Option G = targetRt.SequenceOfOptions[flip.TargetOptionPosition + 1];
+                Option B2 = originRt.SequenceOfCustomers[flip.OriginOptionPosition].Options[flip.NewOptionIndex];
+
+                /**
+                if (originRt == targetRt)
+                {
+                    originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
+                    originRt.SequenceOfCustomers.RemoveAt(flip.OriginOptionPosition);
+                    originRt.SequenceOfLocations.RemoveAt(flip.OriginOptionPosition);
+                    if (flip.OriginOptionPosition < flip.TargetOptionPosition)
+                    {
+                        targetRt.SequenceOfOptions.Insert(flip.TargetOptionPosition, B2);
+                        targetRt.SequenceOfCustomers.Insert(flip.TargetOptionPosition, B2.Cust);
+                        targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition, B2.Location);
+                    }
+                    else
+                    {
+                        targetRt.SequenceOfOptions.Insert(flip.TargetOptionPosition + 1, B2);
+                        targetRt.SequenceOfCustomers.Insert(flip.TargetOptionPosition + 1, B2.Cust);
+                        targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition + 1, B2.Location);
+                    }
+                    solver.UpdateTimes(originRt);
+                    originRt.Cost += flip.MoveCost;
+                }
+                else
+                {**/
+                originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
+                originRt.SequenceOfCustomers.RemoveAt(flip.OriginOptionPosition);
+                originRt.SequenceOfLocations.RemoveAt(flip.OriginOptionPosition);
+                originRt.SequenceOfEct.RemoveAt(flip.OriginOptionPosition);
+                originRt.SequenceOfLat.RemoveAt(flip.OriginOptionPosition);
+
+                targetRt.SequenceOfOptions.Insert(flip.TargetOptionPosition + 1, B2);
+                targetRt.SequenceOfCustomers.Insert(flip.TargetOptionPosition + 1, B2.Cust);
+                targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition + 1, B2.Location);
+                targetRt.SequenceOfEct.Insert(flip.TargetOptionPosition + 1, 0);
+                targetRt.SequenceOfLat.Insert(flip.TargetOptionPosition + 1, 0);
+                if (originRt == targetRt)
+                {
+                    originRt.Cost += flip.MoveCost;
+                    solver.UpdateTimes(originRt);
+                } else 
+                { 
+                    originRt.Cost += flip.CostChangeOriginRt;
+                    targetRt.Cost += flip.CostChangeTargetRt;
+                    originRt.Load -= B1.Cust.Dem;
+                    targetRt.Load += B2.Cust.Dem;
+                    solver.UpdateTimes(originRt);
+                    solver.UpdateTimes(targetRt);
+                }
+                currentSol.Cost += flip.MoveCost;
+                B1.IsServed = false; B2.IsServed = true;
+                solver.Promises[A.Id, C.Id] = currentSol.Cost;
+                solver.Promises[F.Id, B2.Id] = currentSol.Cost;
+                solver.Promises[B2.Id, G.Id] = currentSol.Cost;
+                solver.Sol = currentSol;
+            }
+        }
+
+
+
 
         public void UpdateRouteCostAndLoad(Route rt, Solver solver) {
             double tc = 0;

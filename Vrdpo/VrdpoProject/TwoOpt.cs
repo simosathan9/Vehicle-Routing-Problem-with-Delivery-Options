@@ -16,11 +16,11 @@ namespace VrdpoProject
         double[] ect2;
         double[] lat1;
         double[] lat2;
-        double moveCost = 100000000;
+        double moveCost = Math.Pow(10, 9);
 
         public TwoOpt()
         {
-            this.MoveCost = 100000000;
+            this.MoveCost = Math.Pow(10, 9);
         }
 
         public int PositionOfFirstRoute { get => positionOfFirstRoute; set => positionOfFirstRoute = value; }

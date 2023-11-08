@@ -1,0 +1,31 @@
+﻿using System;
+
+
+namespace VrdpoProject
+{
+    public class Flip
+    {
+        double moveCost;
+        int targetRoutePosition;
+        int targetOptionPosition;
+        int originRoutePosition;
+        int originOptionPosition;
+        int newOptionIndex;
+        double costChangeOriginRt;
+        double costChangeTargetRt;
+
+        public Flip()
+        {
+            this.MoveCost = Math.Pow(10, 9);
+        }
+
+        public double MoveCost { get => moveCost; set => moveCost = value; }
+        public int TargetRoutePosition { get => targetRoutePosition; set => targetRoutePosition = value; }
+        public int TargetOptionPosition { get => targetOptionPosition; set => targetOptionPosition = value; }
+        public double CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
+        public double CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
+        public int OriginRoutePosition { get => originRoutePosition; set => originRoutePosition = value; }
+        public int OriginOptionPosition { get => originOptionPosition; set => originOptionPosition = value; }
+        public int NewOptionIndex { get => newOptionIndex; set => newOptionIndex = value; }
+    }
+}

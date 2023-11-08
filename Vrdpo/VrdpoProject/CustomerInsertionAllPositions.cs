@@ -41,6 +41,17 @@ namespace VrdpoProject
             this.option = null;
         }
 
+        public CustomerInsertionAllPositions(CustomerInsertionAllPositions original)
+        {
+            this.customer = original.customer;
+            this.route = original.route;
+            this.insertionPosition = original.insertionPosition;
+            this.cost = original.cost;
+            this.duration = original.duration;
+            this.option = original.option;
+            this.location = original.location;
+        }
+
         public int InsertionPosition { get => insertionPosition; set => insertionPosition = value; }
         public double Cost { get => cost; set => cost = value; }
         public double Duration { get => duration; set => duration = value; }

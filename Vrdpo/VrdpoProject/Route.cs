@@ -39,12 +39,27 @@ namespace VrdpoProject
             this.capacity = capacity;
             this.duration = 0;
             this.fixedCost = 1000000;
-            this.cost = fixedCost;
+            this.cost = 0;
             this.Id = id;
             this.sequenceOfEct.Add(0);
             this.sequenceOfEct.Add(0);
             this.sequenceOfLat.Add(7200);
             this.sequenceOfLat.Add(7200);
+        }
+
+        public Route(Route original)
+        {
+            this.Id = original.Id;
+            this.capacity = original.capacity;
+            this.sequenceOfLocations = new List<Location>(original.sequenceOfLocations);
+            this.sequenceOfCustomers = new List<Customer>(original.sequenceOfCustomers);
+            this.sequenceOfOptions = new List<Option>(original.sequenceOfOptions);
+            this.load = original.load;
+            this.duration = original.duration;
+            this.fixedCost = original.fixedCost;
+            this.cost = original.cost;
+            this.sequenceOfEct = new List<double>(original.sequenceOfEct);
+            this.sequenceOfLat = new List<double>(original.sequenceOfLat);
         }
 
         public int Id { get => id; set => id = value; }

@@ -20,6 +20,7 @@ namespace VrdpoProject
             this.id = id;
             this.dem = dem;
             this.isRouted = isRouted;
+            options = new List<Option>();
         }
 
         public int Id { get => id; set => id = value; }
