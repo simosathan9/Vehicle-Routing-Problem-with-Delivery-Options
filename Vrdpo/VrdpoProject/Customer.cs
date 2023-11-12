@@ -13,8 +13,6 @@ namespace VrdpoProject
         private List<Option> options;
         private int dem;
         private bool isRouted;
-        //option routed
-
         public Customer(int id, int dem, bool isRouted)
         {
             this.id = id;

@@ -10,9 +10,9 @@ namespace VrdpoProject
     {
         static void Main()
         {
-            InstanceReader model = new();
-            model.BuildModel();
-            Solver solver = new(model);
+            //InstanceReader model = new();
+            //model.BuildModel();
+            Solver solver = new();
             solver.Solve();
         }
     }
