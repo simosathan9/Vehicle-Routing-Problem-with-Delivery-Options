@@ -43,11 +43,17 @@ namespace VrdpoProject
         {
             this.Duration = duration;
             this.Cost = cost;
-            this.Routes = routes;
+            this.routes = new List<Route>();
+            foreach (Route rt in routes)
+            {
+                this.routes.Add(new Route(rt));
+            }
+            //this.Routes = routes;
             this.DistanceMatrix = distanceMatrix;
             this.TimeMatrix = timeMatrix;
             this.Cap = cap;
             this.Depot = depot;
+            //TODO: also deepclone options and check for customer/location
             this.Options = options;
             this.Customers = customers;
             this.Promises = promises;
