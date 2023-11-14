@@ -54,8 +54,12 @@ namespace VrdpoProject
             this.Cap = cap;
             this.Depot = depot;
             //TODO: also deepclone options and check for customer/location
-            this.Options = options;
-            this.Customers = customers;
+            //this.sequenceOfLocations = new List<Location>(original.sequenceOfLocations);
+            //this.sequenceOfCustomers = new List<Customer>(original.sequenceOfCustomers);
+            this.Options = new List<Option>(options);
+            this.Customers = new List<Customer>(customers);
+            //this.Options = options;
+            //this.Customers = customers;
             this.Promises = promises;
         }
 
