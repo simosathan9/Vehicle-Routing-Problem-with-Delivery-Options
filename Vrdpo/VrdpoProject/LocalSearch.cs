@@ -65,11 +65,25 @@ namespace VrdpoProject
 
                             if (moveCost < rm.MoveCost & targetRouteIndex != 0 & moveCost!=0)
                             {
-                                List<Option[]> arcs = new();
-                                arcs.Add(new Option[] { F, B });
-                                arcs.Add(new Option[] { B, G });
-                                arcs.Add(new Option[] { A, C });
-                                if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
+                                //List<Option[]> arcs = new();
+                                //arcs.Add(new Option[] { F, B });
+                                //arcs.Add(new Option[] { B, G });
+                                //arcs.Add(new Option[] { A, C });
+                                if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+                                if (PromiseIsBroken(B.Id, G.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+                                if (PromiseIsBroken(A.Id, C.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+
+
+                                //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
                                 rm.MoveCost = moveCost;
                                 rm.OriginRoutePosition = originRouteIndex;
                                 rm.TargetRoutePosition = targetRouteIndex;
@@ -86,7 +100,7 @@ namespace VrdpoProject
         }
         public void ApplyRelocationMove(Relocation rm, Solution sol)
         {
-            if ((rm.MoveCost != Math.Pow(10, 9)) & (rm.TargetRoutePosition != 0))
+            if (rm.IsValid())
             {
                 Route originRt = sol.Routes[rm.OriginRoutePosition];
                 Route targetRt = sol.Routes[rm.TargetRoutePosition];
@@ -220,12 +234,28 @@ namespace VrdpoProject
                                 moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
                                 if (moveCost < sm.MoveCost & moveCost !=0)
                                 {
-                                    List<Option[]> arcs = new();
-                                    arcs.Add(new Option[] { a1, b2 });
-                                    arcs.Add(new Option[] { b2, c1 });
-                                    arcs.Add(new Option[] { a2, b1 });
-                                    arcs.Add(new Option[] { b1, c2 });
-                                    if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
+                                    if (PromiseIsBroken(a1.Id, b2.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+                                    if (PromiseIsBroken(b2.Id, c1.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+                                    if (PromiseIsBroken(a2.Id, b1.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }                                    
+                                    if (PromiseIsBroken(b1.Id, c2.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+                                    //List<Option[]> arcs = new();
+                                    //arcs.Add(new Option[] { a1, b2 });
+                                    //arcs.Add(new Option[] { b2, c1 });
+                                    //arcs.Add(new Option[] { a2, b1 });
+                                    //arcs.Add(new Option[] { b1, c2 });
+                                    //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
                                     sm.PositionOfFirstRoute = firstRouteIndex;
                                     sm.PositionOfSecondRoute = secondRouteIndex;
                                     sm.PositionOfFirstOption = firstOptionIndex;
@@ -244,7 +274,7 @@ namespace VrdpoProject
 
         public void ApplySwapMove(Swap sm, Solution sol)
         {
-            if ((sm.PositionOfFirstOption != 0) & (sm.MoveCost != Math.Pow(10, 9)))
+            if (sm.IsValid())
             {
                 Route rt1 = sol.Routes[sm.PositionOfFirstRoute];
                 Route rt2 = sol.Routes[sm.PositionOfSecondRoute];
@@ -340,10 +370,21 @@ namespace VrdpoProject
 
                                 if (moveCost < top.MoveCost & moveCost != 0)
                                 {
-                                    List<Option[]> arcs = new();
-                                    arcs.Add(new Option[] { A, L });
-                                    arcs.Add(new Option[] { B, K });
-                                    if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) { continue; }
+                                    //List<Option[]> arcs = new();
+                                    //arcs.Add(new Option[] { A, L });
+                                    //arcs.Add(new Option[] { B, K });
+
+                                    //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) { continue; }
+
+                                    if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+                                    if (PromiseIsBroken(B.Id, K.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+
                                     top.PositionOfFirstRoute = rtInd1;
                                     top.PositionOfSecondRoute = rtInd2;
                                     top.PositionOfFirstOption = optInd1;
@@ -385,7 +426,7 @@ namespace VrdpoProject
         }
 
         public void ApplyTwoOptMove(TwoOpt top, Solution sol) {
-            if ((top.Ect1 == null) || (top.MoveCost == Math.Pow(10, 9))) { return; }
+            if (!top.IsValid()) { return; }
 
             Route rt1 = sol.Routes[top.PositionOfFirstRoute];
             Route rt2 = sol.Routes[top.PositionOfSecondRoute];
@@ -554,11 +595,25 @@ namespace VrdpoProject
 
                                 if (moveCost < flip.MoveCost & rtInd2 != 0)
                                 {
-                                    List<Option[]> arcs = new();
-                                    arcs.Add(new Option[] { F, B2 });
-                                    arcs.Add(new Option[] { B2, G });
-                                    arcs.Add(new Option[] { A, C });
-                                    if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
+                                    //List<Option[]> arcs = new();
+                                    //arcs.Add(new Option[] { F, B2 });
+                                    //arcs.Add(new Option[] { B2, G });
+                                    //arcs.Add(new Option[] { A, C });
+                                    //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
+
+
+                                    if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+                                    if (PromiseIsBroken(B2.Id, G.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
+                                    if (PromiseIsBroken(A.Id, C.Id, moveCost + sol.Cost, sol))
+                                    {
+                                        continue;
+                                    }
                                     flip.MoveCost = moveCost;
                                     flip.OriginRoutePosition = rtInd1;
                                     flip.TargetRoutePosition = rtInd2;
@@ -579,7 +634,7 @@ namespace VrdpoProject
 
         public void ApplyFlipMove(Flip flip, Solution sol)
         { 
-            if (flip.TargetRoutePosition != 0 && flip.MoveCost != Math.Pow(10,9))
+            if (flip.IsValid())
             {
                 Route originRt = sol.Routes[flip.OriginRoutePosition];
                 Route targetRt = sol.Routes[flip.TargetRoutePosition];
@@ -669,6 +724,7 @@ namespace VrdpoProject
             rt.Cost = tc;
         }
 
+        //! make these to accept only tuples of ids not whole new options
         bool CheckPromises(List<Option[]> arcs, double newCost, Solution sol)
         {
             foreach(Option[] arc in arcs)
@@ -680,6 +736,15 @@ namespace VrdpoProject
             }
             return true;
         }
-    }
 
+        bool PromiseIsBroken(int a, int b, double newCost, Solution sol)
+        {
+            if (newCost >= sol.Promises[a, b])
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
 }

@@ -12,9 +12,10 @@ namespace VrdpoProject
     public class Solver
     {
         private CustomerInsertionAllPositions bestInsertion = new();
+        // this is unused so far.Make a method to write the final solution into a text file 
         Solution globalBestSol = new Solution();
         double globalBestSolCost = Math.Pow(10,9);
-        Random rnd = new Random(14);
+        //Random rnd = new Random(14);
         LocalSearch ls = new();
 
 
@@ -29,7 +30,7 @@ namespace VrdpoProject
 
                 SetRoutedToFalse(restartBestSol.Customers);
                 SetServedToFalse(restartBestSol.Options);
-                MinimumInsertions(restartBestSol);
+                MinimumInsertions(restartBestSol, rnd); // give the rnd of each restart into the construction heuristic
 
                 Route empty = new Route(166, 0, restartBestSol.Depot);
                 foreach (Route r in restartBestSol.Routes) 
@@ -60,6 +61,10 @@ namespace VrdpoProject
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
+                Relocation rm = new();
+                Swap sm = new();
+                TwoOpt top = new();
+                Flip flip = new();
                 for (int i = 0; i < 7000; i++)
                 {
                     if (i - lastImprovement > 3000)
@@ -68,60 +73,101 @@ namespace VrdpoProject
                     }
 
                     reinitCount++;
-                    Relocation rm = new();
-                    Swap sm = new();
-                    TwoOpt top = new();
-                    Flip flip = new();
+                    //!move these new outside loop. keep one instance that is overriden inside each loop
+                    //Relocation rm = new();
+                    //Swap sm = new();
+                    //TwoOpt top = new();
+                    //Flip flip = new();
+                    rm.ReinitializeVariables();
+                    sm.ReinitializeVariables();
+                    top.ReinitializeVariables();
+                    flip.ReinitializeVariables();
                     if (reinitCount == restartBestSol.Options.Count * 1.5)
                     {
                         restartBestSol.InitPromises();
                         reinitCount = 0;
                     }
 
-                    int k = rnd.Next(1, 5);
-                    if (k == 1)
+                    //different schema
+                    sm = ls.FindBestSwapMove(sm, restartBestSol);
+                    rm = ls.FindBestRelocationMove(rm, restartBestSol);
+                    top = ls.FindBestTwoOptMove(top, restartBestSol);
+                    if (i > 2000 && ((i - c) > 500))
                     {
-                        sm = ls.FindBestSwapMove(sm, restartBestSol);
-                        ls.ApplySwapMove(sm, restartBestSol);
+                        c = i;
+                        flip = ls.FindBestFlipMove(flip, restartBestSol);
                     }
-                    else if (k == 2)
-                    {
-                        rm = ls.FindBestRelocationMove(rm, restartBestSol);
-                        ls.ApplyRelocationMove(rm, restartBestSol);
-                    }
-                    else if (k == 3)
-                    {
-                        top = ls.FindBestTwoOptMove(top, restartBestSol);
-                        ls.ApplyTwoOptMove(top, restartBestSol);
-                    }
-                    else if (k == 4)
-                    {
-                        if (i > 2000 && ((i - c) > 500))
-                        {
-                            c = i;
-                            flip = ls.FindBestFlipMove(flip, restartBestSol);
-                            ls.ApplyFlipMove(flip, restartBestSol);
-                        }
-                        else
-                        {
-                            sm = ls.FindBestSwapMove(sm, restartBestSol);
-                            rm = ls.FindBestRelocationMove(rm, restartBestSol);
-                            top = ls.FindBestTwoOptMove(top, restartBestSol);
-                            if (rm.MoveCost < sm.MoveCost && rm.MoveCost < top.MoveCost)
-                            {
-                                ls.ApplyRelocationMove(rm, restartBestSol);
-                            }
-                            else if (sm.MoveCost < top.MoveCost && sm.MoveCost < rm.MoveCost)
-                            {
-                                ls.ApplySwapMove(sm, restartBestSol);
-                            }
-                            else
-                            {
-                                ls.ApplyTwoOptMove(top, restartBestSol);
 
-                            }
-                        }
+                    var minCost = FindMinMoveCost(sm, rm, top, flip);
+                    if (minCost == sm.MoveCost)
+                    {
+                        ls.ApplySwapMove(sm, restartBestSol);
+                        //Console.WriteLine("Swap");
+                    } 
+                    else if (minCost == rm.MoveCost)
+                    {
+                        ls.ApplyRelocationMove(rm, restartBestSol);
+                        //Console.WriteLine("Reloc");
+
                     }
+                    else if (minCost == top.MoveCost)
+                    {
+                        ls.ApplyTwoOptMove(top, restartBestSol);
+                        //Console.WriteLine("Two opt");
+
+                    }
+                    else if (minCost == flip.MoveCost)
+                    {
+                        ls.ApplyFlipMove(flip, restartBestSol);
+                        //Console.WriteLine("Flip");
+
+                    }
+
+
+                    //int k = rnd.Next(1, 5);
+                    //if (k == 1)
+                    //{
+                    //    sm = ls.FindBestSwapMove(sm, restartBestSol);
+                    //    ls.ApplySwapMove(sm, restartBestSol);
+                    //}
+                    //else if (k == 2)
+                    //{
+                    //    rm = ls.FindBestRelocationMove(rm, restartBestSol);
+                    //    ls.ApplyRelocationMove(rm, restartBestSol);
+                    //}
+                    //else if (k == 3)
+                    //{
+                    //    top = ls.FindBestTwoOptMove(top, restartBestSol);
+                    //    ls.ApplyTwoOptMove(top, restartBestSol);
+                    //}
+                    //else if (k == 4)
+                    //{
+                    //    if (i > 2000 && ((i - c) > 500))
+                    //    {
+                    //        c = i;
+                    //        flip = ls.FindBestFlipMove(flip, restartBestSol);
+                    //        ls.ApplyFlipMove(flip, restartBestSol);
+                    //    }
+                    //    else
+                    //    {
+                    //        sm = ls.FindBestSwapMove(sm, restartBestSol);
+                    //        rm = ls.FindBestRelocationMove(rm, restartBestSol);
+                    //        top = ls.FindBestTwoOptMove(top, restartBestSol);
+                    //        if (rm.MoveCost < sm.MoveCost && rm.MoveCost < top.MoveCost)
+                    //        {
+                    //            ls.ApplyRelocationMove(rm, restartBestSol);
+                    //        }
+                    //        else if (sm.MoveCost < top.MoveCost && sm.MoveCost < rm.MoveCost)
+                    //        {
+                    //            ls.ApplySwapMove(sm, restartBestSol);
+                    //        }
+                    //        else
+                    //        {
+                    //            ls.ApplyTwoOptMove(top, restartBestSol);
+
+                    //        }
+                    //    }
+                    //}
 
                     if (restartBestSol.Cost < bestSolCost)
                     {
@@ -147,7 +193,8 @@ namespace VrdpoProject
 
                 if (bestSolCost < globalBestSolCost)
                 {
-                    globalBestSol = bestSol;
+                    // !this is a ref not a copy. the solution is lost immediatelly after rhis
+                    globalBestSol = bestSol.DeepCopy(bestSol);
                     globalBestSolCost = bestSolCost;
                 }
                
@@ -157,8 +204,7 @@ namespace VrdpoProject
             }
         }
 
-        
-
+        private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.MoveCost, rm.MoveCost), top.MoveCost), flip.MoveCost);
 
         void SetRoutedToFalse(List<Customer> customers)
         {
@@ -318,7 +364,7 @@ namespace VrdpoProject
             };
         }
 
-        void MinimumInsertions(Solution sol)
+        void MinimumInsertions(Solution sol, Random rnd)
         {
             bool modelIsFeasible = true;
             while (sol.Customers.Any(x => !x.IsRouted))

@@ -31,6 +31,22 @@ namespace VrdpoProject
             this.MoveCost = Math.Pow(10, 9);
         }
 
+        public void ReinitializeVariables()
+        {
+            originRoutePosition = -1;
+            targetRoutePosition = -1;
+            originOptionPosition = -1;
+            targetOptionPosition = -1;
+            costChangeOriginRt = -1;
+            costChangeTargetRt = -1;
+            moveCost = Math.Pow(10, 9);
+        }
+
+        public bool IsValid()
+        {
+            return originRoutePosition != -1;
+        }
+
         public int OriginRoutePosition { get => originRoutePosition; set => originRoutePosition = value; }
         public int TargetRoutePosition { get => targetRoutePosition; set => targetRoutePosition = value; }
         public int OriginOptionPosition { get => originOptionPosition; set => originOptionPosition = value; }
