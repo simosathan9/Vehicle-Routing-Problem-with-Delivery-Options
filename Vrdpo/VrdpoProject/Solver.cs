@@ -14,7 +14,7 @@ namespace VrdpoProject
         private CustomerInsertionAllPositions bestInsertion = new();
         // this is unused so far.Make a method to write the final solution into a text file 
         Solution globalBestSol = new Solution();
-        double globalBestSolCost = Math.Pow(10,9);
+        double globalBestSolCost = Math.Pow(10, 9);
         //Random rnd = new Random(14);
         LocalSearch ls = new();
 
@@ -33,7 +33,7 @@ namespace VrdpoProject
                 MinimumInsertions(restartBestSol, rnd); // give the rnd of each restart into the construction heuristic
 
                 Route empty = new Route(166, 0, restartBestSol.Depot);
-                foreach (Route r in restartBestSol.Routes) 
+                foreach (Route r in restartBestSol.Routes)
                 {
                     if (r.SequenceOfLocations.Count == 2)
                     {
@@ -51,8 +51,8 @@ namespace VrdpoProject
                     Console.WriteLine("--------------");
                 }
                 restartBestSol.Routes.Remove(empty);
-                Console.WriteLine(restartBestSol.Cost); 
-                CalculateServiceLevel(restartBestSol); 
+                Console.WriteLine(restartBestSol.Cost);
+                CalculateServiceLevel(restartBestSol);
                 Console.WriteLine("---------------------------");
                 Console.WriteLine("---------------------------");
                 Console.WriteLine("---------------------------");
@@ -88,7 +88,7 @@ namespace VrdpoProject
                         reinitCount = 0;
                     }
 
-                    ////different schema
+                    //different schema
                     //sm = ls.FindBestSwapMove(sm, restartBestSol);
                     //rm = ls.FindBestRelocationMove(rm, restartBestSol);
                     //top = ls.FindBestTwoOptMove(top, restartBestSol);
@@ -98,31 +98,30 @@ namespace VrdpoProject
                     //    flip = ls.FindBestFlipMove(flip, restartBestSol);
                     //}
 
-                    //var minCost = FindMinMoveCost(sm, rm, top, flip);
-                    //if (minCost == sm.MoveCost)
+                    //var mincost = FindMinMoveCost(sm, rm, top, flip);
+                    //if (mincost == sm.MoveCost)
                     //{
                     //    ls.ApplySwapMove(sm, restartBestSol);
-                    //    Console.Write(" Swap");
-                    //} 
-                    //else if (minCost == rm.MoveCost)
+                    //    //console.write(" swap");
+                    //}
+                    //else if (mincost == rm.MoveCost)
                     //{
                     //    ls.ApplyRelocationMove(rm, restartBestSol);
-                    //    Console.Write(" Reloc");
+                    //    //console.write(" reloc");
 
                     //}
-                    //else if (minCost == top.MoveCost)
+                    //else if (mincost == top.MoveCost)
                     //{
                     //    ls.ApplyTwoOptMove(top, restartBestSol);
-                    //    Console.Write(" Two opt");
+                    //    //console.write(" two opt");
 
                     //}
-                    //else if (minCost == flip.MoveCost)
+                    //else if (mincost == flip.MoveCost)
                     //{
                     //    ls.ApplyFlipMove(flip, restartBestSol);
-                    //    Console.Write(" Flip");
+                    //    //console.write(" flip");
 
                     //}
-
 
                     int k = rnd.Next(1, 5);
                     if (k == 1)
@@ -169,15 +168,16 @@ namespace VrdpoProject
                         }
                     }
 
+
                     if (restartBestSol.Cost < bestSolCost)
                     {
-                        bestSolCost = restartBestSol.Cost; 
+                        bestSolCost = restartBestSol.Cost;
                         lastImprovement = i;
                     }
                     Console.WriteLine(Convert.ToString(i) + ' ' + Convert.ToString(restartBestSol.Cost) + ' ' + Convert.ToString(bestSolCost));
                 }
 
-                bestSol = restartBestSol.DeepCopy(restartBestSol); 
+                bestSol = restartBestSol.DeepCopy(restartBestSol);
 
                 foreach (Route r in bestSol.Routes)
                 {
@@ -199,13 +199,13 @@ namespace VrdpoProject
                     globalBestSol = bestSol.DeepCopy(bestSol);
                     globalBestSolCost = bestSolCost;
                 }
-               
+
                 Console.WriteLine("///////////////////////");
                 Console.WriteLine(bestSolCost + " " + globalBestSolCost);
                 System.Threading.Thread.Sleep(5000);
             }
         }
-
+    
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.MoveCost, rm.MoveCost), top.MoveCost), flip.MoveCost);
 
         void SetRoutedToFalse(List<Customer> customers)
@@ -306,9 +306,13 @@ namespace VrdpoProject
                                 costAdded = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B);
                                 costRemoved = sol.CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
-                                trialTime = timeAdded - timeRemoved + candidateOpt.ServiceTime;
+                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;//candidateOpt.ServiceTime;
                                 tw = sol.RespectsTimeWindow(rt, j, candidateOpt.Location);
+                                //var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
+
                                 if (tw[0] <= tw[1]) { 
+                                //if (t.Item1)
+                                //{
 
                                     if (trialCost <= topThree.Last().Cost || topThree.Count < 3)
                                     {
@@ -323,6 +327,8 @@ namespace VrdpoProject
                                             bestInsertion.Cost = trialCost;
                                             bestInsertion.Ect = tw[0];
                                             bestInsertion.Lat = tw[1];
+                                            //bestInsertion.Ect = t.Item2[j+1];
+                                            //bestInsertion.Lat = t.Item3[j+1];
 
                                             CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
                                             topThree.Add(custTemp);
@@ -363,6 +369,7 @@ namespace VrdpoProject
             if (!sol.CheckRouteFeasibility(insertion.Route))
             {
                 Console.WriteLine("-----");
+                sol.CheckRouteFeasibility(insertion.Route);
             };
         }
 

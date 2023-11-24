@@ -109,21 +109,164 @@ namespace VrdpoProject
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) Promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
         }
 
+        public double[] RespectsTimeWindow3(Route rt, int loc, Location l)
+        {
+            /// loc: the position to be placed after
+            double lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]) - l.ServiceTime, l.Due - l.ServiceTime);
+            if (l.Id == rt.SequenceOfLocations[loc].Id)
+            {
+                lat += l.ServiceTime;
+            }
+
+            if (l.Id == rt.SequenceOfLocations[loc + 1].Id)
+            {
+                lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]), l.Due - l.ServiceTime);
+            }
+
+            double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateTime(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime);
+            if (l.Id == rt.SequenceOfLocations[loc].Id)
+            {
+                ect -= l.ServiceTime;
+            }
+           
+
+            double[] tw = new double[] { ect, lat };
+            return tw;
+        }
+
         public double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
             /// loc: the position to be placed after
             double lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]) - l.ServiceTime, l.Due - l.ServiceTime);
-            if (l == rt.SequenceOfLocations[loc + 1])
+            if (l.Id == rt.SequenceOfLocations[loc].Id)
             {
                 lat += l.ServiceTime;
             }
+
+            if (l.Id == rt.SequenceOfLocations[loc + 1].Id)
+            {
+                lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]), l.Due - l.ServiceTime);
+            }
+
             double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateTime(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime);
-            if (l == rt.SequenceOfLocations[loc])
+            if (l.Id == rt.SequenceOfLocations[loc].Id)
             {
                 ect -= l.ServiceTime;
             }
+            double lat2 = 0;
+            for (int j = loc; j > 0; j--)
+            {
+                if (loc == 1) { continue; };
+                if (j == loc)
+                {
+                    lat2 = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
+                                               lat - CalculateTime(rt.SequenceOfLocations[j], l)
+                                               - rt.SequenceOfLocations[j].ServiceTime);
+                } else
+                {
+                    lat2 = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
+                                               lat2 - CalculateTime(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
+                                               - rt.SequenceOfLocations[j].ServiceTime);
+                }
+
+                if (lat2 < rt.SequenceOfEct[j]) { 
+                    return new double[] { 1, 0 }; 
+                };
+            }
+
             double[] tw = new double[] { ect, lat };
             return tw;
+        }
+
+        public Tuple<bool, double[], double[]> RespectsTimeWindow2(Route rt, int loc, Location location)
+        {
+           
+            double[] ects = new double[rt.SequenceOfLocations.Count + 1];
+            double[] lats = Enumerable.Repeat((double)7200, rt.SequenceOfLocations.Count + 1).ToArray();
+            int k = 1;
+
+            for (int i = 1; i < rt.SequenceOfLocations.Count + 1; i++)
+            {
+                if (i == loc || (loc == 0 && i == 1))
+                {
+                    k--;
+                    ects[i] = Math.Max(location.Ready + location.ServiceTime,
+                                               ects[i - 1] + CalculateTime(location, rt.SequenceOfLocations[k])
+                                               + location.ServiceTime);
+
+                    if (i != 1 && (location == rt.SequenceOfLocations[k - 1]))
+                    {
+                        ects[i] -= (location.ServiceTime);
+                    }
+                }
+                else if (i == loc + 1)
+                {
+                    ects[i] = Math.Max(rt.SequenceOfLocations[k].Ready + rt.SequenceOfLocations[k].ServiceTime,
+                                               ects[i - 1] + CalculateTime(rt.SequenceOfLocations[k], location)
+                                               + rt.SequenceOfLocations[k].ServiceTime);
+
+                    if ((location == rt.SequenceOfLocations[k]))
+                    {
+                        ects[i] -= (rt.SequenceOfLocations[k].ServiceTime);
+                    }
+                }
+                else
+                {
+                    ects[i] = Math.Max(rt.SequenceOfLocations[k].Ready + rt.SequenceOfLocations[k].ServiceTime,
+                                                   ects[i - 1] + CalculateTime(rt.SequenceOfLocations[k], rt.SequenceOfLocations[k - 1])
+                                                   + rt.SequenceOfLocations[k].ServiceTime);
+
+                    if (rt.SequenceOfLocations[k - 1] == rt.SequenceOfLocations[k])
+                    {
+                        ects[i] -= (rt.SequenceOfLocations[k].ServiceTime);
+                    }
+                }
+                k++;
+            }
+            k = rt.SequenceOfLocations.Count - 2;
+            for (int j = rt.SequenceOfLocations.Count - 1; j > -1; j--)
+            {
+                if (j == loc)
+                {
+                    k++;
+                    lats[j] = Math.Min(location.Due - location.ServiceTime,
+                                               lats[j + 1] - CalculateTime(location, rt.SequenceOfLocations[k + 1])
+                                               - location.ServiceTime);
+
+                    if (rt.SequenceOfLocations[k + 1] == location)
+                    {
+                        lats[j] += (location.ServiceTime);//- 20);
+                    }
+                }
+                else if (j == loc - 1)
+                {
+                    lats[j] = Math.Min(rt.SequenceOfLocations[k].Due - rt.SequenceOfLocations[k].ServiceTime,
+                                               lats[j + 1] - CalculateTime(rt.SequenceOfLocations[k], location)
+                                               - rt.SequenceOfLocations[k].ServiceTime);
+
+                    if (location == rt.SequenceOfLocations[k])
+                    {
+                        lats[j] += (rt.SequenceOfLocations[k].ServiceTime);//- 20);
+                    }
+                }
+                else
+                {
+                    lats[j] = Math.Min(rt.SequenceOfLocations[k].Due - rt.SequenceOfLocations[k].ServiceTime,
+                                                   lats[j + 1] - CalculateTime(rt.SequenceOfLocations[k], rt.SequenceOfLocations[k + 1])
+                                                   - rt.SequenceOfLocations[k].ServiceTime);
+
+                    if (rt.SequenceOfLocations[k + 1] == rt.SequenceOfLocations[k])
+                    {
+                        lats[j] += (rt.SequenceOfLocations[k].ServiceTime);//- 20);
+                    }
+                }
+                k--;
+            }
+
+            bool feasible = ects.Zip(lats, (a, b) => a < b).All(x => x);
+
+            return new Tuple<bool, double[], double[]>(feasible, ects, lats);
+            
         }
 
         /// <summary>
@@ -152,7 +295,7 @@ namespace VrdpoProject
                                                + tempRoute.SequenceOfLocations[i].ServiceTime);
                 if (tempRoute.SequenceOfLocations[i - 1] == tempRoute.SequenceOfLocations[i])
                 {
-                    tempRoute.SequenceOfEct[i] -= (tempRoute.SequenceOfLocations[i].ServiceTime - 20);
+                    tempRoute.SequenceOfEct[i] -= (tempRoute.SequenceOfLocations[i].ServiceTime);// - 20);
                 }
                 tempRoute.SequenceOfEct.Insert(tempRoute.SequenceOfEct.Count - 1, ect);
             }
@@ -164,7 +307,7 @@ namespace VrdpoProject
                                                - tempRoute.SequenceOfLocations[j].ServiceTime);
                 if (tempRoute.SequenceOfLocations[j + 1] == tempRoute.SequenceOfLocations[j])
                 {
-                    tempRoute.SequenceOfLat[j] += (tempRoute.SequenceOfLocations[j].ServiceTime - 20);
+                    tempRoute.SequenceOfLat[j + 1] += (tempRoute.SequenceOfLocations[j + 1].ServiceTime);//- 20);
                 }
                 tempRoute.SequenceOfLat.RemoveAt(0);
                 tempRoute.SequenceOfLat.Insert(j, lat);
@@ -201,7 +344,7 @@ namespace VrdpoProject
                                                + rt.SequenceOfLocations[i].ServiceTime);
                 if (rt.SequenceOfLocations[i - 1] == rt.SequenceOfLocations[i])
                 {
-                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime - 20);
+                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime);//- 20);
                 }
             }
 
@@ -212,7 +355,7 @@ namespace VrdpoProject
                                                - rt.SequenceOfLocations[j].ServiceTime);
                 if (rt.SequenceOfLocations[j + 1] == rt.SequenceOfLocations[j])
                 {
-                    rt.SequenceOfLat[j] += (rt.SequenceOfLocations[j].ServiceTime - 20);
+                    rt.SequenceOfLat[j + 1] += (rt.SequenceOfLocations[j + 1].ServiceTime); //- 20);
                 }
             }
         }
@@ -226,7 +369,7 @@ namespace VrdpoProject
                                                + rt.SequenceOfLocations[i].ServiceTime);
                 if (rt.SequenceOfLocations[i - 1] == rt.SequenceOfLocations[i])
                 {
-                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime - 20);
+                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime); //- 20);
                 }
             }
 
@@ -237,10 +380,12 @@ namespace VrdpoProject
                                                - rt.SequenceOfLocations[j].ServiceTime);
                 if (rt.SequenceOfLocations[j + 1] == rt.SequenceOfLocations[j])
                 {
-                    rt.SequenceOfLat[j] += (rt.SequenceOfLocations[j].ServiceTime - 20);
+                    rt.SequenceOfLat[j + 1] += (rt.SequenceOfLocations[j + 1].ServiceTime);//- 20);
                 }
             }
         }
+
+     
 
         public bool CheckRouteFeasibility(Route rt)
         {
@@ -249,14 +394,17 @@ namespace VrdpoProject
             bool depotFeasibility = true;
             bool costFeasibility = true;
             double cost = 0;
+            UpdateTimes(rt);
             for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
             {
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
-                double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
+                double[] tw = RespectsTimeWindow3(rt, i, nextOpt.Location);
                 double ect = tw[0];
                 double lat = tw[1];
+                //var tw = RespectsTimeWindow2(rt, i, nextOpt.Location);
                 if (ect > lat && ect >= nextOpt.Location.Ready && ect <= nextOpt.Location.Due)
+                //if(!tw.Item1)
                 {
                     timeWindowFeasibility = false;
                     //break;

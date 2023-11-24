@@ -32,11 +32,17 @@ namespace VrdpoProject
                                 continue;
                             }
 
+                            // if (rt1.SequenceOfLocations[originOptionIndex].Type == 1) { continue; }
+
                             double[] tw = sol.RespectsTimeWindow(rt2, targetOptionIndex, rt1.SequenceOfLocations[originOptionIndex]);
+                           // var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex,
+                             //               rt1.SequenceOfLocations[originOptionIndex]);
+
                             double ect = tw[0];
                             double lat = tw[1];
 
                             if (ect > lat) { continue; }
+                            //if (!tw.Item1) { continue; };
 
                             Option A = rt1.SequenceOfOptions[originOptionIndex - 1];
                             Option B = rt1.SequenceOfOptions[originOptionIndex];
@@ -104,6 +110,7 @@ namespace VrdpoProject
             {
                 Route originRt = sol.Routes[rm.OriginRoutePosition];
                 Route targetRt = sol.Routes[rm.TargetRoutePosition];
+
                 if (!sol.CheckRouteFeasibility(originRt) || !sol.CheckRouteFeasibility(targetRt))
                 {
                     Console.WriteLine("-----");
@@ -116,6 +123,7 @@ namespace VrdpoProject
 
                 if (originRt == targetRt)
                 {
+                    //Console.WriteLine(B.Location.Id + " ---- " + F.Location.Id);
                     originRt.SequenceOfOptions.RemoveAt(rm.OriginOptionPosition);
                     originRt.SequenceOfCustomers.RemoveAt(rm.OriginOptionPosition);
                     originRt.SequenceOfLocations.RemoveAt(rm.OriginOptionPosition);
@@ -160,6 +168,7 @@ namespace VrdpoProject
                 if (!sol.CheckRouteFeasibility(originRt))
                 {
                     Console.WriteLine("-----");
+                    sol.CheckRouteFeasibility(originRt);
                 }
                 if (!sol.CheckRouteFeasibility(targetRt))
                 {
@@ -199,6 +208,8 @@ namespace VrdpoProject
                             double costChangeFirstRoute;
                             double costChangeSecondRoute;
 
+                            //if (b2.Location.Type == 1 || b1.Location.Type == 1) { continue; }
+
                             double[] tw1 = sol.RespectsTimeWindow(rt1, firstOptionIndex, b2.Location);
                             double[] tw2 = sol.RespectsTimeWindow(rt2, secondOptionIndex, b1.Location);
                             double ect1 = tw1[0];
@@ -207,6 +218,11 @@ namespace VrdpoProject
                             double lat2 = tw2[1];
 
                             if (ect1 > lat1 || ect2 > lat2) { continue; }
+
+                            //var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
+                            //ar tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
+
+                            //if (!tw1.Item1 || !tw2.Item1) { continue; }
 
                             if (rt1 == rt2)
                             {
@@ -556,10 +572,8 @@ namespace VrdpoProject
                             {
 
                                 double[] tw = sol.RespectsTimeWindow(rt2, targetOptionIndex, custB.Options[optInd].Location);
-                                double ect = tw[0];
-                                double lat = tw[1];
-
-                                if (ect > lat) { continue; }
+                                
+                                if (tw[0] > tw[1]) { continue; }
 
                                 if (rt1.SequenceOfOptions[custInd1].Prio < custB.Options[optInd].Prio)
                                 {
