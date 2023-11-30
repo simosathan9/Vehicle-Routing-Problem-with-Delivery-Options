@@ -306,7 +306,7 @@ namespace VrdpoProject
                                 costAdded = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B);
                                 costRemoved = sol.CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
-                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;//candidateOpt.ServiceTime;
+                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;//candidateOpt.ServiceTime;// if loc == loc+1??? servicetime--
                                 tw = sol.RespectsTimeWindow(rt, j, candidateOpt.Location);
                                 //var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
 
@@ -364,8 +364,9 @@ namespace VrdpoProject
             insertion.Location.Cap += 1;
             insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition, insertion.Ect);
             insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition, insertion.Lat);
-            //sol.UpdateTimes(insertion.Route, insertion.InsertionPosition);
+            bool k = sol.CalculateTimes(insertion.Route);
             sol.UpdateTimes(insertion.Route);
+            k = sol.CalculateTimes(insertion.Route);
             if (!sol.CheckRouteFeasibility(insertion.Route))
             {
                 Console.WriteLine("-----");

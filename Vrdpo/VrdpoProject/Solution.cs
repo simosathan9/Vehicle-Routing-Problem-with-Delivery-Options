@@ -385,6 +385,30 @@ namespace VrdpoProject
             }
         }
 
+        public bool CalculateTimes(Route rt)
+        {
+            double totalTime = 0;
+            for (int i = 0; i < rt.SequenceOfLocations.Count - 1; i++)
+            {
+                totalTime += CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i + 1]);
+
+                if (rt.SequenceOfLocations[i + 1].Ready > totalTime)
+                {
+                    totalTime = rt.SequenceOfLocations[i + 1].Ready;
+                }
+
+                if (rt.SequenceOfLocations[i].Id != rt.SequenceOfLocations[i+1].Id)
+                {
+                    totalTime += rt.SequenceOfLocations[i + 1].ServiceTime;
+                }
+
+                if (!(totalTime <= rt.SequenceOfLocations[i + 1].Due))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
      
 
         public bool CheckRouteFeasibility(Route rt)
@@ -394,12 +418,12 @@ namespace VrdpoProject
             bool depotFeasibility = true;
             bool costFeasibility = true;
             double cost = 0;
-            UpdateTimes(rt);
+            //UpdateTimes(rt);
             for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
             {
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
-                double[] tw = RespectsTimeWindow3(rt, i, nextOpt.Location);
+                double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
                 double ect = tw[0];
                 double lat = tw[1];
                 //var tw = RespectsTimeWindow2(rt, i, nextOpt.Location);
