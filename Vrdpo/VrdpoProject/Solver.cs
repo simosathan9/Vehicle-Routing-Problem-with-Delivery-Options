@@ -123,7 +123,7 @@ namespace VrdpoProject
 
                     //}
 
-                    int k = rnd.Next(1, 5);
+                    int k = rnd.Next(1, 3);
                     if (k == 1)
                     {
                         sm = ls.FindBestSwapMove(sm, restartBestSol);
@@ -364,14 +364,12 @@ namespace VrdpoProject
             insertion.Location.Cap += 1;
             insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition, insertion.Ect);
             insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition, insertion.Lat);
-            bool k = sol.CalculateTimes(insertion.Route);
             sol.UpdateTimes(insertion.Route);
-            k = sol.CalculateTimes(insertion.Route);
-            if (!sol.CheckRouteFeasibility(insertion.Route))
+            /**if (!sol.CheckRouteFeasibility(insertion.Route))
             {
                 Console.WriteLine("-----");
                 sol.CheckRouteFeasibility(insertion.Route);
-            };
+            };**/
         }
 
         void MinimumInsertions(Solution sol, Random rnd)

@@ -146,7 +146,13 @@ namespace VrdpoProject
             if (l.Id == rt.SequenceOfLocations[loc + 1].Id)
             {
                 lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]), l.Due - l.ServiceTime);
+
+               if (l.Id == rt.SequenceOfLocations[loc].Id)
+                {
+                    lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]), l.Due);
+                }
             }
+
 
             double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateTime(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime);
             if (l.Id == rt.SequenceOfLocations[loc].Id)
@@ -162,11 +168,22 @@ namespace VrdpoProject
                     lat2 = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
                                                lat - CalculateTime(rt.SequenceOfLocations[j], l)
                                                - rt.SequenceOfLocations[j].ServiceTime);
+
+                    if (j > 1 && rt.SequenceOfLocations[j-1].Id == rt.SequenceOfLocations[j].Id)
+                    {
+                        lat2 += rt.SequenceOfLocations[j].ServiceTime;
+                    }
+
                 } else
                 {
                     lat2 = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
                                                lat2 - CalculateTime(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
                                                - rt.SequenceOfLocations[j].ServiceTime);
+
+                    if (j > 1 && rt.SequenceOfLocations[j - 1].Id == rt.SequenceOfLocations[j].Id)
+                    {
+                        lat2 += rt.SequenceOfLocations[j].ServiceTime;
+                    }
                 }
 
                 if (lat2 < rt.SequenceOfEct[j]) { 
@@ -308,6 +325,10 @@ namespace VrdpoProject
                 if (tempRoute.SequenceOfLocations[j + 1] == tempRoute.SequenceOfLocations[j])
                 {
                     tempRoute.SequenceOfLat[j + 1] += (tempRoute.SequenceOfLocations[j + 1].ServiceTime);//- 20);
+
+                    lat = Math.Min(tempRoute.SequenceOfLocations[j].Due - tempRoute.SequenceOfLocations[j].ServiceTime,
+                                               tempRoute.SequenceOfLat[j + 1] - CalculateTime(tempRoute.SequenceOfLocations[j], tempRoute.SequenceOfLocations[j + 1])
+                                               - tempRoute.SequenceOfLocations[j].ServiceTime);
                 }
                 tempRoute.SequenceOfLat.RemoveAt(0);
                 tempRoute.SequenceOfLat.Insert(j, lat);
@@ -335,31 +356,6 @@ namespace VrdpoProject
             }
         }
 
-        public void UpdateTimes(Route rt, int loc)
-        {
-            for (int i = loc; i < rt.SequenceOfLocations.Count; i++)
-            {
-                rt.SequenceOfEct[i] = Math.Max(rt.SequenceOfLocations[i].Ready + rt.SequenceOfLocations[i].ServiceTime,
-                                               rt.SequenceOfEct[i - 1] + CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i - 1])
-                                               + rt.SequenceOfLocations[i].ServiceTime);
-                if (rt.SequenceOfLocations[i - 1] == rt.SequenceOfLocations[i])
-                {
-                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime);//- 20);
-                }
-            }
-
-            for (int j = loc; j > -1; j--)
-            {
-                rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
-                                               rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
-                                               - rt.SequenceOfLocations[j].ServiceTime);
-                if (rt.SequenceOfLocations[j + 1] == rt.SequenceOfLocations[j])
-                {
-                    rt.SequenceOfLat[j + 1] += (rt.SequenceOfLocations[j + 1].ServiceTime); //- 20);
-                }
-            }
-        }
-
         public void UpdateTimes(Route rt)
         {
             for (int i = 1; i < rt.SequenceOfLocations.Count; i++)
@@ -381,6 +377,10 @@ namespace VrdpoProject
                 if (rt.SequenceOfLocations[j + 1] == rt.SequenceOfLocations[j])
                 {
                     rt.SequenceOfLat[j + 1] += (rt.SequenceOfLocations[j + 1].ServiceTime);//- 20);
+
+                    rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
+                                               rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
+                                               - rt.SequenceOfLocations[j].ServiceTime);
                 }
             }
         }
@@ -423,12 +423,17 @@ namespace VrdpoProject
             {
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
-                double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
-                double ect = tw[0];
-                double lat = tw[1];
-                //var tw = RespectsTimeWindow2(rt, i, nextOpt.Location);
-                if (ect > lat && ect >= nextOpt.Location.Ready && ect <= nextOpt.Location.Due)
-                //if(!tw.Item1)
+                bool tw = CalculateTimes(rt);
+               // double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
+               // double ect = tw[0];
+               // double lat = tw[1];
+                ///var tw = RespectsTimeWindow2(rt, i, nextOpt.Location);
+                if (rt.SequenceOfEct[i + 1] > rt.SequenceOfLat[i + 1])
+                {
+                    timeWindowFeasibility = false;
+                }
+                //if (ect > lat && ect >= nextOpt.Location.Ready && ect <= nextOpt.Location.Due)
+                if(!tw)
                 {
                     timeWindowFeasibility = false;
                     //break;
