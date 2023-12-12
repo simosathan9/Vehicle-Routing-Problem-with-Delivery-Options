@@ -24,7 +24,7 @@ namespace VrdpoProject
             this.location = location;
             this.cust = cust;
             this.prio = prio;
-            this.serviceTime = (serviceTime * 10) + location.ServiceTime;
+            this.serviceTime = (serviceTime * 10);//+ location.ServiceTime;
             this.cost = cost;
             isServed = false;
             this.ready = ready;

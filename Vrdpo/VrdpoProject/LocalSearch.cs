@@ -34,15 +34,15 @@ namespace VrdpoProject
 
                             // if (rt1.SequenceOfLocations[originOptionIndex].Type == 1) { continue; }
 
-                            double[] tw = sol.RespectsTimeWindow(rt2, targetOptionIndex, rt1.SequenceOfLocations[originOptionIndex]);
-                           // var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex,
-                             //               rt1.SequenceOfLocations[originOptionIndex]);
+                            //double[] tw = sol.RespectsTimeWindow(rt2, targetOptionIndex, rt1.SequenceOfLocations[originOptionIndex]);
+                            var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex,
+                                            rt1.SequenceOfLocations[originOptionIndex]);
 
-                            double ect = tw[0];
-                            double lat = tw[1];
+                            //double ect = tw[0];
+                            //double lat = tw[1];
 
-                            if (ect > lat) { continue; }
-                            //if (!tw.Item1) { continue; };
+                            //if (ect > lat) { continue; }
+                            if (!tw.Item1) { continue; };
 
                             Option A = rt1.SequenceOfOptions[originOptionIndex - 1];
                             Option B = rt1.SequenceOfOptions[originOptionIndex];
@@ -210,19 +210,19 @@ namespace VrdpoProject
 
                             //if (b2.Location.Type == 1 || b1.Location.Type == 1) { continue; }
 
-                            double[] tw1 = sol.RespectsTimeWindow(rt1, firstOptionIndex, b2.Location);
+                            /**double[] tw1 = sol.RespectsTimeWindow(rt1, firstOptionIndex, b2.Location);
                             double[] tw2 = sol.RespectsTimeWindow(rt2, secondOptionIndex, b1.Location);
                             double ect1 = tw1[0];
                             double lat1 = tw1[1];
                             double ect2 = tw2[0];
                             double lat2 = tw2[1];
 
-                            if (ect1 > lat1 || ect2 > lat2) { continue; }
+                            if (ect1 > lat1 || ect2 > lat2) { continue; }**/
 
-                            //var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
-                            //ar tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
+                            var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
+                            var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
 
-                            //if (!tw1.Item1 || !tw2.Item1) { continue; }
+                            if (!tw1.Item1 || !tw2.Item1) { continue; }
 
                             if (rt1 == rt2)
                             {

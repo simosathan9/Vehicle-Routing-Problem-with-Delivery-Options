@@ -307,12 +307,12 @@ namespace VrdpoProject
                                 costRemoved = sol.CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
                                 trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;//candidateOpt.ServiceTime;// if loc == loc+1??? servicetime--
-                                tw = sol.RespectsTimeWindow(rt, j, candidateOpt.Location);
-                                //var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
+                               // tw = sol.RespectsTimeWindow(rt, j, candidateOpt.Location);
+                                var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
 
-                                if (tw[0] <= tw[1]) { 
-                                //if (t.Item1)
-                                //{
+                                //if (tw[0] <= tw[1]) { 
+                                if (t.Item1)
+                                {
 
                                     if (trialCost <= topThree.Last().Cost || topThree.Count < 3)
                                     {
@@ -325,10 +325,10 @@ namespace VrdpoProject
                                             bestInsertion.InsertionPosition = j + 1;
                                             bestInsertion.Duration = trialTime;
                                             bestInsertion.Cost = trialCost;
-                                            bestInsertion.Ect = tw[0];
-                                            bestInsertion.Lat = tw[1];
-                                            //bestInsertion.Ect = t.Item2[j+1];
-                                            //bestInsertion.Lat = t.Item3[j+1];
+                                            //bestInsertion.Ect = tw[0];
+                                            //bestInsertion.Lat = tw[1];
+                                            bestInsertion.Ect = t.Item2[j+1];
+                                            bestInsertion.Lat = t.Item3[j+1];
 
                                             CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
                                             topThree.Add(custTemp);
