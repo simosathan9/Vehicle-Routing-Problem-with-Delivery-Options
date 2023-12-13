@@ -556,6 +556,7 @@ namespace VrdpoProject
 
                             if (rt2 == rt1)
                             {
+                                //continue;
                                 targetRouteIndex = custInd1 + 1;
                             }
 
@@ -571,9 +572,9 @@ namespace VrdpoProject
                             for (int targetOptionIndex = targetRouteIndex; targetOptionIndex < rt2.SequenceOfOptions.Count - 1; targetOptionIndex++) //-1
                             {
 
-                                double[] tw = sol.RespectsTimeWindow(rt2, targetOptionIndex, custB.Options[optInd].Location);
+                                var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex, custB.Options[optInd].Location);
                                 
-                                if (tw[0] > tw[1]) { continue; }
+                                if (!tw.Item1) { continue; }
 
                                 if (rt1.SequenceOfOptions[custInd1].Prio < custB.Options[optInd].Prio)
                                 {
@@ -663,7 +664,7 @@ namespace VrdpoProject
                 Option G = targetRt.SequenceOfOptions[flip.TargetOptionPosition + 1];
                 Option B2 = originRt.SequenceOfCustomers[flip.OriginOptionPosition].Options[flip.NewOptionIndex];
 
-                /**
+                
                 if (originRt == targetRt)
                 {
                     originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
@@ -681,11 +682,11 @@ namespace VrdpoProject
                         targetRt.SequenceOfCustomers.Insert(flip.TargetOptionPosition + 1, B2.Cust);
                         targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition + 1, B2.Location);
                     }
-                    solver.UpdateTimes(originRt);
+                    sol.UpdateTimes(originRt);
                     originRt.Cost += flip.MoveCost;
                 }
                 else
-                {**/
+                {
                 originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
                 originRt.SequenceOfCustomers.RemoveAt(flip.OriginOptionPosition);
                 originRt.SequenceOfLocations.RemoveAt(flip.OriginOptionPosition);
@@ -697,18 +698,18 @@ namespace VrdpoProject
                 targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition + 1, B2.Location);
                 targetRt.SequenceOfEct.Insert(flip.TargetOptionPosition + 1, 0);
                 targetRt.SequenceOfLat.Insert(flip.TargetOptionPosition + 1, 0);
-                if (originRt == targetRt)
+               /** if (originRt == targetRt)
                 {
                     originRt.Cost += flip.MoveCost;
                     sol.UpdateTimes(originRt);
                 } else 
-                { 
-                    originRt.Cost += flip.CostChangeOriginRt;
-                    targetRt.Cost += flip.CostChangeTargetRt;
-                    originRt.Load -= B1.Cust.Dem;
-                    targetRt.Load += B2.Cust.Dem;
-                    sol.UpdateTimes(originRt);
-                    sol.UpdateTimes(targetRt);
+                { **/
+                originRt.Cost += flip.CostChangeOriginRt;
+                targetRt.Cost += flip.CostChangeTargetRt;
+                originRt.Load -= B1.Cust.Dem;
+                targetRt.Load += B2.Cust.Dem;
+                sol.UpdateTimes(originRt);
+                sol.UpdateTimes(targetRt);
                 }
                 sol.Cost += flip.MoveCost;
                 B1.IsServed = false; B2.IsServed = true;

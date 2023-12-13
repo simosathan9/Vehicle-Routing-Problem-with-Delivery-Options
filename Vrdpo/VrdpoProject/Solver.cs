@@ -102,28 +102,28 @@ namespace VrdpoProject
                     //if (mincost == sm.MoveCost)
                     //{
                     //    ls.ApplySwapMove(sm, restartBestSol);
-                    //    //console.write(" swap");
+                    //    //Console.Write(" swap");
                     //}
                     //else if (mincost == rm.MoveCost)
                     //{
                     //    ls.ApplyRelocationMove(rm, restartBestSol);
-                    //    //console.write(" reloc");
+                    //    //Console.Write(" reloc");
 
                     //}
                     //else if (mincost == top.MoveCost)
                     //{
                     //    ls.ApplyTwoOptMove(top, restartBestSol);
-                    //    //console.write(" two opt");
+                    //    //Console.Write(" two opt");
 
                     //}
                     //else if (mincost == flip.MoveCost)
                     //{
                     //    ls.ApplyFlipMove(flip, restartBestSol);
-                    //    //console.write(" flip");
+                    //    Console.Write(" flip");
 
                     //}
 
-                    int k = rnd.Next(1, 3);
+                    int k = rnd.Next(1, 5);
                     if (k == 1)
                     {
                         sm = ls.FindBestSwapMove(sm, restartBestSol);
@@ -146,6 +146,7 @@ namespace VrdpoProject
                             c = i;
                             flip = ls.FindBestFlipMove(flip, restartBestSol);
                             ls.ApplyFlipMove(flip, restartBestSol);
+                            Console.Write(" flip");
                         }
                         else
                         {

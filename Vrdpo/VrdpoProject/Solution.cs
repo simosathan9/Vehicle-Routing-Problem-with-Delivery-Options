@@ -48,18 +48,12 @@ namespace VrdpoProject
             {
                 this.routes.Add(new Route(rt));
             }
-            //this.Routes = routes;
             this.DistanceMatrix = distanceMatrix;
             this.TimeMatrix = timeMatrix;
             this.Cap = cap;
             this.Depot = depot;
-            //TODO: also deepclone options and check for customer/location
-            //this.sequenceOfLocations = new List<Location>(original.sequenceOfLocations);
-            //this.sequenceOfCustomers = new List<Customer>(original.sequenceOfCustomers);
             this.Options = new List<Option>(options);
             this.Customers = new List<Customer>(customers);
-            //this.Options = options;
-            //this.Customers = customers;
             this.Promises = promises;
         }
 
@@ -355,7 +349,7 @@ namespace VrdpoProject
                                                + rt.SequenceOfLocations[i].ServiceTime);
                 if (rt.SequenceOfLocations[i - 1] == rt.SequenceOfLocations[i])
                 {
-                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime); //- 20);
+                    rt.SequenceOfEct[i] -= (rt.SequenceOfLocations[i].ServiceTime);
                 }
             }
 
@@ -366,7 +360,7 @@ namespace VrdpoProject
                                                - rt.SequenceOfLocations[j].ServiceTime);
                 if (rt.SequenceOfLocations[j + 1] == rt.SequenceOfLocations[j])
                 {
-                    rt.SequenceOfLat[j + 1] += (rt.SequenceOfLocations[j + 1].ServiceTime);//- 20);
+                    rt.SequenceOfLat[j + 1] += (rt.SequenceOfLocations[j + 1].ServiceTime);
 
                     rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime,
                                                rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j], rt.SequenceOfLocations[j + 1])
