@@ -521,7 +521,7 @@ namespace VrdpoProject
             }
         }
 
-        public Flip FindBestFlipMove(Flip flip, Solution sol)
+        public Flip FindBestFlipMove(Flip flip, Solution sol, bool cond = false)
         {
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++)
             {
@@ -607,6 +607,7 @@ namespace VrdpoProject
                                                     - sol.CalculateDistance(B1.Location, C.Location);
                                 double costChangeTargetRt = sol.CalculateDistance(F.Location, B2.Location) + sol.CalculateDistance(B2.Location, G.Location)
                                                     - sol.CalculateDistance(F.Location, G.Location);
+
 
                                 if (moveCost < flip.MoveCost & rtInd2 != 0)
                                 {

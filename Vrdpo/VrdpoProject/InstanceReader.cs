@@ -27,12 +27,12 @@ namespace VrdpoProject
 
         public InstanceReader()
         {
-            //instance = System.IO.File.ReadAllLines("V_50small_1.txt");
-            instance = System.IO.File.ReadAllLines("U_25small_7.txt"); //better
+            //instance = System.IO.File.ReadAllLines("V_25large_3.txt");
+            instance = System.IO.File.ReadAllLines("U_25small_3.txt"); //better
             //instance = System.IO.File.ReadAllLines("U_25small_4.txt"); 
             //instance = System.IO.File.ReadAllLines("U_25large_9.txt"); //better
-            //instance = System.IO.File.ReadAllLines("U_25large_6.txt");
-            //instance = System.IO.File.ReadAllLines("V_50medium_5.txt");
+            //instance = System.IO.File.ReadAllLines("U_25large_3.txt");
+            //instance = System.IO.File.ReadAllLines("U_50medium_3.txt");
             //string[] instance = System.IO.File.ReadAllLines("U_50large_7.txt");
             temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             cap = Int32.Parse(temp1[1]);

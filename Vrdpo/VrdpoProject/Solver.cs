@@ -87,42 +87,57 @@ namespace VrdpoProject
                         restartBestSol.InitPromises();
                         reinitCount = 0;
                     }
-
+     
+                    //if (restartBestSol.Cost < 1.1 * bestSolCost && rnd.NextDouble() > 0.9)
+                    /**if (rnd.NextDouble() > 0.99)
+                    {
+                        while (CalculateServiceLevel(restartBestSol)[0] < 80 || CalculateServiceLevel(restartBestSol)[1] < 90)
+                        {
+                            flip.ReinitializeVariables();
+                            flip = ls.FindBestFlipMove(flip, restartBestSol, false);
+                            if (!flip.IsValid())
+                            {
+                                break;
+                            }
+                            ls.ApplyFlipMove(flip, restartBestSol);
+                            Console.WriteLine("cost: " + restartBestSol.Cost);
+                        } /// make it a method 
+                    }**/
                     //different schema
-                    //sm = ls.FindBestSwapMove(sm, restartBestSol);
-                    //rm = ls.FindBestRelocationMove(rm, restartBestSol);
-                    //top = ls.FindBestTwoOptMove(top, restartBestSol);
-                    //if (i > 2000 && ((i - c) > 500))
-                    //{
-                    //    c = i;
-                    //    flip = ls.FindBestFlipMove(flip, restartBestSol);
-                    //}
+                    /** sm = ls.FindBestSwapMove(sm, restartBestSol);
+                     rm = ls.FindBestRelocationMove(rm, restartBestSol);
+                     top = ls.FindBestTwoOptMove(top, restartBestSol);
+                     if (i > 2000 && ((i - c) > 500))
+                     {
+                         c = i;
+                         flip = ls.FindBestFlipMove(flip, restartBestSol);
+                     }
 
-                    //var mincost = FindMinMoveCost(sm, rm, top, flip);
-                    //if (mincost == sm.MoveCost)
-                    //{
-                    //    ls.ApplySwapMove(sm, restartBestSol);
-                    //    //Console.Write(" swap");
-                    //}
-                    //else if (mincost == rm.MoveCost)
-                    //{
-                    //    ls.ApplyRelocationMove(rm, restartBestSol);
-                    //    //Console.Write(" reloc");
+                     var mincost = FindMinMoveCost(sm, rm, top, flip);
+                     if (mincost == sm.MoveCost)
+                     {
+                         ls.ApplySwapMove(sm, restartBestSol);
+                         //Console.Write(" swap");
+                     }
+                     else if (mincost == rm.MoveCost)
+                     {
+                         ls.ApplyRelocationMove(rm, restartBestSol);
+                         //Console.Write(" reloc");
 
-                    //}
-                    //else if (mincost == top.MoveCost)
-                    //{
-                    //    ls.ApplyTwoOptMove(top, restartBestSol);
-                    //    //Console.Write(" two opt");
+                     }
+                     else if (mincost == top.MoveCost)
+                     {
+                         ls.ApplyTwoOptMove(top, restartBestSol);
+                         //Console.Write(" two opt");
 
-                    //}
-                    //else if (mincost == flip.MoveCost)
-                    //{
-                    //    ls.ApplyFlipMove(flip, restartBestSol);
-                    //    Console.Write(" flip");
+                     }
+                     else if (mincost == flip.MoveCost)
+                     {
+                         ls.ApplyFlipMove(flip, restartBestSol);
+                         Console.Write(" flip");
 
-                    //}
-
+                     }
+                     **/
                     int k = rnd.Next(1, 5);
                     if (k == 1)
                     {
@@ -141,12 +156,12 @@ namespace VrdpoProject
                     }
                     else if (k == 4)
                     {
-                        if (i > 2000 && ((i - c) > 500))
+                        if (i > 2000 && ((i - c) > 100))
                         {
                             c = i;
                             flip = ls.FindBestFlipMove(flip, restartBestSol);
                             ls.ApplyFlipMove(flip, restartBestSol);
-                            Console.Write(" flip");
+                            //Console.Write(" flip");
                         }
                         else
                         {
@@ -175,7 +190,7 @@ namespace VrdpoProject
                         bestSolCost = restartBestSol.Cost;
                         lastImprovement = i;
                     }
-                    Console.WriteLine(Convert.ToString(i) + ' ' + Convert.ToString(restartBestSol.Cost) + ' ' + Convert.ToString(bestSolCost));
+                    Console.WriteLine(Convert.ToString(i) + ' ' + Convert.ToString(restartBestSol.Cost) + ' ' + Convert.ToString(bestSolCost));// + CalculateServiceLevel(restartBestSol));
                 }
 
                 bestSol = restartBestSol.DeepCopy(restartBestSol);
@@ -205,6 +220,20 @@ namespace VrdpoProject
                 Console.WriteLine(bestSolCost + " " + globalBestSolCost);
                 System.Threading.Thread.Sleep(5000);
             }
+            /**Flip fl = new();
+            fl.ReinitializeVariables();
+            while (CalculateServiceLevel(globalBestSol)[0] < 80 && CalculateServiceLevel(globalBestSol)[1] < 90)
+            {
+                fl = ls.FindBestFlipMove(fl, globalBestSol, false);
+                if (!fl.IsValid())
+                {
+                    break;
+                }
+                ls.ApplyFlipMove(fl, globalBestSol);
+                globalBestSolCost = globalBestSol.Cost;
+                Console.WriteLine("cost: " + globalBestSolCost);
+            }**/
+            CalculateServiceLevel(globalBestSol);
         }
     
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.MoveCost, rm.MoveCost), top.MoveCost), flip.MoveCost);
@@ -393,7 +422,7 @@ namespace VrdpoProject
             }
             ReportSolution(sol);
         }
-        void CalculateServiceLevel(Solution sol)
+        double[] CalculateServiceLevel(Solution sol)
         {
             int po0Sum = 0;
             int po1Sum = 0;
@@ -423,6 +452,8 @@ namespace VrdpoProject
             sum = po0Sum + po1Sum + po2Sum;
             Console.WriteLine("Priority 1: {0}", po0Sum/sum);
             Console.WriteLine("Priority 2: {0}", po1Sum/(sum - po0Sum));
+
+            return new double[] { po0Sum / sum, (po1Sum / (sum - po0Sum))};
         }
     }
 }
