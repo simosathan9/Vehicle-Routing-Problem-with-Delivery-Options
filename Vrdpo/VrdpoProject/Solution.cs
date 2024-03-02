@@ -394,6 +394,34 @@ namespace VrdpoProject
             return true;
         }
      
+        public bool CheckEverything(Solution sol)
+        {
+            bool feasible;
+            Dictionary<Location, int> timesVisited = new Dictionary<Location, int>();
+            foreach(Route route in sol.Routes)
+            {
+                feasible = CheckRouteFeasibility(route);
+                if (!feasible)
+                {
+                    return false;
+                }
+                foreach (Location location in route.SequenceOfLocations)
+                {
+                    if (!timesVisited.ContainsKey(location))
+                    {
+                        timesVisited.Add(location, 0);
+                    }
+                    timesVisited[location] += 1;
+                    if (location.Type == 1 && location.MaxCap < timesVisited[location])
+                    {
+                        Console.WriteLine("Shared location exceeds max capacity!");
+                        return false;
+                    }
+                }
+
+            }
+            return true;
+        }
 
         public bool CheckRouteFeasibility(Route rt)
         {

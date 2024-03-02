@@ -24,21 +24,19 @@ namespace VrdpoProject
             Solution bestSol = new();
             for (int restart = 0; restart < 10; restart++)
             {
-                Solution restartBestSol = new Solution();
+                Solution currentSol = new Solution();
 
                 Random rnd = new(restart);
 
-                SetRoutedToFalse(restartBestSol.Customers);
-                SetServedToFalse(restartBestSol.Options);
-                MinimumInsertions(restartBestSol, rnd); // give the rnd of each restart into the construction heuristic
+                SetRoutedToFalse(currentSol.Customers);
+                SetServedToFalse(currentSol.Options);
+                MinimumInsertions(currentSol, rnd); // give the rnd of each restart into the construction heuristic
 
-                Route empty = new Route(166, 0, restartBestSol.Depot);
-                foreach (Route r in restartBestSol.Routes)
+                foreach (Route r in currentSol.Routes)
                 {
                     if (r.SequenceOfLocations.Count == 2)
                     {
-                        restartBestSol.Cost -= r.Cost;
-                        empty = r;
+                        currentSol.Cost -= r.Cost;
                         continue;
                     }
                     Console.WriteLine("LOCATION | CUSTOMER");
@@ -47,12 +45,14 @@ namespace VrdpoProject
                         Console.WriteLine("{0} {1}", r.SequenceOfOptions[i].Location.Id, r.SequenceOfOptions[i].Cust.Id);
                     }
                     Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
-                    if (!restartBestSol.CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE"); }
+                    if (!currentSol.CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE"); }
                     Console.WriteLine("--------------");
                 }
-                restartBestSol.Routes.Remove(empty);
-                Console.WriteLine(restartBestSol.Cost);
-                CalculateServiceLevel(restartBestSol);
+                if (currentSol.Routes[currentSol.Routes.Count - 1].Load == 0) { 
+                    currentSol.Routes.RemoveAt(currentSol.Routes.Count - 1);
+                }
+                Console.WriteLine(currentSol.Cost);
+                CalculateServiceLevel(currentSol);
                 Console.WriteLine("---------------------------");
                 Console.WriteLine("---------------------------");
                 Console.WriteLine("---------------------------");
@@ -73,127 +73,85 @@ namespace VrdpoProject
                     }
 
                     reinitCount++;
-                    //!move these new outside loop. keep one instance that is overriden inside each loop
-                    //Relocation rm = new();
-                    //Swap sm = new();
-                    //TwoOpt top = new();
-                    //Flip flip = new();
                     rm.ReinitializeVariables();
                     sm.ReinitializeVariables();
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
-                    if (reinitCount == restartBestSol.Options.Count * 1.5)
+                    if (reinitCount == currentSol.Options.Count * 1.5)
                     {
-                        restartBestSol.InitPromises();
+                        currentSol.InitPromises();
                         reinitCount = 0;
                     }
-     
-                    //if (restartBestSol.Cost < 1.1 * bestSolCost && rnd.NextDouble() > 0.9)
-                    /**if (rnd.NextDouble() > 0.99)
-                    {
-                        while (CalculateServiceLevel(restartBestSol)[0] < 80 || CalculateServiceLevel(restartBestSol)[1] < 90)
-                        {
-                            flip.ReinitializeVariables();
-                            flip = ls.FindBestFlipMove(flip, restartBestSol, false);
-                            if (!flip.IsValid())
-                            {
-                                break;
-                            }
-                            ls.ApplyFlipMove(flip, restartBestSol);
-                            Console.WriteLine("cost: " + restartBestSol.Cost);
-                        } /// make it a method 
-                    }**/
-                    //different schema
-                    /** sm = ls.FindBestSwapMove(sm, restartBestSol);
-                     rm = ls.FindBestRelocationMove(rm, restartBestSol);
-                     top = ls.FindBestTwoOptMove(top, restartBestSol);
-                     if (i > 2000 && ((i - c) > 500))
-                     {
-                         c = i;
-                         flip = ls.FindBestFlipMove(flip, restartBestSol);
-                     }
 
-                     var mincost = FindMinMoveCost(sm, rm, top, flip);
-                     if (mincost == sm.MoveCost)
-                     {
-                         ls.ApplySwapMove(sm, restartBestSol);
-                         //Console.Write(" swap");
-                     }
-                     else if (mincost == rm.MoveCost)
-                     {
-                         ls.ApplyRelocationMove(rm, restartBestSol);
-                         //Console.Write(" reloc");
-
-                     }
-                     else if (mincost == top.MoveCost)
-                     {
-                         ls.ApplyTwoOptMove(top, restartBestSol);
-                         //Console.Write(" two opt");
-
-                     }
-                     else if (mincost == flip.MoveCost)
-                     {
-                         ls.ApplyFlipMove(flip, restartBestSol);
-                         Console.Write(" flip");
-
-                     }
-                     **/
                     int k = rnd.Next(1, 5);
                     if (k == 1)
                     {
-                        sm = ls.FindBestSwapMove(sm, restartBestSol);
-                        ls.ApplySwapMove(sm, restartBestSol);
+                        sm = ls.FindBestSwapMove(sm, currentSol);
+                        ls.ApplySwapMove(sm, currentSol);
                     }
                     else if (k == 2)
                     {
-                        rm = ls.FindBestRelocationMove(rm, restartBestSol);
-                        ls.ApplyRelocationMove(rm, restartBestSol);
+                        rm = ls.FindBestRelocationMove(rm, currentSol);
+                        ls.ApplyRelocationMove(rm, currentSol);
                     }
                     else if (k == 3)
                     {
-                        top = ls.FindBestTwoOptMove(top, restartBestSol);
-                        ls.ApplyTwoOptMove(top, restartBestSol);
+                        top = ls.FindBestTwoOptMove(top, currentSol);
+                        ls.ApplyTwoOptMove(top, currentSol);
                     }
                     else if (k == 4)
                     {
-                        if (i > 2000 && ((i - c) > 100))
+                        if (i > 1 && ((i - c) > 1))//100
                         {
                             c = i;
-                            flip = ls.FindBestFlipMove(flip, restartBestSol);
-                            ls.ApplyFlipMove(flip, restartBestSol);
+                            flip = ls.FindBestFlipMove(flip, currentSol);
+                            var service_level = CalculateServiceLevel(currentSol, false);
+                            if (service_level[0] > 0.84 && service_level[1] > 0.9)//0.8
+                            {
+                                if (flip.MoveCost < 0)
+                                {
+                                    ls.ApplyFlipMove(flip, currentSol);
+                                }
+                            } else
+                            {
+                                ls.ApplyFlipMove(flip, currentSol);
+                            }
                             //Console.Write(" flip");
                         }
                         else
                         {
-                            sm = ls.FindBestSwapMove(sm, restartBestSol);
-                            rm = ls.FindBestRelocationMove(rm, restartBestSol);
-                            top = ls.FindBestTwoOptMove(top, restartBestSol);
+                            sm = ls.FindBestSwapMove(sm, currentSol);
+                            rm = ls.FindBestRelocationMove(rm, currentSol);
+                            top = ls.FindBestTwoOptMove(top, currentSol);
                             if (rm.MoveCost < sm.MoveCost && rm.MoveCost < top.MoveCost)
                             {
-                                ls.ApplyRelocationMove(rm, restartBestSol);
+                                ls.ApplyRelocationMove(rm, currentSol);
                             }
                             else if (sm.MoveCost < top.MoveCost && sm.MoveCost < rm.MoveCost)
                             {
-                                ls.ApplySwapMove(sm, restartBestSol);
+                                ls.ApplySwapMove(sm, currentSol);
                             }
                             else
                             {
-                                ls.ApplyTwoOptMove(top, restartBestSol);
+                                ls.ApplyTwoOptMove(top, currentSol);
 
                             }
                         }
                     }
+                    if (!currentSol.CheckEverything(currentSol)) {
+                        Console.WriteLine("Infeasible Solution!!!");
+                    }
 
-
-                    if (restartBestSol.Cost < bestSolCost)
+                    if (currentSol.Cost < bestSolCost && CalculateServiceLevel(currentSol, false)[0] >= 0.8)
                     {
-                        bestSolCost = restartBestSol.Cost;
+                        bestSolCost = currentSol.Cost;
+                        bestSol = currentSol.DeepCopy(currentSol);
                         lastImprovement = i;
                     }
-                    Console.WriteLine(Convert.ToString(i) + ' ' + Convert.ToString(restartBestSol.Cost) + ' ' + Convert.ToString(bestSolCost));// + CalculateServiceLevel(restartBestSol));
+                    Console.WriteLine(Convert.ToString(i) + ' ' + Convert.ToString(currentSol.Cost) + ' ' + Convert.ToString(bestSolCost));// + CalculateServiceLevel(currentSol));
                 }
-
-                bestSol = restartBestSol.DeepCopy(restartBestSol);
+                CalculateServiceLevel(bestSol);
+                //bestSol = currentSol.DeepCopy(currentSol);
 
                 foreach (Route r in bestSol.Routes)
                 {
@@ -207,7 +165,7 @@ namespace VrdpoProject
                     Console.WriteLine("--------------");
                 }
                 Console.WriteLine(bestSol.Cost);
-                CalculateServiceLevel(bestSol);
+                //CalculateServiceLevel(bestSol);
 
                 if (bestSolCost < globalBestSolCost)
                 {
@@ -422,7 +380,7 @@ namespace VrdpoProject
             }
             ReportSolution(sol);
         }
-        double[] CalculateServiceLevel(Solution sol)
+        double[] CalculateServiceLevel(Solution sol, bool verbal = true)
         {
             int po0Sum = 0;
             int po1Sum = 0;
@@ -450,10 +408,14 @@ namespace VrdpoProject
                 }
             }
             sum = po0Sum + po1Sum + po2Sum;
-            Console.WriteLine("Priority 1: {0}", po0Sum/sum);
-            Console.WriteLine("Priority 2: {0}", po1Sum/(sum - po0Sum));
+            var sl0 = po0Sum / sum;
+            var sl1 = (po0Sum + po1Sum) / sum;
+            if (verbal) {
+                Console.WriteLine("Priority 1: {0}", sl0);
+                Console.WriteLine("Priority 2: {0}", sl1);
+            }
 
-            return new double[] { po0Sum / sum, (po1Sum / (sum - po0Sum))};
+            return new double[] {sl0, sl1};
         }
     }
 }

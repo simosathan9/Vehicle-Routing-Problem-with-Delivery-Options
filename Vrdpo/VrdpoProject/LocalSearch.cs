@@ -141,6 +141,7 @@ namespace VrdpoProject
                     }
                     sol.UpdateTimes(originRt);
                     originRt.Cost += rm.MoveCost;
+                    UpdateRouteCostAndLoad(originRt, sol);
                 }
                 else
                 {
@@ -160,6 +161,8 @@ namespace VrdpoProject
                     targetRt.Load += B.Cust.Dem;
                     sol.UpdateTimes(originRt);
                     sol.UpdateTimes(targetRt);
+                    UpdateRouteCostAndLoad(originRt, sol);
+                    UpdateRouteCostAndLoad(targetRt, sol);
                 }
                 sol.Cost += rm.MoveCost;
                 sol.Promises[A.Id, C.Id] = sol.Cost;
@@ -313,6 +316,7 @@ namespace VrdpoProject
                 if (rt1 == rt2)
                 {
                     rt1.Cost += sm.MoveCost;
+                    UpdateRouteCostAndLoad(rt1, sol);
                     sol.UpdateTimes(rt1);
                 }
                 else
@@ -321,6 +325,8 @@ namespace VrdpoProject
                     rt2.Cost += sm.CostChangeSecondRt;
                     rt1.Load = rt1.Load - b1.Cust.Dem + b2.Cust.Dem;
                     rt2.Load = rt2.Load + b1.Cust.Dem - b2.Cust.Dem;
+                    UpdateRouteCostAndLoad(rt1, sol);
+                    UpdateRouteCostAndLoad(rt2, sol);
                     sol.UpdateTimes(rt1);
                     sol.UpdateTimes(rt2);
                 }
@@ -470,6 +476,7 @@ namespace VrdpoProject
                 rt1.SequenceOfCustomers.InsertRange(frombase, reversedCustomers);
                 rt1.Cost += top.MoveCost;
                 sol.UpdateTimes(rt1);
+                UpdateRouteCostAndLoad(rt1, sol);
             }
             else
             {
@@ -568,6 +575,11 @@ namespace VrdpoProject
                             {
                                 continue;
                             }
+                            if (custB.Options[optInd].Location.MaxCap == custB.Options[optInd].Location.Cap)
+                            {
+                                // if shared location's max capacity is already reached continue
+                                continue;
+                            }
 
                             for (int targetOptionIndex = targetRouteIndex; targetOptionIndex < rt2.SequenceOfOptions.Count - 1; targetOptionIndex++) //-1
                             {
@@ -660,10 +672,10 @@ namespace VrdpoProject
                 }
                 Option A = originRt.SequenceOfOptions[flip.OriginOptionPosition - 1];
                 Option B1 = originRt.SequenceOfOptions[flip.OriginOptionPosition];
+                Option B2 = originRt.SequenceOfCustomers[flip.OriginOptionPosition].Options[flip.NewOptionIndex];//new option to be placed in place of B1
                 Option C = originRt.SequenceOfOptions[flip.OriginOptionPosition + 1];
                 Option F = targetRt.SequenceOfOptions[flip.TargetOptionPosition];
                 Option G = targetRt.SequenceOfOptions[flip.TargetOptionPosition + 1];
-                Option B2 = originRt.SequenceOfCustomers[flip.OriginOptionPosition].Options[flip.NewOptionIndex];
 
                 
                 if (originRt == targetRt)
@@ -685,6 +697,7 @@ namespace VrdpoProject
                     }
                     sol.UpdateTimes(originRt);
                     originRt.Cost += flip.MoveCost;
+                    UpdateRouteCostAndLoad(originRt, sol);
                 }
                 else
                 {
@@ -699,7 +712,7 @@ namespace VrdpoProject
                 targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition + 1, B2.Location);
                 targetRt.SequenceOfEct.Insert(flip.TargetOptionPosition + 1, 0);
                 targetRt.SequenceOfLat.Insert(flip.TargetOptionPosition + 1, 0);
-               /** if (originRt == targetRt)
+                /** if (originRt == targetRt)
                 {
                     originRt.Cost += flip.MoveCost;
                     sol.UpdateTimes(originRt);
@@ -709,11 +722,22 @@ namespace VrdpoProject
                 targetRt.Cost += flip.CostChangeTargetRt;
                 originRt.Load -= B1.Cust.Dem;
                 targetRt.Load += B2.Cust.Dem;
+                UpdateRouteCostAndLoad(originRt, sol);
+                UpdateRouteCostAndLoad(targetRt, sol);
                 sol.UpdateTimes(originRt);
                 sol.UpdateTimes(targetRt);
                 }
                 sol.Cost += flip.MoveCost;
                 B1.IsServed = false; B2.IsServed = true;
+                //adjust capacity for shared locations
+                if (B2.Location.Type == 1)
+                {
+                    B2.Location.Cap++;
+                }
+                if (B1.Location.Type == 1)
+                {
+                    B1.Location.Cap--;
+                }
                 sol.Promises[A.Id, C.Id] = sol.Cost;
                 sol.Promises[F.Id, B2.Id] = sol.Cost;
                 sol.Promises[B2.Id, G.Id] = sol.Cost;
