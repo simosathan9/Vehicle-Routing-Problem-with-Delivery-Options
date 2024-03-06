@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Linq;
 using OxyPlot;
+using Microsoft.VisualBasic.FileIO;
 
 
 namespace VrdpoProject
@@ -15,28 +16,21 @@ namespace VrdpoProject
         // this is unused so far.Make a method to write the final solution into a text file 
         Solution globalBestSol = new Solution();
         double globalBestSolCost = Math.Pow(10, 9);
-        //Random rnd = new Random(14);
         LocalSearch ls = new();
+        Random rnd2 = new Random();
 
 
         public void Solve()
         {
-            Solution bestSol = new();
-            for (int restart = 0; restart < 10; restart++)
+            List<Solution> feasibleSolutions = new List<Solution>();
+            feasibleSolutions = ConstructFeasibleSolutions();
+            foreach (Solution sol in feasibleSolutions)
             {
-                Solution currentSol = new Solution();
-
-                Random rnd = new(restart);
-
-                SetRoutedToFalse(currentSol.Customers);
-                SetServedToFalse(currentSol.Options);
-                MinimumInsertions(currentSol, rnd); // give the rnd of each restart into the construction heuristic
-
-                foreach (Route r in currentSol.Routes)
+                foreach (Route r in sol.Routes)
                 {
                     if (r.SequenceOfLocations.Count == 2)
                     {
-                        currentSol.Cost -= r.Cost;
+                        sol.Cost -= r.Cost;
                         continue;
                     }
                     Console.WriteLine("LOCATION | CUSTOMER");
@@ -45,18 +39,38 @@ namespace VrdpoProject
                         Console.WriteLine("{0} {1}", r.SequenceOfOptions[i].Location.Id, r.SequenceOfOptions[i].Cust.Id);
                     }
                     Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
-                    if (!currentSol.CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE"); }
+                    if (!sol.CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE"); }
                     Console.WriteLine("--------------");
                 }
-                if (currentSol.Routes[currentSol.Routes.Count - 1].Load == 0) { 
-                    currentSol.Routes.RemoveAt(currentSol.Routes.Count - 1);
+                if (sol.Routes[sol.Routes.Count - 1].Load == 0)
+                {
+                    sol.Routes.RemoveAt(sol.Routes.Count - 1);
                 }
-                Console.WriteLine(currentSol.Cost);
-                CalculateServiceLevel(currentSol);
+                Console.WriteLine(sol.Cost);
+                CalculateServiceLevel(sol);
                 Console.WriteLine("---------------------------");
                 Console.WriteLine("---------------------------");
                 Console.WriteLine("---------------------------");
+            }
 
+            foreach (Solution s in feasibleSolutions)
+            {
+                LocalSearch(s);
+                Console.WriteLine("The best solution is: " + globalBestSol);
+                Console.WriteLine("------------------");
+                Console.WriteLine("------------------");
+                Console.WriteLine("------------------");
+            }
+        }
+
+
+        Solution LocalSearch(Solution currentSol)
+        {
+            Solution bestSol = new();
+            int numberOfRestarts = 10;
+            for (int restart = 0; restart < numberOfRestarts; restart++)
+            {
+                Random rnd = new(restart);
                 double bestSolCost = 10000000;
                 int reinitCount = -1;
                 int c = 0;
@@ -77,12 +91,49 @@ namespace VrdpoProject
                     sm.ReinitializeVariables();
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
+
                     if (reinitCount == currentSol.Options.Count * 1.5)
                     {
                         currentSol.InitPromises();
                         reinitCount = 0;
                     }
 
+                    sm = ls.FindBestSwapMove(sm, currentSol);
+                    rm = ls.FindBestRelocationMove(rm, currentSol);
+                    top = ls.FindBestTwoOptMove(top, currentSol);
+
+                    if (i > 2000 && ((i - c) > 500))
+                    {
+                        c = i;
+                        flip = ls.FindBestFlipMove(flip, currentSol);
+                    }
+
+                    var mincost = FindMinMoveCost(sm, rm, top, flip);
+                    if (mincost == sm.MoveCost)
+                    {
+                        ls.ApplySwapMove(sm, currentSol);
+                        //Console.Write(" swap");
+                    }
+                    else if (mincost == rm.MoveCost)
+                    {
+                        ls.ApplyRelocationMove(rm, currentSol);
+                        //Console.Write(" reloc");
+
+                    }
+                    else if (mincost == top.MoveCost)
+                    {
+                        ls.ApplyTwoOptMove(top, currentSol);
+                        //Console.Write(" two opt");
+
+                    }
+                    else if (mincost == flip.MoveCost)
+                    {
+                        ls.ApplyFlipMove(flip, currentSol);
+                        //Console.Write(" flip");
+
+                    }
+
+                    /**
                     int k = rnd.Next(1, 5);
                     if (k == 1)
                     {
@@ -101,18 +152,19 @@ namespace VrdpoProject
                     }
                     else if (k == 4)
                     {
-                        if (i > 1 && ((i - c) > 1))//100
+                        if (i > 500 && ((i - c) > 100))//100
                         {
                             c = i;
                             flip = ls.FindBestFlipMove(flip, currentSol);
                             var service_level = CalculateServiceLevel(currentSol, false);
-                            if (service_level[0] > 0.84 && service_level[1] > 0.9)//0.8
+                            if (service_level[0] > 0.8 && service_level[1] > 0.9)//0.8
                             {
                                 if (flip.MoveCost < 0)
                                 {
                                     ls.ApplyFlipMove(flip, currentSol);
                                 }
-                            } else
+                            }
+                            else
                             {
                                 ls.ApplyFlipMove(flip, currentSol);
                             }
@@ -137,8 +189,9 @@ namespace VrdpoProject
 
                             }
                         }
-                    }
-                    if (!currentSol.CheckEverything(currentSol)) {
+                    }**/
+                    if (!currentSol.CheckEverything(currentSol))
+                    {
                         Console.WriteLine("Infeasible Solution!!!");
                     }
 
@@ -178,22 +231,196 @@ namespace VrdpoProject
                 Console.WriteLine(bestSolCost + " " + globalBestSolCost);
                 System.Threading.Thread.Sleep(5000);
             }
-            /**Flip fl = new();
-            fl.ReinitializeVariables();
-            while (CalculateServiceLevel(globalBestSol)[0] < 80 && CalculateServiceLevel(globalBestSol)[1] < 90)
+            CalculateServiceLevel(globalBestSol);
+            return globalBestSol;
+        }
+
+        List<Solution> ConstructFeasibleSolutions()
+        {
+            List<Solution> solutionList = new List<Solution>();
+            Random rnd = new Random();
+            int Solutions = 10;
+
+            for (int i = 0; i < Solutions; i++)
             {
-                fl = ls.FindBestFlipMove(fl, globalBestSol, false);
-                if (!fl.IsValid())
+                Solution sol = new Solution();
+                SetRoutedToFalse(sol.Customers);
+                SetServedToFalse(sol.Options);
+                solutionList.Add(sol);
+            
+                Console.WriteLine("----");
+                var selectedOptions = new List<Option>();
+
+                // mqny hqve 1 option so the priority is bad from the start
+                foreach (Customer cus in sol.Customers)
+                {
+                    if (cus.Options.Count == 1)
+                    {
+                        selectedOptions.Add(cus.Options[0]);
+                        cus.IsRouted = true;
+                    }
+                }
+                // all customers are included and the priority levels arent reached
+                while (CalculateServiceLevel(selectedOptions, sol)[0] < 0.8)
+                {
+                    InsertBestFirstOption2(selectedOptions, sol);
+                    Console.WriteLine(CalculateServiceLevel(selectedOptions, sol)[0] + "  " + CalculateServiceLevel(selectedOptions, sol)[1]);
+                }
+                /**while (CalculateServiceLevel(selectedOptions, sol)[1] < 0.9)
+                {
+                    InsertBestFirstOption2(selectedOptions, sol);
+                    Console.WriteLine(CalculateServiceLevel(selectedOptions, sol)[0] + "  " + CalculateServiceLevel(selectedOptions, sol)[1]);
+                }**/ 
+                Random rnd3 = new Random();
+                Dictionary<Option, double> sc = new Dictionary<Option, double>();
+                Option opt;
+                // add customers that are not served
+                foreach (Customer cus in sol.Customers)
+                {
+                    if (!cus.IsRouted)
+                    {
+                        sc = CalculateObjective(selectedOptions, sol, cus.Options);
+                        opt = sc.OrderBy(kvp => kvp.Value).FirstOrDefault().Key;
+                        selectedOptions.Add(opt);
+                        opt.Cust.IsRouted = true;
+                        sc.Clear();
+                    }
+                }
+                // Also, check for each option if teh capacity is violated if the option is added
+
+                SetRoutedToFalse(sol.Customers);
+                SetServedToFalse(selectedOptions);
+                if(!MinimumInsertions(sol, selectedOptions, rnd))
+                {
+                    solutionList.Remove(sol);
+                    Solutions++;
+                    continue;
+                };
+            }
+            return solutionList;
+        }
+
+    
+
+        void InsertBestFirstOption2(List<Option> selectedOptions, Solution sol)
+        {
+            double bestOptionObjective = double.MaxValue;
+
+            Dictionary<Option, double> optionScores = new Dictionary<Option, double>();
+
+            optionScores = CalculateObjective(selectedOptions, sol, AvailableFirstOptions(sol));
+
+            // Then standardize the scores if optionScores is not empty
+            if (optionScores.Any())
+            {
+                /**double mean = optionScores.Values.Average();
+                double stdDev = Math.Sqrt(optionScores.Values.Sum(v => Math.Pow(v - mean, 2)) / optionScores.Count);
+                Dictionary<Option, double> standardizedScores = optionScores.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => (kvp.Value - mean) / stdDev);
+
+                // Now, select the top three options based on standardized scores
+                var topThreeOptions = standardizedScores.OrderBy(kvp => kvp.Value).Take(3).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);**/
+
+                var topThreeOptions = optionScores.OrderBy(kvp => kvp.Value).Take(3).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                // Random selection among the top options
+                var keysList = topThreeOptions.Keys.ToList();
+                Option bestOption = keysList[rnd2.Next(keysList.Count)];
+                bestOptionObjective = topThreeOptions[bestOption];
+
+                selectedOptions.Add(bestOption);
+                bestOption.Cust.IsRouted = true;
+                Console.WriteLine($"Best Option: {bestOption.Id} Best Option's Objective: {bestOptionObjective}");
+            }
+        }
+
+        Dictionary<Option, double> CalculateObjective(List<Option> selectedOptions, Solution sol, List<Option> candOptions)
+        {
+            double weightDistance = 0.8;
+            double weightDueReadyDiff = 0.5;
+            double weightOverlap = -0.2;
+            List<Option> nearestOptions;
+            double weightedSum;
+            Dictionary<Option, double> scores = new Dictionary<Option, double>();
+            double maxDistance = sol.DistanceMatrix.Max2D();
+            double maxDuration = sol.Depot.Due - sol.Depot.Ready;
+            foreach (Option option in candOptions)
+            {
+                nearestOptions = FindXnearest(option, sol, selectedOptions);
+                weightedSum = (weightDistance * (DistanceFromXnearest(nearestOptions, option, sol))) / (5 * maxDistance) -
+                (weightDueReadyDiff * (option.Location.Due - option.Location.Ready) / 5 * maxDuration)
+                                       + (weightOverlap * (CalculateOverlap(option, nearestOptions) / 5 * maxDuration));
+
+                scores[option] = weightedSum;
+            }
+
+            return scores;
+        }
+
+
+        List<Option> AvailableFirstOptions(Solution sol)
+        {
+            List<Option> tempOptions = new List<Option>();
+            foreach (Customer cus in sol.Customers)
+            {
+                if (!cus.IsRouted)
+                {
+                    tempOptions.Add(cus.Options.OrderBy(x => x.Prio).FirstOrDefault());
+                }
+            }
+            return tempOptions;
+        }
+
+        double CalculateOverlap(Option target, List<Option> nrOptions)
+        {
+            double overlap = 0;
+            foreach (var opt in nrOptions)
+            {
+                overlap += Math.Max(0, Math.Min(target.Due, opt.Due) - Math.Max(target.Ready, opt.Ready));
+            }
+            return overlap;
+        }
+
+        List<Option> FindXnearest(Option targetOpt, Solution sol, List<Option> selectedOptions)
+        {
+            // Sort the points based on distance to central point ** maybe it should be calculated candidate option distance to already selected options
+            //List<Option> sortedPoints = availableFirstOptions(sol).OrderBy(point => sol.CalculateDistance(targetOpt.Location, point.Location)).ToList();
+            List<Option> sortedPoints = selectedOptions.OrderBy(point => sol.CalculateDistance(targetOpt.Location, point.Location)).ToList();
+
+            // Take the first k points as the nearest neighbors
+            List<Option> nearestNeighbors = sortedPoints.Take(5).ToList();
+
+            return nearestNeighbors;
+        }
+
+
+        double DistanceFromXnearest(List<Option> opts, Option target, Solution sol)
+        {
+            double sumOfDistances = opts.Sum(neighbor => sol.CalculateDistance(target.Location, neighbor.Location));
+
+            // Calculate the average distance
+            double averageDistance = sumOfDistances / opts.Count;
+
+            return averageDistance;
+        }
+
+        void RestoreFeasibility(Solution sol, Flip flip)
+        {
+            flip.ReinitializeVariables();
+            while (CalculateServiceLevel(sol)[0] < 80 || CalculateServiceLevel(sol)[1] < 90)
+            {
+                flip.ReinitializeVariables();
+                flip = ls.FindBestFlipMove(flip, sol, false);
+                if (!flip.IsValid())
                 {
                     break;
                 }
-                ls.ApplyFlipMove(fl, globalBestSol);
-                globalBestSolCost = globalBestSol.Cost;
-                Console.WriteLine("cost: " + globalBestSolCost);
-            }**/
-            CalculateServiceLevel(globalBestSol);
+                ls.ApplyFlipMove(flip, sol);
+                Console.WriteLine("cost: " + sol.Cost);
+            }
         }
-    
+
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.MoveCost, rm.MoveCost), top.MoveCost), flip.MoveCost);
 
         void SetRoutedToFalse(List<Customer> customers)
@@ -268,7 +495,7 @@ namespace VrdpoProject
         double costAdded, costRemoved, trialCost;
         double[] tw;
 
-        List<CustomerInsertionAllPositions> IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion, Solution sol)
+        List<CustomerInsertionAllPositions> IdentifyMinimumCostInsertion(CustomerInsertionAllPositions bestInsertion, Solution sol, List<Option> selectedOptions)
         {
 
             List<CustomerInsertionAllPositions> topThree = new List<CustomerInsertionAllPositions>
@@ -276,9 +503,9 @@ namespace VrdpoProject
                 bestInsertion
             };
 
-            for (int i = 0; i < sol.Options.Count ; i++)
+            for (int i = 0; i < selectedOptions.Count ; i++)
             {
-                candidateOpt = sol.Options[i];
+                candidateOpt = selectedOptions[i];
                 if (candidateOpt.Cust.IsRouted == false & candidateOpt.IsServed == false)
                 {
                     foreach (Route rt in sol.Routes)
@@ -360,14 +587,14 @@ namespace VrdpoProject
             };**/
         }
 
-        void MinimumInsertions(Solution sol, Random rnd)
+        bool MinimumInsertions(Solution sol, List<Option> selectedOptions, Random rnd)
         {
             bool modelIsFeasible = true;
             while (sol.Customers.Any(x => !x.IsRouted))
             {   
                 bestInsertion = new CustomerInsertionAllPositions();
                 AlwaysKeepAnEmptyRoute(sol);
-                List<CustomerInsertionAllPositions> topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
+                List<CustomerInsertionAllPositions> topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
                 bestInsertion = topThree[rnd.Next(topThree.Count)];
                 if (bestInsertion.Customer != null)
                 {
@@ -375,10 +602,11 @@ namespace VrdpoProject
                 } else
                 {
                     modelIsFeasible = false;
-                    break;
+                    return modelIsFeasible; ;
                 }
             }
             ReportSolution(sol);
+            return modelIsFeasible;
         }
         double[] CalculateServiceLevel(Solution sol, bool verbal = true)
         {
@@ -416,6 +644,38 @@ namespace VrdpoProject
             }
 
             return new double[] {sl0, sl1};
+        }
+
+        double[] CalculateServiceLevel(List<Option> selectedOptions, Solution sol)
+        {
+            int po0Sum = 0;
+            int po1Sum = 0;
+            int po2Sum = 0;
+            double sum = 0;
+            int po = -1;
+
+            for (int c = 0; c < selectedOptions.Count - 1; c++)
+            {
+                po = selectedOptions[c].Prio;
+                switch (po)
+                {
+                    case 0:
+                        po0Sum++;
+                        break;
+                    case 1:
+                        po1Sum++;
+                        break;
+                    case 2:
+                        po2Sum++;
+                        break;
+                }
+            }
+            sum = po0Sum + po1Sum + po2Sum;
+            var sl0 = po0Sum / (double)sol.Customers.Count;
+            var sl1 = (po0Sum + po1Sum) / (double)sol.Customers.Count;
+            Console.WriteLine("Priority 1: {0}", sl0);
+            Console.WriteLine("Priority 2: {0}", sl1);
+            return new double[] { sl0, sl1 };
         }
     }
 }

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
+using OxyPlot;
 
 namespace VrdpoProject
 {
@@ -56,6 +58,7 @@ namespace VrdpoProject
             this.Customers = new List<Customer>(customers);
             this.Promises = promises;
         }
+        
 
         public Solution DeepCopy(Solution sol)
         {
@@ -417,6 +420,11 @@ namespace VrdpoProject
                         Console.WriteLine("Shared location exceeds max capacity!");
                         return false;
                     }
+                }
+                if ( sol.Customers.Where(x => x.IsRouted).ToList().Count != sol.Customers.Count)
+                {
+                    Console.WriteLine(sol.Customers.Where(x => x.IsRouted).ToList().Count);
+                    return false;
                 }
 
             }
