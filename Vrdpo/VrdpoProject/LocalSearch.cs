@@ -539,10 +539,6 @@ namespace VrdpoProject
                     Customer custA = rt1.SequenceOfCustomers[custInd1 - 1];
                     Customer custB = rt1.SequenceOfCustomers[custInd1];
                     Customer custC = rt1.SequenceOfCustomers[custInd1 + 1];
-
-                    // check if cust has more than 1 option
-                    // new route copy of rt1 = solver.Sol.Routes[rtInd1]
-                    //Route rt1_copy = solver.Sol.Routes[rtInd1];
                     Route rt1_copy = new Route(rt1);
                     rt1_copy.SequenceOfCustomers.RemoveAt(custInd1);
                     rt1_copy.SequenceOfOptions.RemoveAt(custInd1);

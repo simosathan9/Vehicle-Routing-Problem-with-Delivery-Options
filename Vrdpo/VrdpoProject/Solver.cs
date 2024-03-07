@@ -24,6 +24,7 @@ namespace VrdpoProject
         {
             List<Solution> feasibleSolutions = new List<Solution>();
             feasibleSolutions = ConstructFeasibleSolutions();
+            CalculateSimilarity(feasibleSolutions);
             foreach (Solution sol in feasibleSolutions)
             {
                 foreach (Route r in sol.Routes)
@@ -287,7 +288,6 @@ namespace VrdpoProject
                     }
                 }
                 // Also, check for each option if teh capacity is violated if the option is added
-
                 SetRoutedToFalse(sol.Customers);
                 SetServedToFalse(selectedOptions);
                 if(!MinimumInsertions(sol, selectedOptions, rnd))
@@ -300,7 +300,47 @@ namespace VrdpoProject
             return solutionList;
         }
 
-    
+        void CalculateSimilarity(List<Solution> solutions)
+        {
+            Dictionary<int, List<Option>> dict = new Dictionary<int, List<Option>>();
+            int count = 0;
+            foreach (Solution sol in solutions)
+            {
+                List<Option> temp = new List<Option>();
+                for (int k = 0; k < sol.Routes.Count; k++)
+                {
+                    temp.AddRange(sol.Routes[k].SequenceOfOptions);
+                }
+                dict.Add(count, temp);
+                count++;
+            }
+
+            double similarity = 0;
+            for (int i = 0; i < solutions.Count; i++)
+            {
+                for (int j = i + 1; j < solutions.Count; j++)
+                {
+                    similarity = CalculateJaccardIndex(dict[i], dict[j]);
+                    Console.WriteLine($"Similarity between solution {i + 1} and solution {j + 1}: {similarity}");
+                }
+            }
+        }
+
+        double CalculateJaccardIndex(List<Option> listA, List<Option> listB)
+        {
+            int matchingCount = 0;
+            int count = listA.Count;
+            for (int i = 0; i < count; i++)
+            {
+                if (listA[i].Id == listB[i].Id)
+                {
+                    matchingCount++;
+                }
+            }
+
+            return (double)matchingCount / (double)count;
+        }
+
 
         void InsertBestFirstOption2(List<Option> selectedOptions, Solution sol)
         {
