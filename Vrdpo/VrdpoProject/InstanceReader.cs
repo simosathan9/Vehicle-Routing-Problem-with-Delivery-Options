@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Text.Json;
+
 
 namespace VrdpoProject
 {
@@ -22,24 +24,26 @@ namespace VrdpoProject
         private int numbLoc;
         private int numbOpt;
         private int numbCus;
-        private string[] instance;
+        private static string[] instance;
+        private static string filename;
+        private Dictionary<int, List<Option>> optionsPerCustomer = new Dictionary<int, List<Option>>();
+        private Dictionary<int, List<int>> optionsPrioritiesPerCustomer = new Dictionary<int, List<int>>();
 
 
         public InstanceReader()
         {
-            //instance = System.IO.File.ReadAllLines("V_25large_4.txt");
-            //instance = System.IO.File.ReadAllLines("U_50large_9.txt"); //better
-            instance = System.IO.File.ReadAllLines("U_25small_2.txt"); 
-            //instance = System.IO.File.ReadAllLines("U_25large_9.txt"); //better
-            //instance = System.IO.File.ReadAllLines("U_25large_3.txt");
-            //instance = System.IO.File.ReadAllLines("V_50medium_5.txt");
-            //string[] instance = System.IO.File.ReadAllLines("U_50large_7.txt");
             temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
             cap = Int32.Parse(temp1[1]);
             numbLoc = Int32.Parse(temp1[2]);
             numbCus = Int32.Parse(temp1[3]);
             numbOpt = Int32.Parse(temp1[4]);
             temp1 = instance[8 + numbCus].Split('\t', StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        public InstanceReader(string filename)
+        {
+            InstanceReader.filename = filename;
+            InstanceReader.instance = System.IO.File.ReadAllLines(filename);
         }
 
         public int Cap { get => cap; set => cap = value; }
@@ -50,6 +54,8 @@ namespace VrdpoProject
         internal List<Node> AllNodes { get => allNodes; set => allNodes = value; }
         internal List<Option> Options { get => options; set => options = value; }
         internal int NumbOpt { get => numbOpt; set => numbOpt = value; }
+        public Dictionary<int, List<Option>> OptionsPerCustomer { get => optionsPerCustomer; set => optionsPerCustomer = value; }
+        public Dictionary<int, List<int>> OptionsPrioritiesPerCustomer {  get => optionsPrioritiesPerCustomer; set => optionsPrioritiesPerCustomer = value; }
 
         public void BuildModel()
         {
@@ -124,6 +130,27 @@ namespace VrdpoProject
                 }
             }
             //Update all data structures
+            foreach(Option opt in options)
+            {
+                if (!optionsPerCustomer.ContainsKey(opt.Cust.Id))
+                {
+                    optionsPerCustomer[opt.Cust.Id] = new List<Option>();
+                }
+                if (!optionsPrioritiesPerCustomer.ContainsKey(opt.Cust.Id))
+                {
+                    optionsPrioritiesPerCustomer[opt.Cust.Id] = new List<int>();
+                }
+
+            }
+            optionsPerCustomer[1000] = new List<Option>(); // because of the fake Customer
+            optionsPrioritiesPerCustomer[1000] = new List<int>();
+            //Dictionary optionsPerCustomer contains a list for every customer with all of his options 
+            foreach (Option opt in Options)
+            {
+                int custID = opt.Cust.Id;
+                optionsPerCustomer[custID].Add(opt);
+                optionsPrioritiesPerCustomer[custID].Add(opt.Prio);
+            }
         }
     }
 }

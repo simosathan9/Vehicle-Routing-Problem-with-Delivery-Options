@@ -1,0 +1,7 @@
+{
+    "restarts": 10,
+    "repetitions": 10000,
+    "verbal": true,
+    "schema": "greedy",
+    "filename": "V_25large_2.txt"
+}

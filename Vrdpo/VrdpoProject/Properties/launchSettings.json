@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "VrdpoProject": {
+      "commandName": "Project",
+      "commandLineArgs": "U_50large_5.txt"
+    }
+  }
+}

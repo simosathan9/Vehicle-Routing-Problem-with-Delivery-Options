@@ -8,10 +8,9 @@ namespace VrdpoProject
 {
     internal class Start
     {
-        static void Main()
+        static void Main(string[] args)
         {
-            //InstanceReader model = new();
-            //model.BuildModel();
+            InstanceReader model = new(args[0]);
             Solver solver = new();
             solver.Solve();
         }

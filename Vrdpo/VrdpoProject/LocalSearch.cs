@@ -726,14 +726,8 @@ namespace VrdpoProject
                 sol.Cost += flip.MoveCost;
                 B1.IsServed = false; B2.IsServed = true;
                 //adjust capacity for shared locations
-                if (B2.Location.Type == 1)
-                {
-                    B2.Location.Cap++;
-                }
-                if (B1.Location.Type == 1)
-                {
-                    B1.Location.Cap--;
-                }
+                B2.Location.Cap++;
+                B1.Location.Cap--;
                 sol.Promises[A.Id, C.Id] = sol.Cost;
                 sol.Promises[F.Id, B2.Id] = sol.Cost;
                 sol.Promises[B2.Id, G.Id] = sol.Cost;
@@ -744,7 +738,366 @@ namespace VrdpoProject
             }
         }
 
+        public PrioritySwap FindBestPrioritySwapMove(PrioritySwap psm, Solution sol)
+        {
+            Dictionary<int, List<Option>> optionsPerCustomer = sol.OptionsPerCustomer; //get a Dict with all the options that regard the customer with id=key
+            Dictionary<int, List<int>> optionsPrioritiesPerCustomer = sol.OptionsPrioritiesPerCustomer; //get a Dict with the corresponding level of priorities available for each customer
+            Route rt1, rt2;
+            Option a1, b1, c1, d1, a2, b2, c2, d2; // d1, d2 the alternative priorities for cust1 and cust 1
+            int offset = 0;
+            for (int firstRouteIndex = 0; firstRouteIndex < sol.Routes.Count; firstRouteIndex++)
+            {
+                rt1 = sol.Routes[firstRouteIndex];
+                for (int firstOptionIndex = 1; firstOptionIndex < rt1.SequenceOfOptions.Count - 1; firstOptionIndex++)
+                {
+                    b1 = rt1.SequenceOfOptions[firstOptionIndex];
+                    int custID1 = b1.Cust.Id;
+                    if (custID1 == 1000) { continue; }
+                    if (optionsPerCustomer[custID1].Count > 1) //if optionsPerCustomer[custID1].Count <= 1 there is no reason to check if there is any chance to do a priority swap with another customer
+                    {
+                        foreach (Option opt1 in optionsPerCustomer[custID1]) //Check all the available Options of Customer 1
+                        {
+                            if ((opt1.Location.Cap < opt1.Location.MaxCap && opt1.Location.Type == 1) || opt1.Location.Type == 2)
+                            {
+                                for (int secondRouteIndex = firstRouteIndex; secondRouteIndex < sol.Routes.Count; secondRouteIndex++)
+                                {
+                                    rt2 = sol.Routes[secondRouteIndex];
+                                    int startOfSecondOptionIndex = 1;
+                                    if (rt1 == rt2)
+                                    {
+                                        startOfSecondOptionIndex = firstOptionIndex + 1;
+                                    }
+                                    for (int secondOptionIndex = startOfSecondOptionIndex; secondOptionIndex < rt2.SequenceOfOptions.Count - 1; secondOptionIndex++)
+                                    {
+                                        b2 = rt2.SequenceOfOptions[secondOptionIndex];
+                                        int custID2 = b2.Cust.Id;
+                                        if (custID2 == 1000) { continue; }
+                                        if (optionsPerCustomer[custID2].Count > 1) //same as in the line 770
+                                        {
+                                            foreach (Option opt2 in optionsPerCustomer[custID2])
+                                            {
+                                                psm.TimeWindowsError = false;
+                                                //check if a shared location will be used two times with this swap
+                                                offset = 0;
+                                                if (opt1.Location == opt2.Location)
+                                                {
+                                                    offset = 1;
+                                                }
+                                                if ((opt2.Location.Cap < opt2.Location.MaxCap - offset && opt2.Location.Type == 1) || opt2.Location.Type == 2)
+                                                {
+                                                    a1 = rt1.SequenceOfOptions[firstOptionIndex - 1];
+                                                    d1 = opt1;
+                                                    c1 = rt1.SequenceOfOptions[firstOptionIndex + 1];
+                                                    a2 = rt2.SequenceOfOptions[secondOptionIndex - 1];
+                                                    d2 = opt2;
+                                                    c2 = rt2.SequenceOfOptions[secondOptionIndex + 1];
+                                                    double moveCost = 0;
+                                                    double costChangeFirstRoute = 0;
+                                                    double costChangeSecondRoute = 0;
+                                                    //If cust1 has priority level 0 and cust 2 has priority level 2 then if customer 1 does not have a 3rd option(prior level= 2) you can not do the priority swap
+                                                    //So the current priority level of cust 1 must exist in the priority options of cust 2 and the current priority level of cust 2 must exist in the priority options of cust 1
+                                                    if (optionsPrioritiesPerCustomer[custID2].Contains(b1.Prio) && (b1.Prio != b2.Prio) && optionsPrioritiesPerCustomer[custID1].Contains(b2.Prio))
+                                                    {
+                                                        if (opt1.Prio == b2.Prio && (opt1 != b1) && (opt2 != b2) && opt2.Prio == b1.Prio)
+                                                        { //Check that the alternative option of cust1 has same level of priority with the current level of customer 2 and ensure that opt1 does not refer to the option of cust 1 that is already in the route
+                                                            if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
+                                                            {
+                                                                if (firstOptionIndex == secondOptionIndex - 1)
+                                                                {
+                                                                    var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, d1.Location);
+                                                                    if (!tw1.Item1)
+                                                                    {
+                                                                        continue;
+                                                                    }
+                                                                    var rtTemp = new Route(rt1);
+                                                                    rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
+                                                                    rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
+                                                                    rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;
+                                                                    var tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, d2.Location);
+                                                                    if (!tw1.Item1 || !tw2.Item1)
+                                                                    {
+                                                                        psm.TimeWindowsError = true;
+                                                                        continue;
+                                                                    }
+                                                                    //in this case c1=b2 and a2=b1, so do not remove twice distance between the options that might change priority level
+                                                                    double costRemoved = sol.CalculateDistance(a1.Location, b1.Location) + sol.CalculateDistance(b1.Location, c1.Location) + sol.CalculateDistance(b2.Location, c2.Location);
+                                                                    double costAdded = sol.CalculateDistance(a1.Location, d1.Location) + sol.CalculateDistance(d1.Location, d2.Location) + sol.CalculateDistance(d2.Location, c2.Location);
+                                                                    moveCost = costAdded - costRemoved;
+                                                                }
+                                                                else if (secondOptionIndex == firstOptionIndex - 1)
+                                                                {
+                                                                    var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, d2.Location);
+                                                                    if (!tw2.Item1)
+                                                                    {
+                                                                        continue;
+                                                                    }
+                                                                    var rtTemp = new Route(rt2);
+                                                                    rtTemp.SequenceOfOptions[secondOptionIndex] = d2;
+                                                                    rtTemp.SequenceOfCustomers[secondOptionIndex] = d2.Cust;
+                                                                    rtTemp.SequenceOfLocations[secondOptionIndex] = d2.Location;
+                                                                    var tw1 = sol.RespectsTimeWindow2(rtTemp, firstOptionIndex, d1.Location);
+                                                                    if (!tw1.Item1 || !tw2.Item1)
+                                                                    {
+                                                                        psm.TimeWindowsError = true;
+                                                                        continue;
+                                                                    }
+                                                                    double costRemoved = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location) + sol.CalculateDistance(b1.Location, c1.Location);
+                                                                    double costAdded = sol.CalculateDistance(a2.Location, d2.Location) + sol.CalculateDistance(d2.Location, d1.Location) + sol.CalculateDistance(d1.Location, c1.Location);
+                                                                    moveCost = costAdded - costRemoved;
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                if (rt1 == rt2)
+                                                                {
+                                                                    if (firstOptionIndex < secondOptionIndex)
+                                                                    {
+                                                                        var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, d1.Location);
+                                                                        if (!tw1.Item1)
+                                                                        {
+                                                                            continue;
+                                                                        }
+                                                                        var rtTemp = new Route(rt1);
+                                                                        rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
+                                                                        rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
+                                                                        rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;
+                                                                        var tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, d2.Location);
+                                                                        if (!tw1.Item1 || !tw2.Item1)
+                                                                        {
+                                                                            psm.TimeWindowsError = true;
+                                                                            continue;
+                                                                        }
+                                                                    }
+                                                                    else if (firstOptionIndex > secondOptionIndex)
+                                                                    {
+                                                                        var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, d2.Location);
+                                                                        if (!tw2.Item1)
+                                                                        {
+                                                                            continue;
+                                                                        }
+                                                                        var rtTemp = new Route(rt2);
+                                                                        rtTemp.SequenceOfOptions[secondOptionIndex] = d2;
+                                                                        rtTemp.SequenceOfCustomers[secondOptionIndex] = d2.Cust;
+                                                                        rtTemp.SequenceOfLocations[secondOptionIndex] = d2.Location;
+                                                                        var tw1 = sol.RespectsTimeWindow2(rtTemp, firstOptionIndex, d1.Location);
+                                                                        if (!tw1.Item1 || !tw2.Item1)
+                                                                        {
+                                                                            psm.TimeWindowsError = true;
+                                                                            continue;
+                                                                        }
+                                                                    }
+                                                                }
+                                                                else
+                                                                {
+                                                                    var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, d1.Location);
+                                                                    var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, d2.Location);
+                                                                    if (!tw1.Item1 || !tw2.Item1)
+                                                                    {
+                                                                        psm.TimeWindowsError = true;
+                                                                        continue;
+                                                                    }
+                                                                }
+                                                                //In any other case whether intra or inter route you break 4 arcs and create 4 new arcs
+                                                                double costRemoved1 = sol.CalculateDistance(a1.Location, b1.Location) + sol.CalculateDistance(b1.Location, c1.Location);
+                                                                double costRemoved2 = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location);
+                                                                double costAdded1 = sol.CalculateDistance(a1.Location, d1.Location) + sol.CalculateDistance(d1.Location, c1.Location);
+                                                                double costAdded2 = sol.CalculateDistance(a2.Location, d2.Location) + sol.CalculateDistance(d2.Location, c2.Location);
+                                                                if (rt1 != rt2)
+                                                                {
+                                                                    costChangeFirstRoute = costAdded1 - costRemoved1;
+                                                                    costChangeSecondRoute = costAdded2 - costRemoved2;
+                                                                }
+                                                                moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
+                                                            }
+                                                        }
 
+                                                    }
+                                                    if (moveCost < psm.MoveCost & moveCost != 0)
+                                                    {
+                                                        if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
+                                                        {
+                                                            if (firstOptionIndex == secondOptionIndex - 1)
+                                                            {
+                                                                if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost, sol))
+                                                                {
+                                                                    continue;
+                                                                }
+                                                                if (PromiseIsBroken(d1.Id, d2.Id, moveCost + sol.Cost, sol))
+                                                                {
+                                                                    continue;
+                                                                }
+                                                                if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost, sol))
+                                                                {
+                                                                    continue;
+                                                                }
+                                                            }
+                                                            else if (secondOptionIndex == firstOptionIndex - 1)
+                                                            {
+                                                                if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost, sol))
+                                                                {
+                                                                    continue;
+                                                                }
+                                                                if (PromiseIsBroken(d2.Id, d1.Id, moveCost + sol.Cost, sol))
+                                                                {
+                                                                    continue;
+                                                                }
+                                                                if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost, sol))
+                                                                {
+                                                                    continue;
+                                                                }
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost, sol))
+                                                            {
+                                                                continue;
+                                                            }
+                                                            if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost, sol))
+                                                            {
+                                                                continue;
+                                                            }
+                                                            if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost, sol))
+                                                            {
+                                                                continue;
+                                                            }
+                                                            if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost, sol))
+                                                            {
+                                                                continue;
+                                                            }
+                                                        }
+                                                        psm.PositionOfFirstRoute = firstRouteIndex;
+                                                        psm.PositionOfSecondRoute = secondRouteIndex;
+                                                        psm.PositionOfFirstOption = firstOptionIndex;
+                                                        psm.PositionOfSecondOption = secondOptionIndex;
+                                                        psm.CostChangeFirstRt = costChangeFirstRoute;
+                                                        psm.CostChangeSecondRt = costChangeSecondRoute;
+                                                        psm.MoveCost = moveCost;
+                                                        psm.AltOption1 = opt1;
+                                                        psm.AltOption2 = opt2;
+                                                    }
+
+                                                }
+
+                                            }
+
+                                        }
+
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+            return psm;
+        }
+
+        public void ApplyPrioritySwapMove(PrioritySwap psm, Solution sol)
+        {
+            if (psm.IsValid()) //&& psm.MoveCost < 0) 
+            {
+                Route rt1 = sol.Routes[psm.PositionOfFirstRoute];
+                Route rt2 = sol.Routes[psm.PositionOfSecondRoute];
+                if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
+                {
+                    Console.WriteLine("-----");
+                }
+                Option a1 = rt1.SequenceOfOptions[psm.PositionOfFirstOption - 1];
+                Option b1 = rt1.SequenceOfOptions[psm.PositionOfFirstOption];
+                Option c1 = rt1.SequenceOfOptions[psm.PositionOfFirstOption + 1];
+                Option d1 = psm.AltOption1;
+                Option a2 = rt2.SequenceOfOptions[psm.PositionOfSecondOption - 1];
+                Option b2 = rt2.SequenceOfOptions[psm.PositionOfSecondOption];
+                Option c2 = rt2.SequenceOfOptions[psm.PositionOfSecondOption + 1];
+                Option d2 = psm.AltOption2;
+                /*
+                Console.WriteLine("This Priority Swap Move reduces cost by {0} ", psm.MoveCost);
+                Console.WriteLine("I change customer {0} from location {1} and priority {2} to location {3} and priority {4} ", b1.Cust.Id, b1.Location.Id, b1.Prio, d1.Location.Id, d1.Prio);
+                Console.WriteLine("I change customer {0} from location {1} and priority {2} to location {3} and priority {4} ", b2.Cust.Id, b2.Location.Id, b2.Prio, d2.Location.Id, d2.Prio);
+                if (rt1==rt2)
+                {
+                    Console.WriteLine("Same route");
+                    if (psm.PositionOfFirstOption == psm.PositionOfSecondOption + 1 || psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1) {
+                        Console.WriteLine("Next to each other");
+                    }
+                    Console.WriteLine("FirstOptionIndex {0} SecondOptionIndex {1} ", psm.PositionOfFirstOption, psm.PositionOfSecondOption);
+                    Console.WriteLine("b1 ID = {0} and a2 ID = {1} a1 ID = {2}", b1.Cust.Id, a2.Cust.Id, a1.Cust.Id);
+                    Console.WriteLine("c1 ID = {0} and b2 ID = {1} c2 ID = {2} ", c1.Cust.Id, b2.Cust.Id, c2.Cust.Id);
+                }
+                else
+                {
+                    Console.WriteLine("Different route");
+                }
+                */
+                rt1.SequenceOfOptions[psm.PositionOfFirstOption] = d1;
+                rt1.SequenceOfCustomers[psm.PositionOfFirstOption] = d1.Cust;
+                rt1.SequenceOfLocations[psm.PositionOfFirstOption] = d1.Location;
+                rt2.SequenceOfOptions[psm.PositionOfSecondOption] = d2;
+                rt2.SequenceOfCustomers[psm.PositionOfSecondOption] = d2.Cust;
+                rt2.SequenceOfLocations[psm.PositionOfSecondOption] = d2.Location;
+                b1.Location.Cap -= 1;
+                b2.Location.Cap -= 1;
+                d1.Location.Cap += 1;
+                d2.Location.Cap += 1;
+                b1.IsServed = false;
+                b2.IsServed = false;
+                d1.IsServed = true;
+                d2.IsServed = true;
+                if (rt1 == rt2)
+                {
+                    rt1.Cost += psm.MoveCost;
+                    UpdateRouteCostAndLoad(rt1, sol);
+                    sol.UpdateTimes(rt1);
+                    sol.Cost += psm.MoveCost;
+                    if (rt1 == rt2 && (psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1 || psm.PositionOfSecondOption == psm.PositionOfFirstOption - 1))
+                    {
+                        if (psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1)
+                        {
+                            sol.Promises[a1.Id, d1.Id] = sol.Cost;
+                            sol.Promises[d1.Id, d2.Id] = sol.Cost;
+                            sol.Promises[d2.Id, c2.Id] = sol.Cost;
+                        }
+                        else if (psm.PositionOfSecondOption == psm.PositionOfFirstOption - 1)
+                        {
+                            sol.Promises[a2.Id, d2.Id] = sol.Cost;
+                            sol.Promises[d2.Id, d1.Id] = sol.Cost;
+                            sol.Promises[d1.Id, c1.Id] = sol.Cost;
+                        }
+                    }
+                    else
+                    {
+                        sol.Promises[a1.Id, d1.Id] = sol.Cost;
+                        sol.Promises[d1.Id, c1.Id] = sol.Cost;
+                        sol.Promises[a2.Id, d2.Id] = sol.Cost;
+                        sol.Promises[d2.Id, c2.Id] = sol.Cost;
+                    }
+                    if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
+                    {
+                        Console.WriteLine("-----");
+                    }
+                }
+                else
+                {
+                    rt1.Cost += psm.CostChangeFirstRt;
+                    rt2.Cost += psm.CostChangeSecondRt;
+                    UpdateRouteCostAndLoad(rt1, sol);
+                    UpdateRouteCostAndLoad(rt2, sol);
+                    sol.UpdateTimes(rt1);
+                    sol.UpdateTimes(rt2);
+                    sol.Cost += psm.MoveCost;
+                    sol.Promises[a1.Id, d1.Id] = sol.Cost;
+                    sol.Promises[d1.Id, c1.Id] = sol.Cost;
+                    sol.Promises[a2.Id, d2.Id] = sol.Cost;
+                    sol.Promises[d2.Id, c2.Id] = sol.Cost;
+                    if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
+                    {
+                        Console.WriteLine("-----");
+                    }
+                }
+            }
+        }
 
 
         public void UpdateRouteCostAndLoad(Route rt, Solution sol) {
