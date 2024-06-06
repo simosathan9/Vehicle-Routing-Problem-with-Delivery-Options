@@ -13,6 +13,8 @@ namespace VrdpoProject
     {
         private double duration;
         private double cost;
+        private int repetition;
+        private int restart;
         private List<Route> routes;
         private double[,] timeMatrix;
         private double[,] distanceMatrix;
@@ -41,12 +43,13 @@ namespace VrdpoProject
             this.Promises = new double[Options.Count + 1, Options.Count + 1];
             this.optionsPerCustomer = model.OptionsPerCustomer;
             this.optionsPrioritiesPerCustomer = model.OptionsPrioritiesPerCustomer;
+            this.Repetition = repetition;
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
         }
 
         public Solution(double duration, double cost, List<Route> routes, double[,] distanceMatrix, 
             double[,] timeMatrix, int cap, Location depot, List<Option> options, double[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
-            Dictionary<int, List<int>> optionsPrioritiesPerCustomer)
+            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition)
         {
             this.Duration = duration;
             this.Cost = cost;
@@ -64,12 +67,16 @@ namespace VrdpoProject
             this.Promises = promises;
             this.optionsPerCustomer = optionsPerCustomer;
             this.optionsPrioritiesPerCustomer = optionsPrioritiesPerCustomer;
+            this.Repetition = repetition;
         }
-        
+
 
         public Solution DeepCopy(Solution sol)
         {
-            Solution deepCopySol = new Solution(sol.Duration, sol.Cost, sol.Routes, sol.DistanceMatrix, sol.TimeMatrix, sol.Cap, sol.Depot, sol.Options, sol.Promises, sol.Customers, sol.optionsPerCustomer, sol.optionsPrioritiesPerCustomer);
+            Solution deepCopySol = new Solution(sol.Duration, sol.Cost, sol.Routes,
+                sol.DistanceMatrix, sol.TimeMatrix, sol.Cap, sol.Depot, sol.Options,
+                sol.Promises, sol.Customers, sol.optionsPerCustomer,
+                sol.optionsPrioritiesPerCustomer, sol.Repetition);
             return deepCopySol;
         }
 
@@ -85,6 +92,8 @@ namespace VrdpoProject
         public int Cap { get => cap; set => cap = value; }
         public Dictionary<int, List<Option>> OptionsPerCustomer { get => optionsPerCustomer; set => optionsPerCustomer = value; }
         public Dictionary<int, List<int>> OptionsPrioritiesPerCustomer { get => optionsPrioritiesPerCustomer; set => optionsPrioritiesPerCustomer = value; }
+        public int Repetition { get => repetition; set => repetition = value; }
+        public int Restart { get => restart; set => restart = value; }
 
         public double CalculateDistance(Location n1, Location n2)
         {
@@ -470,17 +479,19 @@ namespace VrdpoProject
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
                 bool tw = CalculateTimes(rt);
-               // double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
-               // double ect = tw[0];
-               // double lat = tw[1];
+                // double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
+                // double ect = tw[0];
+                // double lat = tw[1];
                 ///var tw = RespectsTimeWindow2(rt, i, nextOpt.Location);
                 if (rt.SequenceOfEct[i + 1] > rt.SequenceOfLat[i + 1])
                 {
+                    Console.WriteLine("Time Window Feasibility Error");
                     timeWindowFeasibility = false;
                 }
                 //if (ect > lat && ect >= nextOpt.Location.Ready && ect <= nextOpt.Location.Due)
-                if(!tw)
+                if (!tw)
                 {
+                    Console.WriteLine("Time Window Feasibility Error");
                     timeWindowFeasibility = false;
                     //break;
                 }
@@ -488,6 +499,7 @@ namespace VrdpoProject
                 {
                     if (i + 1 != rt.SequenceOfLocations.Count - 1 && i != 0)
                     {
+                        Console.WriteLine("Depot Feasibility Error");
                         depotFeasibility = false;
                     }
                     //break;
@@ -496,6 +508,7 @@ namespace VrdpoProject
             }
             if (cost != rt.Cost)
             {
+                Console.WriteLine("Cost Feasibility Error");
                 costFeasibility = false;
             }
             for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
@@ -503,6 +516,10 @@ namespace VrdpoProject
                 totalCapacity += rt.SequenceOfCustomers[i].Dem;
             }
             bool capacityFeasibility = (totalCapacity > rt.Capacity) ? false : true;
+            if (!capacityFeasibility)
+            {
+                Console.WriteLine("Route Capacity Feasibility Error");
+            }
             return timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility;
         }
     }

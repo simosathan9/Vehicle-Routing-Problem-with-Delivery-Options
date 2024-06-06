@@ -11,7 +11,8 @@ namespace VrdpoProject
         public int restarts { get; set; }
         public int repetitions { get; set; }
         public bool verbal { get; set; }
+        public double promisesRestartRatio { get; set; }
+        public bool multiRestart { get; set; }
         public string schema { get; set; }
-        public string filename { get; set; }
     }
 }

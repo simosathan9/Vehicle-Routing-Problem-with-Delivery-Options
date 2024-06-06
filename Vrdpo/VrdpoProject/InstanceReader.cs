@@ -16,7 +16,6 @@ namespace VrdpoProject
         private List<Customer> allCustomers = new();
         private double[,] distanceMatrix;
         private double[,] timeMatrix;
-
         private int cap;
         private Location depot;
         private List<Option> options = new();
@@ -33,6 +32,7 @@ namespace VrdpoProject
         public InstanceReader()
         {
             temp1 = instance[3].Split('\t', StringSplitOptions.RemoveEmptyEntries);
+            //Console.WriteLine(instance[3]);
             cap = Int32.Parse(temp1[1]);
             numbLoc = Int32.Parse(temp1[2]);
             numbCus = Int32.Parse(temp1[3]);
@@ -51,11 +51,11 @@ namespace VrdpoProject
         public double[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
         internal List<Customer> AllCustomers { get => allCustomers; set => allCustomers = value; }
         public Location Depot { get => depot; set => depot = value; }
+        public Dictionary<int, List<Option>> OptionsPerCustomer { get => optionsPerCustomer; set => optionsPerCustomer = value; }
+        public Dictionary<int, List<int>> OptionsPrioritiesPerCustomer { get => optionsPrioritiesPerCustomer; set => optionsPrioritiesPerCustomer = value; }
         internal List<Node> AllNodes { get => allNodes; set => allNodes = value; }
         internal List<Option> Options { get => options; set => options = value; }
         internal int NumbOpt { get => numbOpt; set => numbOpt = value; }
-        public Dictionary<int, List<Option>> OptionsPerCustomer { get => optionsPerCustomer; set => optionsPerCustomer = value; }
-        public Dictionary<int, List<int>> OptionsPrioritiesPerCustomer {  get => optionsPrioritiesPerCustomer; set => optionsPrioritiesPerCustomer = value; }
 
         public void BuildModel()
         {

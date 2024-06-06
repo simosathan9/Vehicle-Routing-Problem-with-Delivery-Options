@@ -12,6 +12,7 @@ namespace VrdpoProject
         {
             InstanceReader model = new(args[0]);
             Solver solver = new();
+            solver.Instance = args[0];
             solver.Solve();
         }
     }

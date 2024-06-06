@@ -69,7 +69,18 @@ namespace VrdpoProject
                             double costChangeTargetRt = sol.CalculateDistance(F.Location, B.Location) + sol.CalculateDistance(B.Location, G.Location)
                                                 - sol.CalculateDistance(F.Location, G.Location);
 
-                            if (moveCost < rm.MoveCost & targetRouteIndex != 0 & moveCost!=0)
+                            //favor relocations from very small routes
+                            int bonus = 0;
+                            if (rt1.SequenceOfLocations.Count <= 4)
+                            {
+                                bonus = -2000;
+                            }
+                            //prevent relocating to empty/small routes
+                            if (rt2.SequenceOfLocations.Count <= 4)
+                            {
+                                continue;
+                            }
+                            if (moveCost + bonus < rm.MoveCost & targetRouteIndex != 0 & moveCost != 0)
                             {
                                 //List<Option[]> arcs = new();
                                 //arcs.Add(new Option[] { F, B });

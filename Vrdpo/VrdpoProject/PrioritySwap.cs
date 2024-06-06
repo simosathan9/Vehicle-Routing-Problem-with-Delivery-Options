@@ -19,8 +19,10 @@ namespace VrdpoProject
         double moveCost;
         Option altOption1;
         Option altOption2;
+        bool moveRejected;
 
         bool timeWindowsError;
+        bool moveApplied;
 
         public PrioritySwap()
         {
@@ -39,6 +41,7 @@ namespace VrdpoProject
             costChangeSecondRt = -1;
             moveCost = Math.Pow(10, 9);
             timeWindowsError = false;
+            moveRejected = false;
         }
 
         public bool IsValid()
@@ -58,5 +61,6 @@ namespace VrdpoProject
         public Option AltOption1 { get => altOption1; set => altOption1 = value; }
         public Option AltOption2 { get => altOption2; set => altOption2 = value; }
         public bool TimeWindowsError { get => timeWindowsError; set => timeWindowsError = value; }
+        public bool MoveRejected { get => moveRejected; set => moveRejected = value; }
     }
 }
