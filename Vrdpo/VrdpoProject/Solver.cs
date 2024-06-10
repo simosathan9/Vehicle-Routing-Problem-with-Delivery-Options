@@ -29,7 +29,7 @@ namespace VrdpoProject
             if (settings.multiRestart) {
 
                 List<Solution> feasibleSolutions = new List<Solution>();
-                feasibleSolutions = ConstructFeasibleSolutions();
+                feasibleSolutions = ConstructFeasibleSolutions().OrderBy(x => x.Cost).ToList();
                 CalculateSimilarity(feasibleSolutions);
                 foreach (Solution sol in feasibleSolutions)
                 {
@@ -84,6 +84,7 @@ namespace VrdpoProject
             for (int restart = 0; restart < numberOfRestarts; restart++)
             {
                 Random rnd = new(restart);
+                Random rnd5 = new(restart);
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
@@ -95,6 +96,7 @@ namespace VrdpoProject
                 PrioritySwap psm = new();
                 Solution localBest = new();
                 localBest.Cost = double.MaxValue;
+                currentSol = new();
 
                 if (settings.multiRestart)
                 {
@@ -102,11 +104,11 @@ namespace VrdpoProject
                 }
                 else
                 {
-                    currentSol = new Solution();
+                    //currentSol = new Solution();
 
                     SetRoutedToFalse(currentSol.Customers);
                     SetServedToFalse(currentSol.Options);
-                    if (!MinimumInsertions(currentSol, rnd))
+                    if (!MinimumInsertions(currentSol, rnd5))
                     {
                         numberOfRestarts++;
                         continue;

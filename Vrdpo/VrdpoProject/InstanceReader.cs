@@ -60,14 +60,14 @@ namespace VrdpoProject
         public void BuildModel()
         {
             depot = new Location(Int32.Parse(temp1[0]), Int32.Parse(temp1[1]), Int32.Parse(temp1[2]),
-                Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[6]));
+                Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[6]), 0);
             allLocations.Add(depot);
 
             for (var i = 6; i < 6 + numbCus; i++)
             {
                var temp2 = Regex.Split(instance[i], @"\t*\s");
                Customer customer = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), false);
-               Location location = new(Int32.Parse(temp2[0]) + 1, 0, 0, 0, 0, 0, 0, 0);
+               Location location = new(Int32.Parse(temp2[0]) + 1, 0, 0, 0, 0, 0, 0, 0, 0);
                allCustomers.Add(customer);
             }
 
@@ -75,7 +75,7 @@ namespace VrdpoProject
             {
                 string[] temp2 = Regex.Split(instance[j], @"\t+");
                 Location loc = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]),
-                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), 10*Int32.Parse(temp2[7]));
+                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), 10*Int32.Parse(temp2[7]), 0);
                 if (loc.Type == 1)
                 {
                     loc.Due += 20;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -47,23 +48,61 @@ namespace VrdpoProject
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
         }
 
-        public Solution(double duration, double cost, List<Route> routes, double[,] distanceMatrix, 
+        public Solution(double duration, double cost, List<Route> routes, double[,] distanceMatrix,
             double[,] timeMatrix, int cap, Location depot, List<Option> options, double[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
             Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition)
         {
             this.Duration = duration;
             this.Cost = cost;
-            this.routes = new List<Route>();
+            List<Location> clonedLocations = new List<Location>();
+            List<Option> clonedOptions = new List<Option>();
+            List<Customer> clonedCustomers = new List<Customer>();
+            List<Route> clonedRoutes = new List<Route>();
+            foreach (Option option in options)
+            {
+                if (!(clonedLocations.Select(x => x.Id).ToList()).Contains(option.Location.Id))
+                {
+                    clonedLocations.Add((Location)option.Location.Clone());
+                }
+
+                clonedOptions.Add((Option)option.Clone(clonedLocations[clonedLocations.Count-1]));
+            }
+            foreach (Customer customer in customers)
+            {
+                List<Option> customersOptions = clonedOptions.Where(x => x.Cust.Id == customer.Id).ToList();
+                clonedCustomers.Add((Customer)customer.Clone(customersOptions));
+            }
+            foreach (Option option in clonedOptions)
+            {
+                option.Cust = clonedCustomers.Where(x=> x.Id == option.Cust.Id).ToList()[0];
+            }
             foreach (Route rt in routes)
             {
-                this.routes.Add(new Route(rt));
+                Route clonedRoute = new Route(rt);
+                for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
+                {
+                    if (i == 0 || i == rt.SequenceOfCustomers.Count - 1)
+                    {
+                        clonedRoute.SequenceOfLocations[i] = (Location)depot.Clone();
+                        clonedRoute.SequenceOfCustomers[i] = new Customer(1000, 0, true);
+                        clonedRoute.SequenceOfOptions[i] = (Option)rt.SequenceOfOptions[0].Clone(depot);
+                    } else
+                    {
+                        clonedRoute.SequenceOfLocations[i] = (Location)clonedLocations.Where(x => x.Id == rt.SequenceOfLocations[i].Id).ToList()[0];
+                        clonedRoute.SequenceOfCustomers[i] = (Customer)clonedCustomers.Where(x => x.Id == rt.SequenceOfCustomers[i].Id).ToList()[0];
+                        clonedRoute.SequenceOfOptions[i] = (Option)clonedOptions.Where(x => x.Id == rt.SequenceOfOptions[i].Id).ToList()[0];
+                    }
+                }
+                clonedRoutes.Add(clonedRoute);
             }
+
             this.DistanceMatrix = distanceMatrix;
             this.TimeMatrix = timeMatrix;
             this.Cap = cap;
             this.Depot = depot;
-            this.Options = new List<Option>(options);
-            this.Customers = new List<Customer>(customers);
+            this.Options = clonedOptions;
+            this.Customers = clonedCustomers;
+            this.Routes = clonedRoutes;
             this.Promises = promises;
             this.optionsPerCustomer = optionsPerCustomer;
             this.optionsPrioritiesPerCustomer = optionsPrioritiesPerCustomer;

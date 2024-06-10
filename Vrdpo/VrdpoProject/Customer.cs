@@ -9,7 +9,7 @@ namespace VrdpoProject
     public class Customer
     {
         private int id;
-        private List<Location> locations;
+        //private List<Location> locations;
         private List<Option> options;
         private int dem;
         private bool isRouted;
@@ -20,11 +20,17 @@ namespace VrdpoProject
             this.isRouted = isRouted;
             options = new List<Option>();
         }
+        public object Clone(List<Option> options)
+        {
+            var clone = (Customer)this.MemberwiseClone();
+            this.options = options;
+            return clone;
+        }
 
         public int Id { get => id; set => id = value; }
         public int Dem { get => dem; set => dem = value; }
         public bool IsRouted { get => isRouted; set => isRouted = value; }
-        internal List<Location> Locations { get => locations; set => locations = value; }
+        //internal List<Location> Locations { get => locations; set => locations = value; }
         internal List<Option> Options { get => options; set => options = value; }
     }
 }

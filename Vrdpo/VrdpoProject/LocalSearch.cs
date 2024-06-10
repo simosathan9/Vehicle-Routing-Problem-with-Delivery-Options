@@ -820,7 +820,7 @@ namespace VrdpoProject
                                                                     {
                                                                         continue;
                                                                     }
-                                                                    var rtTemp = new Route(rt1);
+                                                                    Route rtTemp =  new Route(rt1);
                                                                     rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
                                                                     rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
                                                                     rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;

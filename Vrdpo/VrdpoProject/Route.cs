@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic.FileIO;
 
 namespace VrdpoProject
 {
@@ -60,6 +61,39 @@ namespace VrdpoProject
             this.cost = original.cost;
             this.sequenceOfEct = new List<double>(original.sequenceOfEct);
             this.sequenceOfLat = new List<double>(original.sequenceOfLat);
+        }
+
+        public object Clone5()
+        {
+            var clone = new Route(this);
+            List<Customer> customersCopy = new List<Customer>();
+            List<Location> locationsCopy = new List<Location>();
+            List<Option> optionsCopy = new List<Option>();
+
+            //for (int i=0; i < this.sequenceOfCustomers.Count; i++)
+            //{
+            //    if ((locationsCopy.Select(x => x.Id).ToList()).Contains(sequenceOfLocations[i].Id))
+            //    {
+            //        Location clonedLocation = locationsCopy.Where(x => x.Id == sequenceOfLocations[i].Id).ToList()[0];
+            //        locationsCopy.Add(clonedLocation);
+            //    }
+            //    else
+            //    {
+            //        locationsCopy.Add((Location)sequenceOfLocations[i].Clone());
+            //    }
+
+            //    Location optionsLoc = locationsCopy.Where(x => x.Id == sequenceOfOptions[i].Location.Id).ToList()[0];
+            //    optionsCopy.Add((Option)sequenceOfOptions[i].Clone(optionsLoc));
+
+            //    Option customersOpt = optionsCopy[i];
+            //    customersCopy.Add((Customer)SequenceOfCustomers[i].Clone());
+            //}
+            clone.sequenceOfLocations = locationsCopy;
+            clone.sequenceOfCustomers = customersCopy;
+            clone.sequenceOfOptions = optionsCopy;
+            clone.sequenceOfEct = new List<double>(this.sequenceOfEct);
+            clone.sequenceOfLat = new List<double>(this.sequenceOfLat);
+            return clone;
         }
 
         public int Id { get => id; set => id = value; }

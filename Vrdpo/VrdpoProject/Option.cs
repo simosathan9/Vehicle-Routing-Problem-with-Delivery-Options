@@ -31,6 +31,15 @@ namespace VrdpoProject
             this.due = due;
         }
 
+        public object Clone(Location loc)
+        {
+            // needs to add cloned customer seperately
+            Location locationCopy = loc;
+            var clone = (Option)this.MemberwiseClone();
+            clone.Location = locationCopy;
+            return clone;
+        }
+
         public int Id { get => id; set => id = value; }
         public Location Location { get => location; set => location = value; }
         public Customer Cust { get => cust; set => cust = value; }
