@@ -119,6 +119,7 @@ namespace VrdpoProject
         {
             if (rm.IsValid())
             {
+                sol.LastMove = "relocate";
                 Route originRt = sol.Routes[rm.OriginRoutePosition];
                 Route targetRt = sol.Routes[rm.TargetRoutePosition];
 
@@ -306,6 +307,7 @@ namespace VrdpoProject
         {
             if (sm.IsValid())
             {
+                sol.LastMove = "swap";
                 Route rt1 = sol.Routes[sm.PositionOfFirstRoute];
                 Route rt2 = sol.Routes[sm.PositionOfSecondRoute];
                 if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
@@ -460,7 +462,7 @@ namespace VrdpoProject
 
         public void ApplyTwoOptMove(TwoOpt top, Solution sol) {
             if (!top.IsValid()) { return; }
-
+            sol.LastMove = "two opt";
             Route rt1 = sol.Routes[top.PositionOfFirstRoute];
             Route rt2 = sol.Routes[top.PositionOfSecondRoute];
             if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
@@ -671,6 +673,7 @@ namespace VrdpoProject
         { 
             if (flip.IsValid())
             {
+                sol.LastMove = "flip";
                 Route originRt = sol.Routes[flip.OriginRoutePosition];
                 Route targetRt = sol.Routes[flip.TargetRoutePosition];
                 if (!sol.CheckRouteFeasibility(targetRt) || !sol.CheckRouteFeasibility(originRt))
@@ -1009,6 +1012,7 @@ namespace VrdpoProject
         {
             if (psm.IsValid()) //&& psm.MoveCost < 0) 
             {
+                sol.LastMove = "psm";
                 Route rt1 = sol.Routes[psm.PositionOfFirstRoute];
                 Route rt2 = sol.Routes[psm.PositionOfSecondRoute];
                 if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))

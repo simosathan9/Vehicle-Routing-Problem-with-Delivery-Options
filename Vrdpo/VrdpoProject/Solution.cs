@@ -26,6 +26,7 @@ namespace VrdpoProject
         private List<Customer> customers = new();
         private Dictionary<int, List<Option>> optionsPerCustomer;
         private Dictionary<int, List<int>> optionsPrioritiesPerCustomer;
+        private string lastMove;
 
         public Solution()
         {
@@ -65,7 +66,7 @@ namespace VrdpoProject
                     clonedLocations.Add((Location)option.Location.Clone());
                 }
 
-                clonedOptions.Add((Option)option.Clone(clonedLocations[clonedLocations.Count-1]));
+                clonedOptions.Add((Option)option.Clone(option.Location));
             }
             foreach (Customer customer in customers)
             {
@@ -133,6 +134,7 @@ namespace VrdpoProject
         public Dictionary<int, List<int>> OptionsPrioritiesPerCustomer { get => optionsPrioritiesPerCustomer; set => optionsPrioritiesPerCustomer = value; }
         public int Repetition { get => repetition; set => repetition = value; }
         public int Restart { get => restart; set => restart = value; }
+        public string LastMove { get => lastMove; set => lastMove = value; }
 
         public double CalculateDistance(Location n1, Location n2)
         {

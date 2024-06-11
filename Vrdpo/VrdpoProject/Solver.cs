@@ -163,13 +163,13 @@ namespace VrdpoProject
                         }
 
                         var mincost = double.MaxValue;
-                        if (psmRejectionCounter >= 50)
+                        if (psmRejectionCounter <= 0)
                         {
                             mincost = FindMinMoveCost(sm, rm, top, flip, psm);
                         }
                         else
                         {
-                            Console.WriteLine("pswRejection counter is: " + psmRejectionCounter);
+                            //Console.WriteLine("pswRejection counter is: " + psmRejectionCounter);
                             mincost = FindMinMoveCost(sm, rm, top, flip);
                         }
 
