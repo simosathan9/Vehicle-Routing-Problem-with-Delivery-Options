@@ -552,7 +552,8 @@ namespace VrdpoProject
                     Customer custA = rt1.SequenceOfCustomers[custInd1 - 1];
                     Customer custB = rt1.SequenceOfCustomers[custInd1];
                     Customer custC = rt1.SequenceOfCustomers[custInd1 + 1];
-                    Route rt1_copy = new Route(rt1);
+                    //Route rt1_copy = new Route(rt1);
+                    Route rt1_copy = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                     rt1_copy.SequenceOfCustomers.RemoveAt(custInd1);
                     rt1_copy.SequenceOfOptions.RemoveAt(custInd1);
                     rt1_copy.SequenceOfLocations.RemoveAt(custInd1);
@@ -823,7 +824,8 @@ namespace VrdpoProject
                                                                     {
                                                                         continue;
                                                                     }
-                                                                    Route rtTemp =  new Route(rt1);
+                                                                    //Route rtTemp =  new Route(rt1);
+                                                                    Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                                                                     rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
                                                                     rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
                                                                     rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;
@@ -845,7 +847,8 @@ namespace VrdpoProject
                                                                     {
                                                                         continue;
                                                                     }
-                                                                    var rtTemp = new Route(rt2);
+                                                                    //var rtTemp = new Route(rt2);
+                                                                    Route rtTemp = rt2.getTempCopy(rt2, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                                                                     rtTemp.SequenceOfOptions[secondOptionIndex] = d2;
                                                                     rtTemp.SequenceOfCustomers[secondOptionIndex] = d2.Cust;
                                                                     rtTemp.SequenceOfLocations[secondOptionIndex] = d2.Location;
@@ -871,7 +874,8 @@ namespace VrdpoProject
                                                                         {
                                                                             continue;
                                                                         }
-                                                                        var rtTemp = new Route(rt1);
+                                                                        //var rtTemp = new Route(rt1);
+                                                                        Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                                                                         rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
                                                                         rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
                                                                         rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;
@@ -889,7 +893,8 @@ namespace VrdpoProject
                                                                         {
                                                                             continue;
                                                                         }
-                                                                        var rtTemp = new Route(rt2);
+                                                                        //var rtTemp = new Route(rt2);
+                                                                        Route rtTemp = rt2.getTempCopy(rt2, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                                                                         rtTemp.SequenceOfOptions[secondOptionIndex] = d2;
                                                                         rtTemp.SequenceOfCustomers[secondOptionIndex] = d2.Cust;
                                                                         rtTemp.SequenceOfLocations[secondOptionIndex] = d2.Location;

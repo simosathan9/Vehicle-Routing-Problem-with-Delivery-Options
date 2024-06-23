@@ -31,7 +31,7 @@ namespace VrdpoProject
             this.due = due;
         }
 
-        public object Clone(Location loc)
+        public Option Clone(Location loc)
         {
             // needs to add cloned customer seperately
             Location locationCopy = loc;

@@ -30,7 +30,7 @@ namespace VrdpoProject
             this.serviceTime = serviceTime;
             this.cap = cap;
         }
-        public object Clone()
+        public Location Clone()
         {
             return new Location(this.Id, this.Xx, this.Yy, this.maxCap, this.Ready, this.Due, this.Type, this.serviceTime, this.cap);
         }

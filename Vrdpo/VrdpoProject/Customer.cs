@@ -20,7 +20,7 @@ namespace VrdpoProject
             this.isRouted = isRouted;
             options = new List<Option>();
         }
-        public object Clone(List<Option> options)
+        public Customer Clone(List<Option> options)
         {
             var clone = (Customer)this.MemberwiseClone();
             this.options = options;

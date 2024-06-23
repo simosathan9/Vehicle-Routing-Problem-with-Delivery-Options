@@ -163,7 +163,7 @@ namespace VrdpoProject
                         }
 
                         var mincost = double.MaxValue;
-                        if (psmRejectionCounter <= 0)
+                        if (psmRejectionCounter >= 50)
                         {
                             mincost = FindMinMoveCost(sm, rm, top, flip, psm);
                         }
@@ -172,7 +172,10 @@ namespace VrdpoProject
                             //Console.WriteLine("pswRejection counter is: " + psmRejectionCounter);
                             mincost = FindMinMoveCost(sm, rm, top, flip);
                         }
-
+                        //if (mincost > 2000)
+                        //{
+                        //    continue;
+                        //}
                         if (mincost == sm.MoveCost)
                         {
                             ls.ApplySwapMove(sm, currentSol);
@@ -201,7 +204,7 @@ namespace VrdpoProject
                     }
                     else if (settings.schema == "random" || localBest.Cost == double.MaxValue)
                     {
-                        int k = rnd.Next(1, 6);
+                        int k = rnd.Next(2, 6);
                         if (k == 4)
                         {
                             sm = ls.FindBestSwapMove(sm, currentSol);

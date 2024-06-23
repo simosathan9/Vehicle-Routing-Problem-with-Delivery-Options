@@ -65,8 +65,8 @@ namespace VrdpoProject
                 {
                     clonedLocations.Add((Location)option.Location.Clone());
                 }
-
-                clonedOptions.Add((Option)option.Clone(option.Location));
+                var clonedloc = clonedLocations.SingleOrDefault(x => x.Id == option.Location.Id);
+                clonedOptions.Add((Option)option.Clone(clonedloc));
             }
             foreach (Customer customer in customers)
             {
@@ -75,12 +75,12 @@ namespace VrdpoProject
             }
             foreach (Option option in clonedOptions)
             {
-                option.Cust = clonedCustomers.Where(x=> x.Id == option.Cust.Id).ToList()[0];
+                option.Cust = clonedCustomers.SingleOrDefault(x => x.Id == option.Cust.Id);
             }
             foreach (Route rt in routes)
             {
                 Route clonedRoute = new Route(rt);
-                for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
+                for (int i = 1; i < rt.SequenceOfCustomers.Count-1; i++)
                 {
                     if (i == 0 || i == rt.SequenceOfCustomers.Count - 1)
                     {
@@ -94,6 +94,7 @@ namespace VrdpoProject
                         clonedRoute.SequenceOfOptions[i] = (Option)clonedOptions.Where(x => x.Id == rt.SequenceOfOptions[i].Id).ToList()[0];
                     }
                 }
+
                 clonedRoutes.Add(clonedRoute);
             }
 
@@ -105,6 +106,7 @@ namespace VrdpoProject
             this.Customers = clonedCustomers;
             this.Routes = clonedRoutes;
             this.Promises = promises;
+            for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) this.Promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
             this.optionsPerCustomer = optionsPerCustomer;
             this.optionsPrioritiesPerCustomer = optionsPrioritiesPerCustomer;
             this.Repetition = repetition;
@@ -488,14 +490,32 @@ namespace VrdpoProject
             }
             foreach (Route rt in sol.routes)
             {
+                for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
+                {
+                    var p = rt.SequenceOfLocations.Where(x => x.Id == rt.SequenceOfLocations[i].Id && x != rt.SequenceOfLocations[i]);
+                    if (p.ToList().Count > 0)
+                    {
+                        int l = i + p.ToList().Count;
+                        for (int k = i+1; k <= l; k++)
+                        {
+                            rt.SequenceOfLocations[k] = rt.SequenceOfLocations[i];//.FirstOrDefault(x => x.Id == id);
+                        }
+                        //Console.WriteLine("--------");
+                        //var id = p.ToList()[0].Id;
+                        //if (p.ToList().Contains(rt.SequenceOfLocations[i]))
+                        //{
+                        //}
+                        break;
+                    }
+                }
                 foreach (Location location in rt.SequenceOfLocations)
                 {
                     if (location.Type == 1 && location.Cap != timesVisited[location.Id])
                     {
                         Console.WriteLine("Location {0} capacity is wrong (solution may be feasible)!", location.Id);
-                        //location.Cap = timesVisited[location];
-                        //Console.WriteLine("Location {0} capacity is corrected", location.Id);
-                        return false;
+                        location.Cap = timesVisited[location.Id];
+                        Console.WriteLine("Location {0} capacity is corrected", location.Id);
+                        //return false;
                     }
                     else if (location.Type == 2 && timesVisited[location.Id] > 1)
                     {

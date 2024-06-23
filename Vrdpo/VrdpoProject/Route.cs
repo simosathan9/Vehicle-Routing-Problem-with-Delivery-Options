@@ -47,6 +47,75 @@ namespace VrdpoProject
             this.sequenceOfLat.Add(7200);
             this.sequenceOfLat.Add(7200);
         }
+        public Route() { }
+        public Route getTempCopy(Route rt_copy, List<Location> locs)
+        {
+            //var route = new Route();
+            //List<Location> clonedLocations = new List<Location>();
+            //List<Option> clonedOptions = new List<Option>();
+            //List<Customer> clonedCustomers = new List<Customer>();
+            //List<Route> clonedRoutes = new List<Route>();
+            //foreach (Option option in rt_copy.SequenceOfOptions)
+            //{
+            //    if (!(clonedLocations.Select(x => x.Id).ToList()).Contains(option.Location.Id))
+            //    {
+            //        clonedLocations.Add((Location)option.Location.Clone());
+            //    }
+            //    var clonedloc = clonedLocations.SingleOrDefault(x => x.Id == option.Location.Id);
+            //    clonedOptions.Add((Option)option.Clone(clonedloc));
+            //}
+            //foreach (Customer customer in rt_copy.SequenceOfCustomers)
+            //{
+            //    List<Option> customersOptions = clonedOptions.Where(x => x.Cust.Id == customer.Id).ToList();
+            //    clonedCustomers.Add((Customer)customer.Clone(customersOptions));
+            //}
+            //foreach (Option option in clonedOptions)
+            //{
+            //    option.Cust = clonedCustomers.FirstOrDefault(x => x.Id == option.Cust.Id);
+            //}
+            //for (int i = 0; i < rt_copy.SequenceOfCustomers.Count; i++)
+            //{
+            //    if (i == 0 || i == rt_copy.SequenceOfCustomers.Count - 1)
+            //    {
+            //        route.SequenceOfLocations.Add((Location)rt_copy.SequenceOfLocations[i].Clone());
+            //        route.SequenceOfCustomers.Add(new Customer(1000, 0, true));
+            //        route.SequenceOfOptions.Add((Option)rt_copy.SequenceOfOptions[0].Clone(rt_copy.SequenceOfLocations[i]));
+            //    }
+            //    else
+            //    {
+            //        route.SequenceOfLocations.Add((Location)clonedLocations.Where(x => x.Id == rt_copy.SequenceOfLocations[i].Id).ToList()[0]);
+            //        route.SequenceOfCustomers.Add((Customer)clonedCustomers.Where(x => x.Id == rt_copy.SequenceOfCustomers[i].Id).ToList()[0]);
+            //        route.SequenceOfOptions.Add((Option)clonedOptions.Where(x => x.Id == rt_copy.SequenceOfOptions[i].Id).ToList()[0]);
+            //    }
+            //}
+
+            //route.Id = rt_copy.id;
+            //route.Capacity = rt_copy.Capacity;
+            //route.load = rt_copy.load;
+            //route.duration = rt_copy.duration;
+            //route.fixedCost = rt_copy.fixedCost;
+            //route.cost = rt_copy.cost;
+            //route.sequenceOfEct = new List<double>(rt_copy.sequenceOfEct);
+            //route.sequenceOfLat = new List<double>(rt_copy.sequenceOfLat);
+
+            var route = new Route()
+            {
+                id = rt_copy.id,
+                capacity = rt_copy.capacity,
+                sequenceOfLocations = rt_copy.sequenceOfLocations.Select(x => (Location)x.Clone()).ToList(),
+                sequenceOfCustomers = rt_copy.sequenceOfCustomers
+            .Select(x => (Customer)x.Clone((List<Option>)x.Options.Select(y => y.Clone(locs.FirstOrDefault(z => y.Location.Id == z.Id))).ToList())).ToList(),
+                sequenceOfOptions = rt_copy.sequenceOfOptions.Select(x => (Option)x.Clone(locs.FirstOrDefault(y => y.Id == x.Location.Id))).ToList(),
+                load = rt_copy.load,
+                duration = rt_copy.duration,
+                fixedCost = rt_copy.fixedCost,
+                cost = rt_copy.cost,
+                sequenceOfEct = new List<double>(rt_copy.sequenceOfEct),
+                sequenceOfLat = new List<double>(rt_copy.sequenceOfLat),
+            };
+
+            return route;
+    }
 
         public Route(Route original)
         {
