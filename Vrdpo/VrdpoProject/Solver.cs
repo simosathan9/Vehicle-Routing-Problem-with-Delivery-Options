@@ -104,7 +104,6 @@ namespace VrdpoProject
                 }
                 else
                 {
-                    //currentSol = new Solution();
 
                     SetRoutedToFalse(currentSol.Customers);
                     SetServedToFalse(currentSol.Options);
@@ -155,7 +154,7 @@ namespace VrdpoProject
                         psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                         psmRejectionCounter += 1;
 
-                        if (i > 2000 && ((i - c) > 500))
+                        if (i > 1000 && ((i - c) > 200))//2000 and 500 1000 and 200 better
                         {
                             c = i;
                             flip = ls.FindBestFlipMove(flip, currentSol);
@@ -169,7 +168,6 @@ namespace VrdpoProject
                         }
                         else
                         {
-                            //Console.WriteLine("pswRejection counter is: " + psmRejectionCounter);
                             mincost = FindMinMoveCost(sm, rm, top, flip);
                         }
                         //if (mincost > 2000)
@@ -281,11 +279,11 @@ namespace VrdpoProject
                             Console.WriteLine();
                         }
                         currentSol.Routes = currentSol.Routes.Where(rt => rt.SequenceOfLocations.Count != 2).ToList();
-                        Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2));
+                        //Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2));
+                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
                     }
                 }
 

@@ -32,16 +32,9 @@ namespace VrdpoProject
                                 continue;
                             }
 
-                            // if (rt1.SequenceOfLocations[originOptionIndex].Type == 1) { continue; }
-
-                            //double[] tw = sol.RespectsTimeWindow(rt2, targetOptionIndex, rt1.SequenceOfLocations[originOptionIndex]);
                             var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex,
                                             rt1.SequenceOfLocations[originOptionIndex]);
 
-                            //double ect = tw[0];
-                            //double lat = tw[1];
-
-                            //if (ect > lat) { continue; }
                             if (!tw.Item1) { continue; };
 
                             Option A = rt1.SequenceOfOptions[originOptionIndex - 1];
@@ -70,22 +63,18 @@ namespace VrdpoProject
                                                 - sol.CalculateDistance(F.Location, G.Location);
 
                             //favor relocations from very small routes
-                            int bonus = 0;
-                            if (rt1.SequenceOfLocations.Count <= 4)
+                            //int bonus = 0;
+                            //if (rt1.SequenceOfLocations.Count <= 4)
+                            //{
+                            //    bonus = -2000;
+                            //}
+                            ////prevent relocating to empty/small routes
+                            //if (rt2.SequenceOfLocations.Count <= 4)
+                            //{
+                            //    continue;
+                            //}
+                            if (moveCost  < rm.MoveCost & targetRouteIndex != 0 & moveCost != 0) // + bpnus
                             {
-                                bonus = -2000;
-                            }
-                            //prevent relocating to empty/small routes
-                            if (rt2.SequenceOfLocations.Count <= 4)
-                            {
-                                continue;
-                            }
-                            if (moveCost + bonus < rm.MoveCost & targetRouteIndex != 0 & moveCost != 0)
-                            {
-                                //List<Option[]> arcs = new();
-                                //arcs.Add(new Option[] { F, B });
-                                //arcs.Add(new Option[] { B, G });
-                                //arcs.Add(new Option[] { A, C });
                                 if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost, sol))
                                 {
                                     continue;
@@ -99,8 +88,6 @@ namespace VrdpoProject
                                     continue;
                                 }
 
-
-                                //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
                                 rm.MoveCost = moveCost;
                                 rm.OriginRoutePosition = originRouteIndex;
                                 rm.TargetRoutePosition = targetRouteIndex;
@@ -135,7 +122,6 @@ namespace VrdpoProject
 
                 if (originRt == targetRt)
                 {
-                    //Console.WriteLine(B.Location.Id + " ---- " + F.Location.Id);
                     originRt.SequenceOfOptions.RemoveAt(rm.OriginOptionPosition);
                     originRt.SequenceOfCustomers.RemoveAt(rm.OriginOptionPosition);
                     originRt.SequenceOfLocations.RemoveAt(rm.OriginOptionPosition);
@@ -223,17 +209,6 @@ namespace VrdpoProject
                             double costChangeFirstRoute;
                             double costChangeSecondRoute;
 
-                            //if (b2.Location.Type == 1 || b1.Location.Type == 1) { continue; }
-
-                            /**double[] tw1 = sol.RespectsTimeWindow(rt1, firstOptionIndex, b2.Location);
-                            double[] tw2 = sol.RespectsTimeWindow(rt2, secondOptionIndex, b1.Location);
-                            double ect1 = tw1[0];
-                            double lat1 = tw1[1];
-                            double ect2 = tw2[0];
-                            double lat2 = tw2[1];
-
-                            if (ect1 > lat1 || ect2 > lat2) { continue; }**/
-
                             var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
                             var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
 
@@ -281,12 +256,7 @@ namespace VrdpoProject
                                     {
                                         continue;
                                     }
-                                    //List<Option[]> arcs = new();
-                                    //arcs.Add(new Option[] { a1, b2 });
-                                    //arcs.Add(new Option[] { b2, c1 });
-                                    //arcs.Add(new Option[] { a2, b1 });
-                                    //arcs.Add(new Option[] { b1, c2 });
-                                    //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
+
                                     sm.PositionOfFirstRoute = firstRouteIndex;
                                     sm.PositionOfSecondRoute = secondRouteIndex;
                                     sm.PositionOfFirstOption = firstOptionIndex;
@@ -405,11 +375,6 @@ namespace VrdpoProject
 
                                 if (moveCost < top.MoveCost & moveCost != 0)
                                 {
-                                    //List<Option[]> arcs = new();
-                                    //arcs.Add(new Option[] { A, L });
-                                    //arcs.Add(new Option[] { B, K });
-
-                                    //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) { continue; }
 
                                     if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost, sol))
                                     {
@@ -633,13 +598,6 @@ namespace VrdpoProject
 
                                 if (moveCost < flip.MoveCost & rtInd2 != 0)
                                 {
-                                    //List<Option[]> arcs = new();
-                                    //arcs.Add(new Option[] { F, B2 });
-                                    //arcs.Add(new Option[] { B2, G });
-                                    //arcs.Add(new Option[] { A, C });
-                                    //if (!CheckPromises(arcs, moveCost + sol.Cost, sol)) continue;
-
-
                                     if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost, sol))
                                     {
                                         continue;
@@ -723,12 +681,7 @@ namespace VrdpoProject
                 targetRt.SequenceOfLocations.Insert(flip.TargetOptionPosition + 1, B2.Location);
                 targetRt.SequenceOfEct.Insert(flip.TargetOptionPosition + 1, 0);
                 targetRt.SequenceOfLat.Insert(flip.TargetOptionPosition + 1, 0);
-                /** if (originRt == targetRt)
-                {
-                    originRt.Cost += flip.MoveCost;
-                    sol.UpdateTimes(originRt);
-                } else 
-                { **/
+
                 originRt.Cost += flip.CostChangeOriginRt;
                 targetRt.Cost += flip.CostChangeTargetRt;
                 originRt.Load -= B1.Cust.Dem;
@@ -766,11 +719,13 @@ namespace VrdpoProject
                 for (int firstOptionIndex = 1; firstOptionIndex < rt1.SequenceOfOptions.Count - 1; firstOptionIndex++)
                 {
                     b1 = rt1.SequenceOfOptions[firstOptionIndex];
+                    var customer1 = rt1.SequenceOfCustomers[firstOptionIndex];
                     int custID1 = b1.Cust.Id;
                     if (custID1 == 1000) { continue; }
                     if (optionsPerCustomer[custID1].Count > 1) //if optionsPerCustomer[custID1].Count <= 1 there is no reason to check if there is any chance to do a priority swap with another customer
                     {
-                        foreach (Option opt1 in optionsPerCustomer[custID1]) //Check all the available Options of Customer 1
+                        //foreach (Option opt1 in optionsPerCustomer[custID1]) //Check all the available Options of Customer 1
+                        foreach (Option opt1 in customer1.Options) //Check all the available Options of Customer 1
                         {
                             if ((opt1.Location.Cap < opt1.Location.MaxCap && opt1.Location.Type == 1) || opt1.Location.Type == 2)
                             {
@@ -785,11 +740,13 @@ namespace VrdpoProject
                                     for (int secondOptionIndex = startOfSecondOptionIndex; secondOptionIndex < rt2.SequenceOfOptions.Count - 1; secondOptionIndex++)
                                     {
                                         b2 = rt2.SequenceOfOptions[secondOptionIndex];
+                                        var customer2 = rt2.SequenceOfCustomers[secondOptionIndex];
                                         int custID2 = b2.Cust.Id;
                                         if (custID2 == 1000) { continue; }
                                         if (optionsPerCustomer[custID2].Count > 1) //same as in the line 770
                                         {
-                                            foreach (Option opt2 in optionsPerCustomer[custID2])
+                                            //foreach (Option opt2 in optionsPerCustomer[custID2])
+                                            foreach (Option opt2 in customer2.Options)
                                             {
                                                 psm.TimeWindowsError = false;
                                                 //check if a shared location will be used two times with this swap
@@ -985,6 +942,8 @@ namespace VrdpoProject
                                                                 continue;
                                                             }
                                                         }
+                                                 
+                                                        
                                                         psm.PositionOfFirstRoute = firstRouteIndex;
                                                         psm.PositionOfSecondRoute = secondRouteIndex;
                                                         psm.PositionOfFirstOption = firstOptionIndex;
@@ -992,8 +951,10 @@ namespace VrdpoProject
                                                         psm.CostChangeFirstRt = costChangeFirstRoute;
                                                         psm.CostChangeSecondRt = costChangeSecondRoute;
                                                         psm.MoveCost = moveCost;
-                                                        psm.AltOption1 = opt1;
-                                                        psm.AltOption2 = opt2;
+                                                        //psm.AltOption1 = opt1;
+                                                        //psm.AltOption2 = opt2;
+                                                        psm.AltOption1 = sol.Options.Single(x => x.Id == opt1.Id);
+                                                        psm.AltOption2 = (Option)sol.Options.Single(x => x.Id == opt2.Id);
                                                     }
 
                                                 }

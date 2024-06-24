@@ -77,6 +77,8 @@ namespace VrdpoProject
             {
                 option.Cust = clonedCustomers.SingleOrDefault(x => x.Id == option.Cust.Id);
             }
+            
+            
             foreach (Route rt in routes)
             {
                 Route clonedRoute = new Route(rt);
@@ -106,7 +108,6 @@ namespace VrdpoProject
             this.Customers = clonedCustomers;
             this.Routes = clonedRoutes;
             this.Promises = promises;
-            for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) this.Promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
             this.optionsPerCustomer = optionsPerCustomer;
             this.optionsPrioritiesPerCustomer = optionsPrioritiesPerCustomer;
             this.Repetition = repetition;
@@ -168,7 +169,6 @@ namespace VrdpoProject
         }
 
         
-
         public double[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
             /// loc: the position to be placed after
@@ -490,32 +490,13 @@ namespace VrdpoProject
             }
             foreach (Route rt in sol.routes)
             {
-                for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
-                {
-                    var p = rt.SequenceOfLocations.Where(x => x.Id == rt.SequenceOfLocations[i].Id && x != rt.SequenceOfLocations[i]);
-                    if (p.ToList().Count > 0)
-                    {
-                        int l = i + p.ToList().Count;
-                        for (int k = i+1; k <= l; k++)
-                        {
-                            rt.SequenceOfLocations[k] = rt.SequenceOfLocations[i];//.FirstOrDefault(x => x.Id == id);
-                        }
-                        //Console.WriteLine("--------");
-                        //var id = p.ToList()[0].Id;
-                        //if (p.ToList().Contains(rt.SequenceOfLocations[i]))
-                        //{
-                        //}
-                        break;
-                    }
-                }
                 foreach (Location location in rt.SequenceOfLocations)
                 {
                     if (location.Type == 1 && location.Cap != timesVisited[location.Id])
                     {
                         Console.WriteLine("Location {0} capacity is wrong (solution may be feasible)!", location.Id);
-                        location.Cap = timesVisited[location.Id];
-                        Console.WriteLine("Location {0} capacity is corrected", location.Id);
-                        //return false;
+                        
+                        return false;
                     }
                     else if (location.Type == 2 && timesVisited[location.Id] > 1)
                     {
@@ -534,27 +515,20 @@ namespace VrdpoProject
             bool depotFeasibility = true;
             bool costFeasibility = true;
             double cost = 0;
-            //UpdateTimes(rt);
             for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
             {
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
                 bool tw = CalculateTimes(rt);
-                // double[] tw = RespectsTimeWindow(rt, i, nextOpt.Location);
-                // double ect = tw[0];
-                // double lat = tw[1];
-                ///var tw = RespectsTimeWindow2(rt, i, nextOpt.Location);
                 if (rt.SequenceOfEct[i + 1] > rt.SequenceOfLat[i + 1])
                 {
                     Console.WriteLine("Time Window Feasibility Error");
                     timeWindowFeasibility = false;
                 }
-                //if (ect > lat && ect >= nextOpt.Location.Ready && ect <= nextOpt.Location.Due)
                 if (!tw)
                 {
                     Console.WriteLine("Time Window Feasibility Error");
                     timeWindowFeasibility = false;
-                    //break;
                 }
                 if (currentOpt.Location.Type == 0)
                 {
@@ -563,7 +537,6 @@ namespace VrdpoProject
                         Console.WriteLine("Depot Feasibility Error");
                         depotFeasibility = false;
                     }
-                    //break;
                 }
                 cost += CalculateDistance(rt.SequenceOfOptions[i].Location, nextOpt.Location);
             }
