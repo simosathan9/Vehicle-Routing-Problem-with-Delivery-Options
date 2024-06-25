@@ -729,7 +729,7 @@ namespace VrdpoProject
                         {
                             if ((opt1.Location.Cap < opt1.Location.MaxCap && opt1.Location.Type == 1) || opt1.Location.Type == 2)
                             {
-                                for (int secondRouteIndex = firstRouteIndex; secondRouteIndex < sol.Routes.Count; secondRouteIndex++)
+                                for (int secondRouteIndex = 0; secondRouteIndex < sol.Routes.Count; secondRouteIndex++)
                                 {
                                     rt2 = sol.Routes[secondRouteIndex];
                                     int startOfSecondOptionIndex = 1;
@@ -757,6 +757,16 @@ namespace VrdpoProject
                                                 }
                                                 if ((opt2.Location.Cap < opt2.Location.MaxCap - offset && opt2.Location.Type == 1) || opt2.Location.Type == 2)
                                                 {
+
+                                                    if (rt1.Load - b1.Cust.Dem + b2.Cust.Dem > rt1.Capacity)
+                                                    {
+                                                        continue;
+                                                    }
+                                                    if (rt2.Load - b2.Cust.Dem + b1.Cust.Dem > rt2.Capacity)
+                                                    {
+                                                        continue;
+                                                    }
+
                                                     a1 = rt1.SequenceOfOptions[firstOptionIndex - 1];
                                                     d1 = opt1;
                                                     c1 = rt1.SequenceOfOptions[firstOptionIndex + 1];

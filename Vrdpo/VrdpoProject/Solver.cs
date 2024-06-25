@@ -8,6 +8,7 @@ using OxyPlot;
 using Microsoft.VisualBasic.FileIO;
 using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
+using System.Diagnostics;
 
 
 
@@ -20,12 +21,13 @@ namespace VrdpoProject
         Solution globalBestSol = new Solution();
         LocalSearch ls = new();
         Random rnd2 = new Random(42);
-
+        TimeSpan globalBestTime = TimeSpan.Zero;
         public void Solve()
         {
             string jsonContent = File.ReadAllText("settings.json");
             var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
-
+            var totalTimer = new Stopwatch();
+            totalTimer.Start();
             if (settings.multiRestart) {
 
                 List<Solution> feasibleSolutions = new List<Solution>();
@@ -45,7 +47,6 @@ namespace VrdpoProject
                     Console.WriteLine("Solution Number " + count);
                     Console.WriteLine("------------------");
                     lc_sol = LocalSearch(s);
-                    System.Threading.Thread.Sleep(5000);
                     if (lc_sol.Cost < globalBestSol.Cost)
                     {
                         globalBestSol = lc_sol.DeepCopy(lc_sol);
@@ -54,9 +55,10 @@ namespace VrdpoProject
                     Console.WriteLine("------------------");
                     count++;
                 }
+                totalTimer.Stop();
                 Console.WriteLine("The best solution's cost: " + globalBestSol.Cost);
                 CalculateServiceLevel(globalBestSol);
-                //ReportSolution(globalBestSol, globalBestTime, totalTimer.Elapsed);
+                ReportSolution(globalBestSol, globalBestTime, totalTimer.Elapsed);
 
             }
             else
@@ -67,7 +69,8 @@ namespace VrdpoProject
                 PrintSolution(lc_sol);
                 Console.WriteLine("The best solution's cost: " + lc_sol.Cost);
                 CalculateServiceLevel(lc_sol);
-                //ReportSolution(lc_sol, globalBestTime, totalTimer.Elapsed);
+                totalTimer.Stop();
+                ReportSolution(lc_sol, globalBestTime, totalTimer.Elapsed);
             }
         }
 
@@ -80,15 +83,18 @@ namespace VrdpoProject
             bestSol.Cost = Math.Pow(10, 9);
             int numberOfRestarts = settings.restarts;
             Solution currentSol;
-
+            int timesFailedFindFeasible = 0;
+            var restartTimer = new Stopwatch();
+            
             for (int restart = 0; restart < numberOfRestarts; restart++)
             {
+                restartTimer.Reset();
+                restartTimer.Start();
                 Random rnd = new(restart);
                 Random rnd5 = new(restart);
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
-                int psmRejectionCounter = 50;
                 Relocation rm = new();
                 Swap sm = new();
                 TwoOpt top = new();
@@ -107,12 +113,14 @@ namespace VrdpoProject
 
                     SetRoutedToFalse(currentSol.Customers);
                     SetServedToFalse(currentSol.Options);
-                    if (!MinimumInsertions(currentSol, rnd5))
+                    if (!MinimumInsertions(currentSol, rnd5, timesFailedFindFeasible))
                     {
+                        timesFailedFindFeasible++;
                         numberOfRestarts++;
                         continue;
                     }
                     RemoveEmptyRoutes(currentSol);
+                    timesFailedFindFeasible = 0;
                 }
 
                 for (int i = 0; i < settings.repetitions; i++)
@@ -128,6 +136,7 @@ namespace VrdpoProject
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
                     psm.ReinitializeVariables();
+                    //double temperature = 100; Remove comment for Simulated Annealing
 
                     if (reinitCount == currentSol.Options.Count * settings.promisesRestartRatio)
                     {
@@ -136,40 +145,36 @@ namespace VrdpoProject
                     }
                     if (settings.schema == "greedy" && localBest.Cost != double.MaxValue)
                     {
-                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.98 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.08 && psmRejectionCounter >= 50)
+                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.98 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.08)
                         {
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             Console.WriteLine("Apply random priority swap");
                             ls.ApplyPrioritySwapMove(psm, currentSol);
-                            if (psm.MoveRejected)
-                            {
-                                psmRejectionCounter = 0;
-                                Console.WriteLine("Will not perform Priority Swap in this iteration for at least 50 moves");
-                            }
                         }
 
                         sm = ls.FindBestSwapMove(sm, currentSol);
                         rm = ls.FindBestRelocationMove(rm, currentSol);
                         top = ls.FindBestTwoOptMove(top, currentSol);
                         psm = ls.FindBestPrioritySwapMove(psm, currentSol);
-                        psmRejectionCounter += 1;
 
-                        if (i > 1000 && ((i - c) > 200))//2000 and 500 1000 and 200 better
+                        if (i > 2000 && ((i - c) > 500))//2000 and 500 1000 and 200 better
                         {
                             c = i;
                             flip = ls.FindBestFlipMove(flip, currentSol);
-
                         }
 
                         var mincost = double.MaxValue;
-                        if (psmRejectionCounter >= 50)
-                        {
-                            mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        /* Remove Comment for Simulated Annealing
+                        if (mincost > 0) {
+                            double delta = mincost;
+                            double probability = 1 / Math.Exp(delta / temperature);
+                            double pt = rnd.NextDouble();
+                            if (pt >= probability) {
+                                continue;
+                            }
                         }
-                        else
-                        {
-                            mincost = FindMinMoveCost(sm, rm, top, flip);
-                        }
+                        */
                         //if (mincost > 2000)
                         //{
                         //    continue;
@@ -193,12 +198,9 @@ namespace VrdpoProject
                         else if (mincost == psm.MoveCost)
                         {
                             ls.ApplyPrioritySwapMove(psm, currentSol);
-                            if (psm.MoveRejected)
-                            {
-                                psmRejectionCounter = 0;
-                                Console.WriteLine("Will not perform Priority Swap in this iteration for at least 50 moves");
-                            }
                         }
+                        //temperature = temperature * 0.98; Remove comment for Simulated Annealing
+                        //RemoveEmptyRoutes(currentSol);
                     }
                     else if (settings.schema == "random" || localBest.Cost == double.MaxValue)
                     {
@@ -283,21 +285,23 @@ namespace VrdpoProject
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
+                        Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2));
                     }
                 }
-
+                restartTimer.Stop();
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
                 if (localBest.Cost < bestSol.Cost)
                 {
                     bestSol = localBest.DeepCopy(localBest);
+                    bestSol.Restart = restart;
+                    bestSol.Repetition = localBest.Repetition;
+                    globalBestTime = restartTimer.Elapsed;
                 }
 
                 Console.WriteLine("///////////////////////");
                 Console.WriteLine(localBest.Cost + " " + bestSol.Cost);
-                System.Threading.Thread.Sleep(5000);
             }
             CalculateServiceLevel(bestSol);
             return bestSol;
@@ -316,6 +320,7 @@ namespace VrdpoProject
             List<Solution> solutionList = new List<Solution>();
             Random rnd = new Random(42);
             int Solutions = 10;
+            int timesFailedFindFeasible = 0;
 
             for (int i = 0; i < Solutions; i++)
             {
@@ -365,12 +370,14 @@ namespace VrdpoProject
                 // Also, check for each option if teh capacity is violated if the option is added
                 SetRoutedToFalse(sol.Customers);
                 SetServedToFalse(selectedOptions);
-                if(!MinimumInsertions(sol, rnd, selectedOptions))
+                if (!MinimumInsertions(sol, rnd, timesFailedFindFeasible, selectedOptions))
                 {
+                    timesFailedFindFeasible++;
                     solutionList.Remove(sol);
                     Solutions++;
                     continue;
                 };
+                timesFailedFindFeasible = 0;
                 Console.WriteLine("Solution " + i);
                 Console.WriteLine("------------");
             }
@@ -727,7 +734,7 @@ namespace VrdpoProject
         Option candidateOpt;
         Location A, B;
         double timeAdded, timeRemoved, trialTime;
-        double costAdded, costRemoved, trialCost;
+        double costAdded, costRemoved, trialCost, costAddedPenalized, costRemovedPenalized, trialCostPenalized;
         double[] tw;
 
         public string Instance { get => instance; set => instance = value; }
@@ -763,14 +770,11 @@ namespace VrdpoProject
                                 costAdded = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B);
                                 costRemoved = sol.CalculateDistance(A, B);
                                 trialCost = costAdded - costRemoved;
-                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;//candidateOpt.ServiceTime;// if loc == loc+1??? servicetime--
-                               // tw = sol.RespectsTimeWindow(rt, j, candidateOpt.Location);
+                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;
                                 var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
 
-                                //if (tw[0] <= tw[1]) { 
                                 if (t.Item1)
                                 {
-
                                     if (trialCost <= topThree.Last().Cost || topThree.Count < 3)
                                     {
                                         if (candidateOpt.Location.Type == 2 | candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
@@ -782,11 +786,8 @@ namespace VrdpoProject
                                             bestInsertion.InsertionPosition = j + 1;
                                             bestInsertion.Duration = trialTime;
                                             bestInsertion.Cost = trialCost;
-                                            //bestInsertion.Ect = tw[0];
-                                            //bestInsertion.Lat = tw[1];
                                             bestInsertion.Ect = t.Item2[j + 1];
                                             bestInsertion.Lat = t.Item3[j + 1];
-
                                             CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
                                             topThree.Add(custTemp);
                                             topThree = topThree.OrderBy(o=>o.Cost).ToList();
@@ -802,9 +803,84 @@ namespace VrdpoProject
             return topThree;
         }
 
+        List<CustomerInsertionAllPositions> IdentifyMinimumPenalizedCostInsertion(CustomerInsertionAllPositions bestInsertion, Solution sol, List<Option> selectedOptions = null)
+        {
+
+            List<CustomerInsertionAllPositions> topThree = new List<CustomerInsertionAllPositions>
+            {
+                bestInsertion
+            };
+            int options;
+            if (selectedOptions == null)
+            {
+                selectedOptions = sol.Options;
+            }
+
+            for (int i = 0; i < selectedOptions.Count; i++)
+            {
+                candidateOpt = selectedOptions[i];
+                if (candidateOpt.Cust.IsRouted == false & candidateOpt.IsServed == false)
+                {
+                    foreach (Route rt in sol.Routes)
+                    {
+                        if (rt.Load + candidateOpt.Cust.Dem <= rt.Capacity)
+                        {
+                            for (int j = 0; j < rt.SequenceOfLocations.Count - 1; j++)
+                            {
+                                A = rt.SequenceOfLocations[j];
+                                B = rt.SequenceOfLocations[j + 1];
+                                timeAdded = sol.CalculateTime(A, candidateOpt.Location) + sol.CalculateTime(candidateOpt.Location, B);
+                                timeRemoved = sol.CalculateTime(A, B);
+                                int routeIndex = sol.Routes.IndexOf(rt);
+                                double loadFactor = (double)(rt.Load + candidateOpt.Cust.Dem) / rt.Capacity; // Use this to fill the routes in a balanced way. Noticed that works better in practice. 
+                                double routePenalty = routeIndex * 400 * (1 + loadFactor);
+                                costAddedPenalized = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B) + routePenalty; // for every new route that opens the penalty is higher
+                                costAdded = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B);
+                                costRemovedPenalized = sol.CalculateDistance(A, B);
+                                costRemoved = sol.CalculateDistance(A, B);
+                                trialCostPenalized = costAddedPenalized - costRemovedPenalized;
+                                trialCost = costAdded - costRemoved;
+                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;
+
+                                var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
+                                //Console.WriteLine("Candidate options with id " + candidateOpt.Id + " and penalized cost " + trialCostPenalized);
+
+                                if (t.Item1)
+                                {
+                                    if (trialCostPenalized <= topThree.Last().CostPenalized || topThree.Count < 3)
+                                    {
+                                        if (candidateOpt.Location.Type == 2 | candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
+                                        {
+                                            bestInsertion.Option = candidateOpt;
+                                            bestInsertion.Customer = candidateOpt.Cust;
+                                            bestInsertion.Location = candidateOpt.Location;
+                                            bestInsertion.Route = rt;
+                                            bestInsertion.InsertionPosition = j + 1;
+                                            bestInsertion.Duration = trialTime;
+                                            bestInsertion.Cost = trialCost;
+                                            bestInsertion.CostPenalized = trialCostPenalized;
+                                            bestInsertion.Ect = t.Item2[j + 1];
+                                            bestInsertion.Lat = t.Item3[j + 1];
+
+                                            CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
+                                            if (!topThree.Contains(custTemp))
+                                            {
+                                                topThree.Add(custTemp);
+                                                topThree = topThree.OrderBy(o => o.CostPenalized).ToList();
+                                                topThree = topThree.Take(3).ToList();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return topThree;
+        }
 
 
-        
 
         void ApplyCustomerInsertionAllPositions(CustomerInsertionAllPositions insertion, Solution sol)
         {
@@ -822,41 +898,66 @@ namespace VrdpoProject
             insertion.Route.SequenceOfEct.Insert(insertion.InsertionPosition, insertion.Ect);
             insertion.Route.SequenceOfLat.Insert(insertion.InsertionPosition, insertion.Lat);
             sol.UpdateTimes(insertion.Route);
-            /**if (!sol.CheckRouteFeasibility(insertion.Route))
-            {
-                Console.WriteLine("-----");
-                sol.CheckRouteFeasibility(insertion.Route);
-            };**/
         }
 
-        bool MinimumInsertions(Solution sol, Random rnd, List<Option> selectedOptions = null)
+        bool MinimumInsertions(Solution sol, Random rnd, int timesFailedFindFeasible, List<Option> selectedOptions = null)
         {
             bool modelIsFeasible = true;
+            bool failed = false;
+            if (timesFailedFindFeasible < 100)
+            {
+                failed = true;
+            }
+
             while (sol.Customers.Any(x => !x.IsRouted))
             {   
                 bestInsertion = new CustomerInsertionAllPositions();
-                List<CustomerInsertionAllPositions> topThree;
+                List<CustomerInsertionAllPositions> topThree = new List<CustomerInsertionAllPositions>();
+                List<CustomerInsertionAllPositions> topThreeOfPenalized = new List<CustomerInsertionAllPositions>();
                 AlwaysKeepAnEmptyRoute(sol);
                 if (selectedOptions != null)
                 {
-                    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
-
+                    if (failed == true)
+                    {
+                        topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol, selectedOptions);
+                    }
+                    else
+                    {
+                        topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
+                    }
                 } else
                 {
-                    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
-
+                    if (failed == true)
+                    {
+                        topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol);
+                    }
+                    else
+                    {
+                        topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
+                    }
                 }
-                bestInsertion = topThree[rnd.Next(topThree.Count)];
+                if (failed == true)
+                {
+                    bestInsertion = topThreeOfPenalized[rnd.Next(topThreeOfPenalized.Count)];
+                } else
+                {
+                    bestInsertion = topThree[rnd.Next(topThree.Count)];
+                }
+
                 if (bestInsertion.Customer != null)
                 {
                     ApplyCustomerInsertionAllPositions(bestInsertion, sol);
                 } else
                 {
+                    Console.WriteLine("Initial solution is not feasible. Try again !");
                     modelIsFeasible = false;
+                    if ( failed== true)
+                    {
+                        timesFailedFindFeasible++;
+                    }
                     return modelIsFeasible;
                 }
             }
-            ReportSolution(sol,TimeSpan.MinValue,TimeSpan.MinValue);
             return modelIsFeasible;
         }
         double[] CalculateServiceLevel(Solution sol, bool verbal = true)
