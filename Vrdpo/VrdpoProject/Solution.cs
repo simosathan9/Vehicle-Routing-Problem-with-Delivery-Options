@@ -554,7 +554,7 @@ namespace VrdpoProject
             {
                 Console.WriteLine("Route Capacity Feasibility Error");
             }
-            return timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility;
+            return (timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility);
         }
     }
 }

@@ -719,17 +719,18 @@ namespace VrdpoProject
                 for (int firstOptionIndex = 1; firstOptionIndex < rt1.SequenceOfOptions.Count - 1; firstOptionIndex++)
                 {
                     b1 = rt1.SequenceOfOptions[firstOptionIndex];
-                    var customer1 = rt1.SequenceOfCustomers[firstOptionIndex];
+                    var customer1 = sol.Customers.Where(x => x.Id == rt1.SequenceOfCustomers[firstOptionIndex].Id).ToList()[0];
+                    //var customer1 = rt1.SequenceOfCustomers[firstOptionIndex];
                     int custID1 = b1.Cust.Id;
                     if (custID1 == 1000) { continue; }
-                    if (optionsPerCustomer[custID1].Count > 1) //if optionsPerCustomer[custID1].Count <= 1 there is no reason to check if there is any chance to do a priority swap with another customer
+                    if (customer1.Options.Count > 1) //if optionsPerCustomer[custID1].Count <= 1 there is no reason to check if there is any chance to do a priority swap with another customer
                     {
                         //foreach (Option opt1 in optionsPerCustomer[custID1]) //Check all the available Options of Customer 1
                         foreach (Option opt1 in customer1.Options) //Check all the available Options of Customer 1
                         {
                             if ((opt1.Location.Cap < opt1.Location.MaxCap && opt1.Location.Type == 1) || opt1.Location.Type == 2)
                             {
-                                for (int secondRouteIndex = 0; secondRouteIndex < sol.Routes.Count; secondRouteIndex++)
+                                for (int secondRouteIndex = firstRouteIndex; secondRouteIndex < sol.Routes.Count; secondRouteIndex++)
                                 {
                                     rt2 = sol.Routes[secondRouteIndex];
                                     int startOfSecondOptionIndex = 1;
@@ -740,10 +741,11 @@ namespace VrdpoProject
                                     for (int secondOptionIndex = startOfSecondOptionIndex; secondOptionIndex < rt2.SequenceOfOptions.Count - 1; secondOptionIndex++)
                                     {
                                         b2 = rt2.SequenceOfOptions[secondOptionIndex];
-                                        var customer2 = rt2.SequenceOfCustomers[secondOptionIndex];
+                                        var customer2 = sol.Customers.Where(x => x.Id == rt2.SequenceOfCustomers[secondOptionIndex].Id).ToList()[0];
+                                        //var customer2 = rt2.SequenceOfCustomers[secondOptionIndex];
                                         int custID2 = b2.Cust.Id;
                                         if (custID2 == 1000) { continue; }
-                                        if (optionsPerCustomer[custID2].Count > 1) //same as in the line 770
+                                        if (customer2.Options.Count > 1) //same as in the line 770
                                         {
                                             //foreach (Option opt2 in optionsPerCustomer[custID2])
                                             foreach (Option opt2 in customer2.Options)
@@ -751,11 +753,11 @@ namespace VrdpoProject
                                                 psm.TimeWindowsError = false;
                                                 //check if a shared location will be used two times with this swap
                                                 offset = 0;
-                                                if (opt1.Location == opt2.Location)
+                                                if (opt1.Location.Id == opt2.Location.Id)
                                                 {
                                                     offset = 1;
                                                 }
-                                                if ((opt2.Location.Cap < opt2.Location.MaxCap - offset && opt2.Location.Type == 1) || opt2.Location.Type == 2)
+                                                if ((sol.Options.Where(x => x.Id == opt2.Id).ToList()[0].Location.Cap < opt2.Location.MaxCap - offset && opt2.Location.Type == 1) || opt2.Location.Type == 2)
                                                 {
 
                                                     if (rt1.Load - b1.Cust.Dem + b2.Cust.Dem > rt1.Capacity)
@@ -780,7 +782,7 @@ namespace VrdpoProject
                                                     //So the current priority level of cust 1 must exist in the priority options of cust 2 and the current priority level of cust 2 must exist in the priority options of cust 1
                                                     if (optionsPrioritiesPerCustomer[custID2].Contains(b1.Prio) && (b1.Prio != b2.Prio) && optionsPrioritiesPerCustomer[custID1].Contains(b2.Prio))
                                                     {
-                                                        if (opt1.Prio == b2.Prio && (opt1 != b1) && (opt2 != b2) && opt2.Prio == b1.Prio)
+                                                        if (opt1.Prio == b2.Prio && (opt1.Id != b1.Id) && (opt2.Id != b2.Id) && opt2.Prio == b1.Prio)
                                                         { //Check that the alternative option of cust1 has same level of priority with the current level of customer 2 and ensure that opt1 does not refer to the option of cust 1 that is already in the route
                                                             if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
                                                             {

@@ -204,7 +204,7 @@ namespace VrdpoProject
                     }
                     else if (settings.schema == "random" || localBest.Cost == double.MaxValue)
                     {
-                        int k = rnd.Next(2, 6);
+                        int k = rnd.Next(1, 6);
                         if (k == 4)
                         {
                             sm = ls.FindBestSwapMove(sm, currentSol);
@@ -265,13 +265,14 @@ namespace VrdpoProject
                             }
                         }
                     }
+                    RemoveEmptyRoutes(currentSol);
                     if (!currentSol.CheckEverything(currentSol))
                     {
                         Console.WriteLine("Infeasible Solution!!!");
                     }
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
-                    if (currentSol.Cost < localBest.Cost && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9)
+                    if ((currentSol.Cost < localBest.Cost || currentSol.Routes.Count < localBest.Routes.Count) && (serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9))
                     {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
@@ -281,7 +282,7 @@ namespace VrdpoProject
                             Console.WriteLine();
                         }
                         currentSol.Routes = currentSol.Routes.Where(rt => rt.SequenceOfLocations.Count != 2).ToList();
-                        //Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
+                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
                     }
                     if (settings.verbal)
                     {
@@ -292,7 +293,7 @@ namespace VrdpoProject
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost < bestSol.Cost)
+                if (localBest.Cost < bestSol.Cost || localBest.Routes.Count < bestSol.Routes.Count)
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restart;
@@ -482,8 +483,8 @@ namespace VrdpoProject
         Dictionary<Option, double> CalculateObjective(List<Option> selectedOptions, Solution sol, List<Option> candOptions)
         {
             double weightDistance = 1;
-            double weightDueReadyDiff = 0;
-            double weightOverlap = 0;
+            double weightDueReadyDiff = 0.25;
+            double weightOverlap = 0.25;
             List<Option> nearestOptions;
             double weightedSum;
             Dictionary<Option, double> scores = new Dictionary<Option, double>();
@@ -492,9 +493,9 @@ namespace VrdpoProject
             foreach (Option option in candOptions)
             {
                 nearestOptions = FindXnearest(option, sol, selectedOptions);
-                weightedSum = (weightDistance * DistanceFromXnearest(nearestOptions, option, sol)) / (10 * maxDistance) -
-                (weightDueReadyDiff * (option.Location.Due - option.Location.Ready) / (10 * maxDuration))
-                                       + (weightOverlap * (CalculateOverlap(option, nearestOptions) / (10 * maxDuration)));
+                weightedSum = (weightDistance * DistanceFromXnearest(nearestOptions, option, sol)) / (5 * maxDistance) -
+                (weightDueReadyDiff * (option.Location.Due - option.Location.Ready) / (5 * maxDuration))
+                                       + (weightOverlap * (CalculateOverlap(option, nearestOptions) / (5 * maxDuration)));
                 scores[option] = weightedSum;
             }
 
@@ -586,7 +587,7 @@ namespace VrdpoProject
             List<Option> sortedPoints = selectedOptions.OrderBy(point => sol.CalculateDistance(targetOpt.Location, point.Location)).ToList();
 
             // Take the first k points as the nearest neighbors
-            List<Option> nearestNeighbors = sortedPoints.Take(10).ToList();
+            List<Option> nearestNeighbors = sortedPoints.Take(5).ToList();
 
             return nearestNeighbors;
         }
@@ -695,7 +696,10 @@ namespace VrdpoProject
         {
             string jsonContent = File.ReadAllText("settings.json");
             var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
-            StreamWriter writetext = new(".txt");
+            StreamWriter writetext = new(instance.Replace(".txt", settings.schema + ".txt"));
+
+            if (sol.CheckEverything(sol)) { writetext.WriteLine("Feasible"); }
+            else { writetext.WriteLine("INFEASIBLE!"); }
 
             writetext.WriteLine("Restart {0}, Repetition {1} \n", sol.Restart, sol.Repetition);
             writetext.WriteLine("Total time: {0}, Restart time: {1} \n", totalTime.ToString(), restartTime.ToString());
@@ -949,7 +953,7 @@ namespace VrdpoProject
                     ApplyCustomerInsertionAllPositions(bestInsertion, sol);
                 } else
                 {
-                    Console.WriteLine("Initial solution is not feasible. Try again !");
+                    //Console.WriteLine("Initial solution is not feasible. Try again !");
                     modelIsFeasible = false;
                     if ( failed== true)
                     {
