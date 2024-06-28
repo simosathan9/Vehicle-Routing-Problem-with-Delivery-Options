@@ -69,6 +69,8 @@ namespace VrdpoProject
                 PrintSolution(lc_sol);
                 Console.WriteLine("The best solution's cost: " + lc_sol.Cost);
                 CalculateServiceLevel(lc_sol);
+                //Export lc_sol to JSON
+                lc_sol.ExportToJson("./solution_data.json");
                 totalTimer.Stop();
                 ReportSolution(lc_sol, globalBestTime, totalTimer.Elapsed);
             }
