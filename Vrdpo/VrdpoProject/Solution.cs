@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using OxyPlot;
+using Newtonsoft.Json;
 
 namespace VrdpoProject
 {
@@ -32,6 +33,7 @@ namespace VrdpoProject
         {
             InstanceReader model = new();
             model.BuildModel();
+            model.ExportToJson("./vrpdo_data.json");
 
             this.duration = 0;
             this.cost = 0;
@@ -555,6 +557,30 @@ namespace VrdpoProject
                 Console.WriteLine("Route Capacity Feasibility Error");
             }
             return (timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility);
+        }
+
+        public void ExportToJson(string filePath)
+        {
+            List<object> routeDataList = new List<object>();
+            foreach (Route rt in Routes)
+            {
+                // Get JSON string for each route and parse it to an object
+                string routeJson = rt.ExportToJson(null);
+                var routeData = JsonConvert.DeserializeObject<object>(routeJson);
+                routeDataList.Add(routeData);
+            }
+
+            var solutionData = new
+            {
+                Cost = this.Cost,
+                Routes = routeDataList
+            };
+
+            // Serialize the dto object to JSON
+            string json = JsonConvert.SerializeObject(solutionData, Newtonsoft.Json.Formatting.Indented);
+
+            // Write JSON to file
+            File.WriteAllText(filePath, json);
         }
     }
 }
