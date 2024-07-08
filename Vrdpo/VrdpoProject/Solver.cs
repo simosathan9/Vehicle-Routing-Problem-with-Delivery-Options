@@ -4,13 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Linq;
-using OxyPlot;
 using Microsoft.VisualBasic.FileIO;
 using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
-
-
 
 namespace VrdpoProject
 {
@@ -272,7 +269,7 @@ namespace VrdpoProject
                     }
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
-                    if ((currentSol.Cost < localBest.Cost || currentSol.Routes.Count < localBest.Routes.Count) && (serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9))
+                    if ((currentSol.Cost < localBest.Cost || (currentSol.Routes.Count < localBest.Routes.Count) && currentSol.Cost < 100000) && (serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9))
                     {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
@@ -293,7 +290,7 @@ namespace VrdpoProject
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost < bestSol.Cost || localBest.Routes.Count < bestSol.Routes.Count)
+                if (localBest.Cost < bestSol.Cost || (localBest.Routes.Count < bestSol.Routes.Count && localBest.Cost < 100000))
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restart;
@@ -488,7 +485,7 @@ namespace VrdpoProject
             List<Option> nearestOptions;
             double weightedSum;
             Dictionary<Option, double> scores = new Dictionary<Option, double>();
-            double maxDistance = sol.DistanceMatrix.Max2D();
+            double maxDistance = sol.DistanceMatrix.Cast<double>().Max();
             double maxDuration = sol.Depot.Due - sol.Depot.Ready;
             foreach (Option option in candOptions)
             {
