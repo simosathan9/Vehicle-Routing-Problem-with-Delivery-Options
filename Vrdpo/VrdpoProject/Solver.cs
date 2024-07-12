@@ -102,6 +102,7 @@ namespace VrdpoProject
                 Solution localBest = new();
                 localBest.Cost = double.MaxValue;
                 currentSol = new();
+                //double temperature = 500; Remove comment for Simulated Annealing
 
                 if (settings.multiRestart)
                 {
@@ -135,7 +136,6 @@ namespace VrdpoProject
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
                     psm.ReinitializeVariables();
-                    //double temperature = 100; Remove comment for Simulated Annealing
 
                     if (reinitCount == currentSol.Options.Count * settings.promisesRestartRatio)
                     {
@@ -167,17 +167,21 @@ namespace VrdpoProject
                         /* Remove Comment for Simulated Annealing
                         if (mincost > 0) {
                             double delta = mincost;
-                            double probability = 1 / Math.Exp(delta / temperature);
+                            double probability = Math.Exp(-delta / temperature);
+                            Console.WriteLine("Temperature: " + temperature + "Delta: " + delta);
+                            Console.WriteLine("Probability: " + probability);
                             double pt = rnd.NextDouble();
                             if (pt >= probability) {
                                 continue;
                             }
                         }
                         */
+                        
                         //if (mincost > 2000)
                         //{
                         //    continue;
                         //}
+                        
                         if (mincost == sm.MoveCost)
                         {
                             ls.ApplySwapMove(sm, currentSol);
@@ -198,8 +202,8 @@ namespace VrdpoProject
                         {
                             ls.ApplyPrioritySwapMove(psm, currentSol);
                         }
-                        //temperature = temperature * 0.98; Remove comment for Simulated Annealing
-                        //RemoveEmptyRoutes(currentSol);
+                        
+                        //temperature *= 0.9997; //Remove comment for Simulated Annealing
                     }
                     else if (settings.schema == "random" || localBest.Cost == double.MaxValue)
                     {
@@ -271,7 +275,7 @@ namespace VrdpoProject
                     }
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
-                    if ((currentSol.Cost < localBest.Cost || (currentSol.Routes.Count < localBest.Routes.Count) && currentSol.Cost < 100000) && (serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9))
+                    if (currentSol.Cost + currentSol.Routes.Count * 10000 < localBest.Cost + localBest.Routes.Count * 10000  && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9)
                     {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
@@ -292,7 +296,7 @@ namespace VrdpoProject
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost < bestSol.Cost || (localBest.Routes.Count < bestSol.Routes.Count && localBest.Cost < 100000))
+                if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 && localBest.Cost < 100000)
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restart;
