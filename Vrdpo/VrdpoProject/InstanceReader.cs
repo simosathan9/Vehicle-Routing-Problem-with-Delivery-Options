@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Text.Json;
-using Newtonsoft.Json;
+//using Newtonsoft.Json;
 
 
 namespace VrdpoProject
@@ -127,6 +127,7 @@ namespace VrdpoProject
                     b = allLocations[j];
                     dist = Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
                     timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                    //distanceMatrix[i, j - i] = Math.Round(dist, 3);
                     distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
                 }
             }
@@ -153,27 +154,27 @@ namespace VrdpoProject
                 optionsPrioritiesPerCustomer[custID].Add(opt.Prio);
             }
         }
-        public void ExportToJson(string filePath)
-        {
-            // Create a JSON object to hold all necessary data
-            var data = new
-            {
-                Cap = Cap,
-                DistanceMatrix = DistanceMatrix,
-                TimeMatrix = TimeMatrix,
-                Depot = depot,
-                AllCustomers = AllCustomers,
-                AllNodes = AllNodes,
-                Options = Options,
-                OptionsPerCustomer = optionsPerCustomer,
-                OptionsPrioritiesPerCustomer = optionsPrioritiesPerCustomer
-            };
+        //public void ExportToJson(string filePath)
+        //{
+        //    // Create a JSON object to hold all necessary data
+        //    var data = new
+        //    {
+        //        Cap = Cap,
+        //        DistanceMatrix = DistanceMatrix,
+        //        TimeMatrix = TimeMatrix,
+        //        Depot = depot,
+        //        AllCustomers = AllCustomers,
+        //        AllNodes = AllNodes,
+        //        Options = Options,
+        //        OptionsPerCustomer = optionsPerCustomer,
+        //        OptionsPrioritiesPerCustomer = optionsPrioritiesPerCustomer
+        //    };
 
-            // Serialize to JSON
-            string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+        //    // Serialize to JSON
+        //    string json = JsonConvert.SerializeObject(data, Formatting.Indented);
 
-            // Write JSON to file
-            File.WriteAllText(filePath, json);
-        }
+        //    // Write JSON to file
+        //    File.WriteAllText(filePath, json);
+        //}
     }
 }

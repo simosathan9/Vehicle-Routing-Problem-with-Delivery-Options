@@ -67,7 +67,7 @@ namespace VrdpoProject
                 Console.WriteLine("The best solution's cost: " + lc_sol.Cost);
                 CalculateServiceLevel(lc_sol);
                 //Export lc_sol to JSON
-                lc_sol.ExportToJson("./solution_data.json");
+                //lc_sol.ExportToJson("./solution_data.json");
                 totalTimer.Stop();
                 ReportSolution(lc_sol, globalBestTime, totalTimer.Elapsed);
             }
@@ -271,7 +271,7 @@ namespace VrdpoProject
                     }
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
-                    if ((currentSol.Cost < localBest.Cost || (currentSol.Routes.Count < localBest.Routes.Count) && currentSol.Cost < 100000) && (serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9))
+                    if (currentSol.Cost + currentSol.Routes.Count * 10000 < localBest.Cost + localBest.Routes.Count * 10000 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9)
                     {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
@@ -292,7 +292,7 @@ namespace VrdpoProject
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost < bestSol.Cost || (localBest.Routes.Count < bestSol.Routes.Count && localBest.Cost < 100000))
+                if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 && localBest.Cost < 100000)
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restart;
@@ -670,7 +670,7 @@ namespace VrdpoProject
 
         void AlwaysKeepAnEmptyRoute(Solution sol)
         {
-            if (sol.Routes.Count < 10)
+            if (sol.Routes.Count < 100)
             {
                 if (sol.Routes.Count == 0)
                 {
@@ -954,7 +954,7 @@ namespace VrdpoProject
                 {
                     //Console.WriteLine("Initial solution is not feasible. Try again !");
                     modelIsFeasible = false;
-                    if ( failed== true)
+                    if (failed == true)
                     {
                         timesFailedFindFeasible++;
                     }

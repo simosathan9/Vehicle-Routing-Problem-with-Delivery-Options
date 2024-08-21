@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.VisualBasic.FileIO;
-using Newtonsoft.Json;
+//using Newtonsoft.Json;
 
 namespace VrdpoProject
 {
@@ -99,29 +99,29 @@ namespace VrdpoProject
         internal List<Location> SequenceOfLocations { get => sequenceOfLocations; set => sequenceOfLocations = value; }
         internal List<Customer> SequenceOfCustomers { get => sequenceOfCustomers; set => sequenceOfCustomers = value; }
 
-        public string ExportToJson(string filePath)
-        {
-        // Create an anonymous object to hold your data
-            var routeData = new
-            {
-                Id = this.Id,
-                Load = this.Load,
-                Capacity = this.Capacity,
-                Duration = this.Duration,
-                Cost = this.Cost,
-                FixedCost = this.FixedCost,
-                SequenceOfStartingTime = this.SequenceOfStartingTime,
-                SequenceOfEndingTime = this.SequenceOfEndingTime,
-                SequenceOfEct = this.SequenceOfEct,
-                SequenceOfLat = this.SequenceOfLat,
-                SequenceOfOptions = this.SequenceOfOptions,
-                SequenceOfLocations = this.SequenceOfLocations,
-                SequenceOfCustomers = this.SequenceOfCustomers
-            };
+        //public string ExportToJson(string filePath)
+        //{
+        //// Create an anonymous object to hold your data
+        //    var routeData = new
+        //    {
+        //        Id = this.Id,
+        //        Load = this.Load,
+        //        Capacity = this.Capacity,
+        //        Duration = this.Duration,
+        //        Cost = this.Cost,
+        //        FixedCost = this.FixedCost,
+        //        SequenceOfStartingTime = this.SequenceOfStartingTime,
+        //        SequenceOfEndingTime = this.SequenceOfEndingTime,
+        //        SequenceOfEct = this.SequenceOfEct,
+        //        SequenceOfLat = this.SequenceOfLat,
+        //        SequenceOfOptions = this.SequenceOfOptions,
+        //        SequenceOfLocations = this.SequenceOfLocations,
+        //        SequenceOfCustomers = this.SequenceOfCustomers
+        //    };
 
-            // Serialize to JSON
-            string json = JsonConvert.SerializeObject(routeData, Formatting.Indented);
-            return json;
-        }
+        //    // Serialize to JSON
+        //    string json = JsonConvert.SerializeObject(routeData, Formatting.Indented);
+        //    return json;
+        //}
     }
 }
