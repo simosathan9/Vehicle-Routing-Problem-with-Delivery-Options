@@ -25,10 +25,12 @@ namespace VrdpoProject
         double costChangeOriginRt;
         double costChangeTargetRt;
         double moveCost;
+        double totalCost;
 
         public Relocation()
         {
             this.MoveCost = Math.Pow(10, 9);
+            this.totalCost = Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -40,6 +42,7 @@ namespace VrdpoProject
             costChangeOriginRt = -1;
             costChangeTargetRt = -1;
             moveCost = Math.Pow(10, 9);
+            totalCost = Math.Pow(10, 9);
         }
 
         public bool IsValid()
@@ -54,5 +57,6 @@ namespace VrdpoProject
         public double CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
         public double CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
         public double MoveCost { get => moveCost; set => moveCost = value; }
+        public double TotalCost { get => totalCost; set => totalCost = value; }
     }
 }

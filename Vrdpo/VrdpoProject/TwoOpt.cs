@@ -17,10 +17,12 @@ namespace VrdpoProject
         double[] lat1;
         double[] lat2;
         double moveCost = Math.Pow(10, 9);
+        double totalCost = Math.Pow(10, 9);
 
         public TwoOpt()
         {
             this.MoveCost = Math.Pow(10, 9);
+            this.TotalCost = Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -30,6 +32,7 @@ namespace VrdpoProject
             positionOfFirstOption = -1;
             positionOfSecondOption = -1;
             moveCost = Math.Pow(10, 9);
+            totalCost = Math.Pow(10, 9);
         }
         public bool IsValid()
         {
@@ -41,6 +44,7 @@ namespace VrdpoProject
         public int PositionOfFirstOption { get => positionOfFirstOption; set => positionOfFirstOption = value; }
         public int PositionOfSecondOption { get => positionOfSecondOption; set => positionOfSecondOption = value; }
         public double MoveCost { get => moveCost; set => moveCost = value; }
+        public double TotalCost { get => totalCost; set => totalCost = value; }
         public double[] Ect1 { get => ect1; set => ect1 = value; }
         public double[] Ect2 { get => ect2; set => ect2 = value; }
         public double[] Lat1 { get => lat1; set => lat1 = value; }

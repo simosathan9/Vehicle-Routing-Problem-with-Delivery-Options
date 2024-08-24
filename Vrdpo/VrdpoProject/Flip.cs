@@ -6,6 +6,7 @@ namespace VrdpoProject
     public class Flip
     {
         double moveCost;
+        double totalCost;
         int targetRoutePosition;
         int targetOptionPosition;
         int originRoutePosition;
@@ -17,11 +18,13 @@ namespace VrdpoProject
         public Flip()
         {
             this.MoveCost = Math.Pow(10, 9);
+            this.TotalCost = Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
         {
             moveCost = Math.Pow(10, 9);
+            totalCost = Math.Pow(10, 9);
             targetRoutePosition = -1;
             targetOptionPosition = -1;
             originRoutePosition = -1;
@@ -37,6 +40,7 @@ namespace VrdpoProject
         }
 
         public double MoveCost { get => moveCost; set => moveCost = value; }
+        public double TotalCost { get => totalCost; set => totalCost = value; }
         public int TargetRoutePosition { get => targetRoutePosition; set => targetRoutePosition = value; }
         public int TargetOptionPosition { get => targetOptionPosition; set => targetOptionPosition = value; }
         public double CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }

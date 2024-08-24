@@ -17,6 +17,7 @@ namespace VrdpoProject
         double costChangeFirstRt;
         double costChangeSecondRt;
         double moveCost;
+        double totalCost;
         Option altOption1;
         Option altOption2;
         bool moveRejected;
@@ -27,6 +28,7 @@ namespace VrdpoProject
         public PrioritySwap()
         {
             this.MoveCost = Math.Pow(10, 9);
+            this.TotalCost = Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -40,6 +42,7 @@ namespace VrdpoProject
             costChangeFirstRt = -1;
             costChangeSecondRt = -1;
             moveCost = Math.Pow(10, 9);
+            totalCost = Math.Pow(10, 9);
             timeWindowsError = false;
             moveRejected = false;
         }
@@ -58,6 +61,7 @@ namespace VrdpoProject
         public double CostChangeFirstRt { get => costChangeFirstRt; set => costChangeFirstRt = value; }
         public double CostChangeSecondRt { get => costChangeSecondRt; set => costChangeSecondRt = value; }
         public double MoveCost { get => moveCost; set => moveCost = value; }
+        public double TotalCost { get => totalCost; set => totalCost = value; }
         public Option AltOption1 { get => altOption1; set => altOption1 = value; }
         public Option AltOption2 { get => altOption2; set => altOption2 = value; }
         public bool TimeWindowsError { get => timeWindowsError; set => timeWindowsError = value; }
