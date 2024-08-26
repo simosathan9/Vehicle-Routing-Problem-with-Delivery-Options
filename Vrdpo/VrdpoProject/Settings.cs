@@ -14,5 +14,6 @@ namespace VrdpoProject
         public double promisesRestartRatio { get; set; }
         public bool multiRestart { get; set; }
         public string schema { get; set; }
+        public string type { get; set; }
     }
 }

@@ -15,8 +15,8 @@ namespace VrdpoProject
         private List<Node> allNodes = new();
         private List<Location> allLocations = new();
         private List<Customer> allCustomers = new();
-        private double[,] distanceMatrix;
-        private double[,] timeMatrix;
+        private decimal[,] distanceMatrix;
+        private decimal[,] timeMatrix;
         private int cap;
         private Location depot;
         private List<Option> options = new();
@@ -48,8 +48,8 @@ namespace VrdpoProject
         }
 
         public int Cap { get => cap; set => cap = value; }
-        public double[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
-        public double[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
+        public decimal[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
+        public decimal[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
         internal List<Customer> AllCustomers { get => allCustomers; set => allCustomers = value; }
         public Location Depot { get => depot; set => depot = value; }
         public Dictionary<int, List<Option>> OptionsPerCustomer { get => optionsPerCustomer; set => optionsPerCustomer = value; }
@@ -104,31 +104,40 @@ namespace VrdpoProject
             }
 
             int rows = allLocations.Count;
-            distanceMatrix = new double[rows,rows];
-            timeMatrix = new double[rows, rows];
+            distanceMatrix = new decimal[rows,rows];
+            timeMatrix = new decimal[rows, rows];
 
             for (int i = 0; i < rows; i++)
             {
                 for(int j = i; j < rows; j++)
                 {
-                    distanceMatrix[i,j] = 0.0;
-                    timeMatrix[i,j] = 0.0;
+                    distanceMatrix[i,j] = 0;
+                    timeMatrix[i,j] = 0;
                 }
             }
 
             Location a;
             Location b;
-            double dist;
+            decimal dist;
             for (int i = 0; i < rows; i++)
             {
                 for (int j = i; j < rows; j++)
                 {
                     a = allLocations[i];
                     b = allLocations[j];
-                    dist = Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
-                    timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                    //distanceMatrix[i, j - i] = Math.Round(dist, 3);
-                    distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                    dist = (decimal) Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
+
+                    string jsonContent = File.ReadAllText("settings.json");
+                    var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
+                    if (settings.type == "int")
+                    {
+                        timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                        distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                    } else if (settings.type == "decimal") { 
+                    
+                        timeMatrix[i, j - i] = (decimal)Math.Round(dist, 3);
+                        distanceMatrix[i, j - i] = (decimal)Math.Round(dist, 3);
+                    }
                 }
             }
             //Update all data structures

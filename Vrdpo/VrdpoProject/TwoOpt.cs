@@ -12,15 +12,15 @@ namespace VrdpoProject
         int positionOfSecondRoute;
         int positionOfFirstOption;
         int positionOfSecondOption;
-        double[] ect1;
-        double[] ect2;
-        double[] lat1;
-        double[] lat2;
-        double moveCost = Math.Pow(10, 9);
+        decimal[] ect1;
+        decimal[] ect2;
+        decimal[] lat1;
+        decimal[] lat2;
+        decimal moveCost = (decimal)Math.Pow(10, 9);
 
         public TwoOpt()
         {
-            this.MoveCost = Math.Pow(10, 9);
+            this.MoveCost = (decimal)Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -29,7 +29,7 @@ namespace VrdpoProject
             positionOfSecondRoute = -1;
             positionOfFirstOption = -1;
             positionOfSecondOption = -1;
-            moveCost = Math.Pow(10, 9);
+            moveCost = (decimal)Math.Pow(10, 9);
         }
         public bool IsValid()
         {
@@ -40,10 +40,10 @@ namespace VrdpoProject
         public int PositionOfSecondRoute { get => positionOfSecondRoute; set => positionOfSecondRoute = value; }
         public int PositionOfFirstOption { get => positionOfFirstOption; set => positionOfFirstOption = value; }
         public int PositionOfSecondOption { get => positionOfSecondOption; set => positionOfSecondOption = value; }
-        public double MoveCost { get => moveCost; set => moveCost = value; }
-        public double[] Ect1 { get => ect1; set => ect1 = value; }
-        public double[] Ect2 { get => ect2; set => ect2 = value; }
-        public double[] Lat1 { get => lat1; set => lat1 = value; }
-        public double[] Lat2 { get => lat2; set => lat2 = value; }
+        public decimal MoveCost { get => moveCost; set => moveCost = value; }
+        public decimal[] Ect1 { get => ect1; set => ect1 = value; }
+        public decimal[] Ect2 { get => ect2; set => ect2 = value; }
+        public decimal[] Lat1 { get => lat1; set => lat1 = value; }
+        public decimal[] Lat2 { get => lat2; set => lat2 = value; }
     }
 }

@@ -14,9 +14,9 @@ namespace VrdpoProject
         int priorityOfFirstOption;
         int positionOfSecondOption;
         int priorityOfSecondOption;
-        double costChangeFirstRt;
-        double costChangeSecondRt;
-        double moveCost;
+        decimal costChangeFirstRt;
+        decimal costChangeSecondRt;
+        decimal moveCost;
         Option altOption1;
         Option altOption2;
         bool moveRejected;
@@ -26,7 +26,7 @@ namespace VrdpoProject
 
         public PrioritySwap()
         {
-            this.MoveCost = Math.Pow(10, 9);
+            this.MoveCost = (decimal)Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -39,7 +39,7 @@ namespace VrdpoProject
             priorityOfSecondOption = -1;
             costChangeFirstRt = -1;
             costChangeSecondRt = -1;
-            moveCost = Math.Pow(10, 9);
+            moveCost = (decimal)Math.Pow(10, 9);
             timeWindowsError = false;
             moveRejected = false;
         }
@@ -55,9 +55,9 @@ namespace VrdpoProject
         public int PriorityOfFirstOption { get => priorityOfFirstOption; set => priorityOfFirstOption = value; }
         public int PositionOfSecondOption { get => positionOfSecondOption; set => positionOfSecondOption = value; }
         public int PriorityOfSecondOption { get => priorityOfSecondOption; set => priorityOfSecondOption = value; }
-        public double CostChangeFirstRt { get => costChangeFirstRt; set => costChangeFirstRt = value; }
-        public double CostChangeSecondRt { get => costChangeSecondRt; set => costChangeSecondRt = value; }
-        public double MoveCost { get => moveCost; set => moveCost = value; }
+        public decimal CostChangeFirstRt { get => costChangeFirstRt; set => costChangeFirstRt = value; }
+        public decimal CostChangeSecondRt { get => costChangeSecondRt; set => costChangeSecondRt = value; }
+        public decimal MoveCost { get => moveCost; set => moveCost = value; }
         public Option AltOption1 { get => altOption1; set => altOption1 = value; }
         public Option AltOption2 { get => altOption2; set => altOption2 = value; }
         public bool TimeWindowsError { get => timeWindowsError; set => timeWindowsError = value; }

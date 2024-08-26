@@ -13,17 +13,17 @@ namespace VrdpoProject
 
     public class Solution
     {
-        private double duration;
-        private double cost;
+        private decimal duration;
+        private decimal cost;
         private int repetition;
         private int restart;
         private List<Route> routes;
-        private double[,] timeMatrix;
-        private double[,] distanceMatrix;
+        private decimal[,] timeMatrix;
+        private decimal[,] distanceMatrix;
         private int cap;
         private Location depot;
         private List<Option> options = new();
-        private double[,] promises;
+        private decimal[,] promises;
         private List<Customer> customers = new();
         private Dictionary<int, List<Option>> optionsPerCustomer;
         private Dictionary<int, List<int>> optionsPrioritiesPerCustomer;
@@ -44,15 +44,15 @@ namespace VrdpoProject
             this.Depot = model.Depot;
             this.Options = model.Options;
             this.Customers = model.AllCustomers;
-            this.Promises = new double[Options.Count + 1, Options.Count + 1];
+            this.Promises = new decimal[Options.Count + 1, Options.Count + 1];
             this.optionsPerCustomer = model.OptionsPerCustomer;
             this.optionsPrioritiesPerCustomer = model.OptionsPrioritiesPerCustomer;
             this.Repetition = repetition;
-            for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
+            for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = decimal.MaxValue;
         }
 
-        public Solution(double duration, double cost, List<Route> routes, double[,] distanceMatrix,
-            double[,] timeMatrix, int cap, Location depot, List<Option> options, double[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
+        public Solution(decimal duration, decimal cost, List<Route> routes, decimal[,] distanceMatrix,
+            decimal[,] timeMatrix, int cap, Location depot, List<Option> options, decimal[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
             Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition)
         {
             this.Duration = duration;
@@ -125,13 +125,13 @@ namespace VrdpoProject
             return deepCopySol;
         }
 
-        public double Duration { get => duration; set => duration = value; }
-        public double Cost { get => cost; set => cost = value; }
+        public decimal Duration { get => duration; set => duration = value; }
+        public decimal Cost { get => cost; set => cost = value; }
         internal List<Route> Routes { get => routes; set => routes = value; }
-        public double[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
-        public double[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
+        public decimal[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
+        public decimal[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
         public List<Option> Options { get => options; set => options = value; }
-        public double[,] Promises { get => promises; set => promises = value; }
+        public decimal[,] Promises { get => promises; set => promises = value; }
         public List<Customer> Customers { get => customers; set => customers = value; }
         public Location Depot { get => depot; set => depot = value; }
         public int Cap { get => cap; set => cap = value; }
@@ -141,7 +141,7 @@ namespace VrdpoProject
         public int Restart { get => restart; set => restart = value; }
         public string LastMove { get => lastMove; set => lastMove = value; }
 
-        public double CalculateDistance(Location n1, Location n2)
+        public decimal CalculateDistance(Location n1, Location n2)
         {
             if (n1.Id > n2.Id)
             {
@@ -153,7 +153,7 @@ namespace VrdpoProject
             }
         }
 
-        public double CalculateTime(Location n1, Location n2)
+        public decimal CalculateTime(Location n1, Location n2)
         {
             if (n1.Id > n2.Id)
             {
@@ -167,14 +167,14 @@ namespace VrdpoProject
 
         public void InitPromises()
         {
-            for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) Promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
+            for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) Promises[i % (Options.Count + 1), i / (Options.Count + 1)] = decimal.MaxValue;
         }
 
         
-        public double[] RespectsTimeWindow(Route rt, int loc, Location l)
+        public decimal[] RespectsTimeWindow(Route rt, int loc, Location l)
         {
             /// loc: the position to be placed after
-            double lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]) - l.ServiceTime, l.Due - l.ServiceTime);
+            decimal lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]) - l.ServiceTime, l.Due - l.ServiceTime);
             if (l.Id == rt.SequenceOfLocations[loc].Id)
             {
                 lat += l.ServiceTime;
@@ -190,12 +190,12 @@ namespace VrdpoProject
                 }
             }
 
-            double ect = Math.Max(rt.SequenceOfEct[loc] + CalculateTime(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime);
+            decimal ect = Math.Max(rt.SequenceOfEct[loc] + CalculateTime(rt.SequenceOfLocations[loc], l) + l.ServiceTime, l.Ready + l.ServiceTime);
             if (l.Id == rt.SequenceOfLocations[loc].Id)
             {
                 ect -= l.ServiceTime;
             }
-            double lat2 = 0;
+            decimal lat2 = 0;
             for (int j = loc; j > 0; j--)
             {
                 if (loc == 1) { continue; };
@@ -225,19 +225,19 @@ namespace VrdpoProject
                 }
 
                 if (lat2 < rt.SequenceOfEct[j]) { 
-                    return new double[] { 1, 0 }; 
+                    return new decimal[] { 1, 0 }; 
                 };
             }
 
-            double[] tw = new double[] { ect, lat };
+            decimal[] tw = new decimal[] { ect, lat };
             return tw;
         }
 
-        public Tuple<bool, double[], double[]> RespectsTimeWindow2(Route rt, int loc, Location location)
+        public Tuple<bool, decimal[], decimal[]> RespectsTimeWindow2(Route rt, int loc, Location location)
         {
            
-            double[] ects = new double[rt.SequenceOfLocations.Count + 1];
-            double[] lats = Enumerable.Repeat((double)7200, rt.SequenceOfLocations.Count + 1).ToArray();
+            decimal[] ects = new decimal[rt.SequenceOfLocations.Count + 1];
+            decimal[] lats = Enumerable.Repeat((decimal)7200, rt.SequenceOfLocations.Count + 1).ToArray();
             int k = 1;
 
             for (int i = 1; i < rt.SequenceOfLocations.Count + 1; i++)
@@ -332,7 +332,7 @@ namespace VrdpoProject
 
             bool feasible = ects.Zip(lats, (a, b) => a < b).All(x => x);
 
-            return new Tuple<bool, double[], double[]>(feasible, ects, lats);
+            return new Tuple<bool, decimal[], decimal[]>(feasible, ects, lats);
             
         }
 
@@ -341,23 +341,23 @@ namespace VrdpoProject
         /// all the <paramref>locations</paramref> to be visited after the specified
         /// index <paramref>loc</paramref>
         /// </summary>
-        double[] tw;
-        public Tuple<bool, double[], double[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
+        decimal[] tw;
+        public Tuple<bool, decimal[], decimal[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
         {
             tw = RespectsTimeWindow(rt, loc, locations.First());
             if (tw[0] > tw[1])
             {
-                return new Tuple<bool, double[], double[]>(false, new double[1], new double[1]);
+                return new Tuple<bool, decimal[], decimal[]>(false, new decimal[1], new decimal[1]);
             }
-            List<double> ects = new();
-            List<double> lats = new();
+            List<decimal> ects = new();
+            List<decimal> lats = new();
             Route tempRoute = new(44, 150, depot);
             tempRoute.SequenceOfLocations = rt.SequenceOfLocations.Take(loc + 1).ToList();
             tempRoute.SequenceOfLocations.AddRange(locations);
-            tempRoute.SequenceOfLat.AddRange(Enumerable.Repeat((double)7200, tempRoute.SequenceOfLocations.Count - 2).ToList());
+            tempRoute.SequenceOfLat.AddRange(Enumerable.Repeat((decimal)7200, tempRoute.SequenceOfLocations.Count - 2).ToList());
             for (int i = 1; i < tempRoute.SequenceOfLocations.Count; i++)
             {
-                double ect = Math.Max(tempRoute.SequenceOfLocations[i].Ready + tempRoute.SequenceOfLocations[i].ServiceTime,
+                decimal ect = Math.Max(tempRoute.SequenceOfLocations[i].Ready + tempRoute.SequenceOfLocations[i].ServiceTime,
                                                tempRoute.SequenceOfEct[i - 1] + CalculateTime(tempRoute.SequenceOfLocations[i], tempRoute.SequenceOfLocations[i - 1])
                                                + tempRoute.SequenceOfLocations[i].ServiceTime);
                 if (tempRoute.SequenceOfLocations[i - 1] == tempRoute.SequenceOfLocations[i])
@@ -369,7 +369,7 @@ namespace VrdpoProject
             tempRoute.SequenceOfEct.RemoveAt(tempRoute.SequenceOfEct.Count - 1);
             for (int j = tempRoute.SequenceOfLocations.Count - 2; j > -1; j--)
             {
-                double lat = Math.Min(tempRoute.SequenceOfLocations[j].Due - tempRoute.SequenceOfLocations[j].ServiceTime,
+                decimal lat = Math.Min(tempRoute.SequenceOfLocations[j].Due - tempRoute.SequenceOfLocations[j].ServiceTime,
                                                tempRoute.SequenceOfLat[j + 1] - CalculateTime(tempRoute.SequenceOfLocations[j], tempRoute.SequenceOfLocations[j + 1])
                                                - tempRoute.SequenceOfLocations[j].ServiceTime);
                 if (tempRoute.SequenceOfLocations[j + 1] == tempRoute.SequenceOfLocations[j])
@@ -390,7 +390,7 @@ namespace VrdpoProject
             if (!ects.SequenceEqual(ects.OrderBy(x => x)) || !lats.SequenceEqual(lats.OrderBy(x => x))
                 || ects.Last() > 7200)
             {
-                return new Tuple<bool, double[], double[]>(false, tempRoute.SequenceOfEct.ToArray(), tempRoute.SequenceOfLat.ToArray());
+                return new Tuple<bool, decimal[], decimal[]>(false, tempRoute.SequenceOfEct.ToArray(), tempRoute.SequenceOfLat.ToArray());
             }
             else
             {
@@ -402,7 +402,7 @@ namespace VrdpoProject
                         feasible = false;
                     }
                 }
-                return new Tuple<bool, double[], double[]>(feasible, tempRoute.SequenceOfEct.ToArray(), tempRoute.SequenceOfLat.ToArray());
+                return new Tuple<bool, decimal[], decimal[]>(feasible, tempRoute.SequenceOfEct.ToArray(), tempRoute.SequenceOfLat.ToArray());
             }
         }
 
@@ -437,7 +437,7 @@ namespace VrdpoProject
 
         public bool CalculateTimes(Route rt)
         {
-            double totalTime = 0;
+            decimal totalTime = 0;
             for (int i = 0; i < rt.SequenceOfLocations.Count - 1; i++)
             {
                 totalTime += CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i + 1]);
@@ -516,7 +516,7 @@ namespace VrdpoProject
             bool timeWindowFeasibility = true;
             bool depotFeasibility = true;
             bool costFeasibility = true;
-            double cost = 0;
+            decimal cost = 0;
             for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
             {
                 Option currentOpt = rt.SequenceOfOptions[i];
