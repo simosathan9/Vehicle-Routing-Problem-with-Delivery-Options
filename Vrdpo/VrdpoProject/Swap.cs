@@ -15,9 +15,11 @@ namespace VrdpoProject
         decimal costChangeFirstRt;
         decimal costChangeSecondRt;
         decimal moveCost;
+        decimal totalCost;
 
         public Swap()
         {
+            this.TotalCost = (decimal)Math.Pow(10, 9);
             this.MoveCost = (decimal)Math.Pow(10, 9);
         }
 
@@ -30,6 +32,7 @@ namespace VrdpoProject
             costChangeFirstRt = -1;
             costChangeSecondRt = -1;
             moveCost = (decimal)Math.Pow(10, 9);
+            totalCost = (decimal)Math.Pow(10, 9);
         }
 
         public bool IsValid()
@@ -44,5 +47,7 @@ namespace VrdpoProject
         public decimal CostChangeFirstRt { get => costChangeFirstRt; set => costChangeFirstRt = value; }
         public decimal CostChangeSecondRt { get => costChangeSecondRt; set => costChangeSecondRt = value; }
         public decimal MoveCost { get => moveCost; set => moveCost = value; }
+        public decimal TotalCost { get => totalCost; set => totalCost = value; }
+
     }
 }

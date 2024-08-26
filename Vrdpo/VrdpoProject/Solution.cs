@@ -559,6 +559,11 @@ namespace VrdpoProject
             return (timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility);
         }
 
+        public void RemoveEmptyRoutes()
+        {
+            this.Routes.RemoveAll(rt => rt.Load == 0);
+        }
+
         //public void ExportToJson(string filePath)
         //{
         //    List<object> routeDataList = new List<object>();

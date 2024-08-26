@@ -15,6 +15,7 @@ namespace VrdpoProject
         private Route rt1, rt2;
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
         {
+            int openRoutes;
             for (int originRouteIndex = 0; originRouteIndex < sol.Routes.Count; originRouteIndex++)
             {
                 rt1 = sol.Routes[originRouteIndex];
@@ -27,6 +28,7 @@ namespace VrdpoProject
                     {
                         for (int targetOptionIndex = 0; targetOptionIndex < rt2.SequenceOfOptions.Count - 1; targetOptionIndex++)
                         {
+                            openRoutes = sol.Routes.Count;
                             if (originRouteIndex == targetRouteIndex && (targetOptionIndex == originOptionIndex || targetOptionIndex == originOptionIndex - 1))
                             {
                                 continue;
@@ -49,6 +51,12 @@ namespace VrdpoProject
                                 {
                                     continue;
                                 }
+                            }
+                            if (rt1.Load - B.Cust.Dem == 0) { // if route becomes empty
+                                //Console.WriteLine("This RELOCATION move empties a route");
+                                //Console.WriteLine("Routes before : " + openRoutes);
+                                openRoutes--;
+                                //Console.WriteLine("Routes after : " + openRoutes);
                             }
 
                             decimal costAdded = sol.CalculateDistance(A.Location, C.Location) + sol.CalculateDistance(F.Location, B.Location)
@@ -73,8 +81,9 @@ namespace VrdpoProject
                             //{
                             //    continue;
                             //}
-                            if (moveCost < rm.MoveCost & targetRouteIndex != 0 & moveCost != 0) // + bpnus
+                            if (moveCost + openRoutes * 10000 < rm.TotalCost & targetRouteIndex != 0 & moveCost != 0) // + bpnus
                             {
+                                // Console.WriteLine("Total cost : " + rm.TotalCost + " Open Routes : " + openRoutes);
                                 if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost, sol))
                                 {
                                     continue;
@@ -87,7 +96,8 @@ namespace VrdpoProject
                                 {
                                     continue;
                                 }
-
+                                
+                                rm.TotalCost = moveCost + openRoutes * 10000;
                                 rm.MoveCost = moveCost;
                                 rm.OriginRoutePosition = originRouteIndex;
                                 rm.TargetRoutePosition = targetRouteIndex;
@@ -181,6 +191,7 @@ namespace VrdpoProject
         public Swap FindBestSwapMove(Swap sm, Solution sol)
         {
             Route rt1, rt2;
+            int openRoutes;
             int startOfSecondOptionIndex;
             Option a1, b1, c1, a2, b2, c2;
             for (int firstRouteIndex = 0; firstRouteIndex < sol.Routes.Count; firstRouteIndex++)
@@ -198,6 +209,7 @@ namespace VrdpoProject
                         }
                         for (int secondOptionIndex = startOfSecondOptionIndex; secondOptionIndex < rt2.SequenceOfOptions.Count - 1; secondOptionIndex++)
                         {
+                            openRoutes = sol.Routes.Count;
                             a1 = rt1.SequenceOfOptions[firstOptionIndex - 1];
                             b1 = rt1.SequenceOfOptions[firstOptionIndex];
                             c1 = rt1.SequenceOfOptions[firstOptionIndex + 1];
@@ -257,6 +269,7 @@ namespace VrdpoProject
                                         continue;
                                     }
 
+                                    sm.TotalCost = moveCost + openRoutes * 10000;
                                     sm.PositionOfFirstRoute = firstRouteIndex;
                                     sm.PositionOfSecondRoute = secondRouteIndex;
                                     sm.PositionOfFirstOption = firstOptionIndex;
@@ -326,6 +339,7 @@ namespace VrdpoProject
         }
 
         public TwoOpt FindBestTwoOptMove(TwoOpt top, Solution sol) {
+            int openRoutes;
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++) {
                 Route rt1 = sol.Routes[rtInd1];
                 for (int rtInd2 = 0; rtInd2 < sol.Routes.Count; rtInd2++) {
@@ -336,6 +350,8 @@ namespace VrdpoProject
                             start2 = optInd1 + 2;
                         }
                         for (int optInd2 = start2; optInd2 < rt2.SequenceOfOptions.Count - 1; optInd2++) {
+                            openRoutes = sol.Routes.Count;
+
                             decimal moveCost = (decimal)Math.Pow(10, 9);
                             decimal costAdded;
                             decimal costRemoved;
@@ -385,6 +401,7 @@ namespace VrdpoProject
                                         continue;
                                     }
 
+                                    top.TotalCost = moveCost + openRoutes * 10000;
                                     top.PositionOfFirstRoute = rtInd1;
                                     top.PositionOfSecondRoute = rtInd2;
                                     top.PositionOfFirstOption = optInd1;
@@ -508,6 +525,7 @@ namespace VrdpoProject
 
         public Flip FindBestFlipMove(Flip flip, Solution sol, bool cond = false)
         {
+            int openRoutes;
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++)
             {
                 Route rt1 = sol.Routes[rtInd1];
@@ -532,6 +550,7 @@ namespace VrdpoProject
                     {
                         for (int rtInd2 = 0; rtInd2 < sol.Routes.Count; rtInd2++)
                         {
+                            openRoutes = sol.Routes.Count;
                             Route rt2 = sol.Routes[rtInd2];
                             int indCust = rt1.SequenceOfCustomers.IndexOf(custB);
                             int targetRouteIndex = 0;
@@ -584,6 +603,12 @@ namespace VrdpoProject
                                     }
                                 }
 
+                                if (rt1.Load - B1.Cust.Dem == 0)
+                                {
+                                    //Console.WriteLine("This FLIP move empties a route");
+                                    openRoutes--;
+                                }
+
                                 decimal costAdded = sol.CalculateDistance(A.Location, C.Location) + sol.CalculateDistance(F.Location, B2.Location)
                                                     + sol.CalculateDistance(B2.Location, G.Location);
                                 decimal costRemoved = sol.CalculateDistance(A.Location, B1.Location) + sol.CalculateDistance(B1.Location, C.Location)
@@ -596,7 +621,7 @@ namespace VrdpoProject
                                                     - sol.CalculateDistance(F.Location, G.Location);
 
 
-                                if (moveCost < flip.MoveCost & rtInd2 != 0)
+                                if (moveCost + openRoutes * 10000 < flip.TotalCost & rtInd2 != 0)
                                 {
                                     if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost, sol))
                                     {
@@ -610,6 +635,7 @@ namespace VrdpoProject
                                     {
                                         continue;
                                     }
+                                    flip.TotalCost = moveCost + openRoutes * 10000;
                                     flip.MoveCost = moveCost;
                                     flip.OriginRoutePosition = rtInd1;
                                     flip.TargetRoutePosition = rtInd2;
@@ -713,6 +739,7 @@ namespace VrdpoProject
             Route rt1, rt2;
             Option a1, b1, c1, d1, a2, b2, c2, d2; // d1, d2 the alternative priorities for cust1 and cust 1
             int offset = 0;
+            int openRoutes;
             for (int firstRouteIndex = 0; firstRouteIndex < sol.Routes.Count; firstRouteIndex++)
             {
                 rt1 = sol.Routes[firstRouteIndex];
@@ -740,6 +767,7 @@ namespace VrdpoProject
                                     }
                                     for (int secondOptionIndex = startOfSecondOptionIndex; secondOptionIndex < rt2.SequenceOfOptions.Count - 1; secondOptionIndex++)
                                     {
+                                        openRoutes = sol.Routes.Count;
                                         b2 = rt2.SequenceOfOptions[secondOptionIndex];
                                         var customer2 = sol.Customers.Where(x => x.Id == rt2.SequenceOfCustomers[secondOptionIndex].Id).ToList()[0];
                                         //var customer2 = rt2.SequenceOfCustomers[secondOptionIndex];
@@ -955,7 +983,7 @@ namespace VrdpoProject
                                                             }
                                                         }
                                                  
-                                                        
+                                                        psm.TotalCost = moveCost + openRoutes * 10000;
                                                         psm.PositionOfFirstRoute = firstRouteIndex;
                                                         psm.PositionOfSecondRoute = secondRouteIndex;
                                                         psm.PositionOfFirstOption = firstOptionIndex;

@@ -184,26 +184,27 @@ namespace VrdpoProject
                         //    continue;
                         //}
                         
-                        if (mincost == sm.MoveCost)
+                        if (mincost == sm.TotalCost)
                         {
                             ls.ApplySwapMove(sm, currentSol);
                         }
-                        else if (mincost == rm.MoveCost)
+                        else if (mincost == rm.TotalCost)
                         {
                             ls.ApplyRelocationMove(rm, currentSol);
                         }
-                        else if (mincost == top.MoveCost)
+                        else if (mincost == top.TotalCost)
                         {
                             ls.ApplyTwoOptMove(top, currentSol);
                         }
-                        else if (mincost == flip.MoveCost)
+                        else if (mincost == flip.TotalCost)
                         {
                             ls.ApplyFlipMove(flip, currentSol);
                         }
-                        else if (mincost == psm.MoveCost)
+                        else if (mincost == psm.TotalCost)
                         {
                             ls.ApplyPrioritySwapMove(psm, currentSol);
                         }
+                        RemoveEmptyRoutes(currentSol);
                         
                         //temperature *= 0.9997; //Remove comment for Simulated Annealing
                     }
@@ -254,11 +255,11 @@ namespace VrdpoProject
                                 sm = ls.FindBestSwapMove(sm, currentSol);
                                 rm = ls.FindBestRelocationMove(rm, currentSol);
                                 top = ls.FindBestTwoOptMove(top, currentSol);
-                                if (rm.MoveCost < sm.MoveCost && rm.MoveCost < top.MoveCost)
+                                if (rm.TotalCost < sm.TotalCost && rm.TotalCost < top.TotalCost)
                                 {
                                     ls.ApplyRelocationMove(rm, currentSol);
                                 }
-                                else if (sm.MoveCost < top.MoveCost && sm.MoveCost < rm.MoveCost)
+                                else if (sm.TotalCost < top.TotalCost && sm.TotalCost < rm.TotalCost)
                                 {
                                     ls.ApplySwapMove(sm, currentSol);
                                 }
@@ -277,28 +278,29 @@ namespace VrdpoProject
                     }
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
-                    if ((currentSol.Cost < localBest.Cost || (currentSol.Routes.Count < localBest.Routes.Count) && currentSol.Cost < 100000) && (serviceLevel[0] >= 0.8m && serviceLevel[1] >= 0.9m))
-                    {
+                    int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
+                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9) {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
+                        localBest.RemoveEmptyRoutes();
                         lastImprovement = i;
                         if (!localBest.CheckEverything(localBest))
                         {
                             Console.WriteLine();
                         }
                         currentSol.Routes = currentSol.Routes.Where(rt => rt.SequenceOfLocations.Count != 2).ToList();
-                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
+                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2));
+                        Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2));
                     }
                 }
                 restartTimer.Stop();
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 && localBest.Cost < 100000)
+                if (localBest.Cost + localBest.Routes.Count * 1000 < bestSol.Cost + bestSol.Routes.Count * 1000 && localBest.Cost < 100000)
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restartCounter;
@@ -656,8 +658,8 @@ namespace VrdpoProject
             Console.WriteLine("///////////////////");
         }
 
-        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.MoveCost, rm.MoveCost), top.MoveCost), flip.MoveCost), psm.MoveCost);
-        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.MoveCost, rm.MoveCost), top.MoveCost), flip.MoveCost);
+        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCostTotalCost), flip.TotalCost), psm.TotalCost);
+        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
         void SetRoutedToFalse(List<Customer> customers)
         {
             foreach(Customer customer1 in customers)

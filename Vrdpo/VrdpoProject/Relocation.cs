@@ -25,10 +25,12 @@ namespace VrdpoProject
         decimal costChangeOriginRt;
         decimal costChangeTargetRt;
         decimal moveCost;
+        decimal totalCost;
 
         public Relocation()
         {
-            this.MoveCost = (decimal)(decimal)Math.Pow(10, 9);
+            this.totalCost = (decimal)Math.Pow(10, 9);
+            this.MoveCost = (decimal)Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -39,6 +41,7 @@ namespace VrdpoProject
             targetOptionPosition = -1;
             costChangeOriginRt = -1;
             costChangeTargetRt = -1;
+            totalCost = (decimal)Math.Pow(10, 9);
             moveCost = (decimal)Math.Pow(10, 9);
         }
 
@@ -54,5 +57,6 @@ namespace VrdpoProject
         public decimal CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
         public decimal CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
         public decimal MoveCost { get => moveCost; set => moveCost = value; }
+        public decimal TotalCost { get => totalCost; set => totalCost = value; }
     }
 }
