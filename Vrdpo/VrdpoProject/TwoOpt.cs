@@ -17,7 +17,7 @@ namespace VrdpoProject
         decimal[] lat1;
         decimal[] lat2;
         decimal moveCost = (decimal)Math.Pow(10, 9);
-        double totalCost = (decimal)Math.Pow(10, 9);
+        decimal totalCost = (decimal)Math.Pow(10, 9);
 
         public TwoOpt()
         {

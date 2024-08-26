@@ -28,7 +28,7 @@ namespace VrdpoProject
         public PrioritySwap()
         {
             this.MoveCost = (decimal)Math.Pow(10, 9);
-            this.TotalCost = Math.Pow(10, 9);
+            this.TotalCost = (decimal)Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()

@@ -279,7 +279,7 @@ namespace VrdpoProject
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
                     int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
-                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9) {
+                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8m && serviceLevel[1] >= 0.9m) {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
                         localBest.RemoveEmptyRoutes();
@@ -658,7 +658,7 @@ namespace VrdpoProject
             Console.WriteLine("///////////////////");
         }
 
-        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCostTotalCost), flip.TotalCost), psm.TotalCost);
+        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost), psm.TotalCost);
         private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
         void SetRoutedToFalse(List<Customer> customers)
         {
