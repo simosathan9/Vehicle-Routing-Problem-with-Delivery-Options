@@ -30,7 +30,7 @@ namespace VrdpoProject
 
                 SetRoutedToFalse(restartBestSol.Customers);
                 SetServedToFalse(restartBestSol.Options);
-                MinimumInsertions(restartBestSol, rnd); // give the rnd of each restart into the construction heuristic
+                MinimumInsertions(restartBestSol, rnd);
 
                 Route empty = new Route(166, 0, restartBestSol.Depot);
                 foreach (Route r in restartBestSol.Routes) 
