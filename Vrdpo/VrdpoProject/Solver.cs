@@ -205,6 +205,8 @@ namespace VrdpoProject
                             ls.ApplyPrioritySwapMove(psm, currentSol);
                         }
                         RemoveEmptyRoutes(currentSol);
+                        currentSol.SolutionUtilizationMetric = currentSol.CalculateUtilizationMetric();
+                        //Console.WriteLine("Utilization Metric: " + currentSol.SolutionUtilizationMetric);
                         
                         //temperature *= 0.9997; //Remove comment for Simulated Annealing
                     }
@@ -901,6 +903,7 @@ namespace VrdpoProject
             insertion.Route.Duration += insertion.Duration;
             insertion.Route.Cost += insertion.Cost;
             insertion.Route.Load += insertion.Customer.Dem;
+            insertion.Route.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(insertion.Route.Capacity - insertion.Route.Load), 2);
             insertion.Customer.IsRouted = true;
             insertion.Option.IsServed = true;
             sol.Cost += insertion.Cost;

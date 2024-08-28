@@ -28,6 +28,7 @@ namespace VrdpoProject
         private Dictionary<int, List<Option>> optionsPerCustomer;
         private Dictionary<int, List<int>> optionsPrioritiesPerCustomer;
         private string lastMove;
+        private decimal solutionUtilizationMetric;
 
         public Solution()
         {
@@ -48,15 +49,17 @@ namespace VrdpoProject
             this.optionsPerCustomer = model.OptionsPerCustomer;
             this.optionsPrioritiesPerCustomer = model.OptionsPrioritiesPerCustomer;
             this.Repetition = repetition;
+            this.SolutionUtilizationMetric = 0;
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = decimal.MaxValue;
         }
 
         public Solution(decimal duration, decimal cost, List<Route> routes, decimal[,] distanceMatrix,
             decimal[,] timeMatrix, int cap, Location depot, List<Option> options, decimal[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
-            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition)
+            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition, decimal solutionUtilizationMetric)
         {
             this.Duration = duration;
             this.Cost = cost;
+            this.SolutionUtilizationMetric = solutionUtilizationMetric;
             List<Location> clonedLocations = new List<Location>();
             List<Option> clonedOptions = new List<Option>();
             List<Customer> clonedCustomers = new List<Customer>();
@@ -121,7 +124,7 @@ namespace VrdpoProject
             Solution deepCopySol = new Solution(sol.Duration, sol.Cost, sol.Routes,
                 sol.DistanceMatrix, sol.TimeMatrix, sol.Cap, sol.Depot, sol.Options,
                 sol.Promises, sol.Customers, sol.optionsPerCustomer,
-                sol.optionsPrioritiesPerCustomer, sol.Repetition);
+                sol.optionsPrioritiesPerCustomer, sol.Repetition, sol.SolutionUtilizationMetric);
             return deepCopySol;
         }
 
@@ -140,6 +143,7 @@ namespace VrdpoProject
         public int Repetition { get => repetition; set => repetition = value; }
         public int Restart { get => restart; set => restart = value; }
         public string LastMove { get => lastMove; set => lastMove = value; }
+        public decimal SolutionUtilizationMetric { get => solutionUtilizationMetric; set => solutionUtilizationMetric = value; }
 
         public decimal CalculateDistance(Location n1, Location n2)
         {
@@ -458,6 +462,16 @@ namespace VrdpoProject
                 }
             }
             return true;
+        }
+
+        public decimal CalculateUtilizationMetric()
+        {
+            decimal utilizationMetric = 0;
+            foreach (Route rt in Routes)
+            {
+                utilizationMetric += rt.RouteUtilizationMetric;
+            }
+            return utilizationMetric;
         }
 
         public bool CheckEverything(Solution sol)

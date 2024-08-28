@@ -167,6 +167,8 @@ namespace VrdpoProject
                     targetRt.Cost += rm.CostChangeTargetRt;
                     originRt.Load -= B.Cust.Dem;
                     targetRt.Load += B.Cust.Dem;
+                    originRt.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(originRt.Capacity - originRt.Load), 2);
+                    targetRt.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(targetRt.Capacity - targetRt.Load), 2);
                     sol.UpdateTimes(originRt);
                     sol.UpdateTimes(targetRt);
                     UpdateRouteCostAndLoad(originRt, sol);
@@ -321,6 +323,8 @@ namespace VrdpoProject
                     rt2.Cost += sm.CostChangeSecondRt;
                     rt1.Load = rt1.Load - b1.Cust.Dem + b2.Cust.Dem;
                     rt2.Load = rt2.Load + b1.Cust.Dem - b2.Cust.Dem;
+                    rt1.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
+                    rt2.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - rt2.Load), 2);
                     UpdateRouteCostAndLoad(rt1, sol);
                     UpdateRouteCostAndLoad(rt2, sol);
                     sol.UpdateTimes(rt1);
@@ -472,6 +476,7 @@ namespace VrdpoProject
                 rt1.Cost += top.MoveCost;
                 sol.UpdateTimes(rt1);
                 UpdateRouteCostAndLoad(rt1, sol);
+                rt1.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
             }
             else
             {
@@ -508,6 +513,8 @@ namespace VrdpoProject
                 rt2.SequenceOfCustomers.AddRange(relocatedCustomers1);
                 UpdateRouteCostAndLoad(rt1, sol);
                 UpdateRouteCostAndLoad(rt2, sol);
+                rt1.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
+                rt2.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - rt2.Load), 2);
                 rt1.SequenceOfEct = top.Ect1.ToList();
                 rt2.SequenceOfEct = top.Ect2.ToList();
                 rt1.SequenceOfLat = top.Lat1.ToList();
@@ -693,6 +700,7 @@ namespace VrdpoProject
                     sol.UpdateTimes(originRt);
                     originRt.Cost += flip.MoveCost;
                     UpdateRouteCostAndLoad(originRt, sol);
+                    originRt.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(originRt.Capacity - originRt.Load), 2);
                 }
                 else
                 {
@@ -716,6 +724,8 @@ namespace VrdpoProject
                 UpdateRouteCostAndLoad(targetRt, sol);
                 sol.UpdateTimes(originRt);
                 sol.UpdateTimes(targetRt);
+                originRt.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(originRt.Capacity - originRt.Load), 2);
+                targetRt.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(targetRt.Capacity - targetRt.Load), 2);
                 }
                 sol.Cost += flip.MoveCost;
                 B1.IsServed = false; B2.IsServed = true;
@@ -1070,6 +1080,7 @@ namespace VrdpoProject
                 {
                     rt1.Cost += psm.MoveCost;
                     UpdateRouteCostAndLoad(rt1, sol);
+                    rt1.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
                     sol.UpdateTimes(rt1);
                     sol.Cost += psm.MoveCost;
                     if (rt1 == rt2 && (psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1 || psm.PositionOfSecondOption == psm.PositionOfFirstOption - 1))
@@ -1105,6 +1116,8 @@ namespace VrdpoProject
                     rt2.Cost += psm.CostChangeSecondRt;
                     UpdateRouteCostAndLoad(rt1, sol);
                     UpdateRouteCostAndLoad(rt2, sol);
+                    rt1.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
+                    rt2.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - rt2.Load), 2);
                     sol.UpdateTimes(rt1);
                     sol.UpdateTimes(rt2);
                     sol.Cost += psm.MoveCost;

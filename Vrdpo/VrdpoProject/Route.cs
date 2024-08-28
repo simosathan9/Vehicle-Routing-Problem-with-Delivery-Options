@@ -25,6 +25,7 @@ namespace VrdpoProject
         private List<decimal> sequenceOfEct = new();
         private List<decimal> sequenceOfLat = new();
         Customer fakeCustomer = new(1000, 0, true);
+        private decimal routeUtilizationMetric;
 
         public Route(int id, decimal capacity, Location storage)
         {
@@ -47,6 +48,7 @@ namespace VrdpoProject
             this.sequenceOfEct.Add(0);
             this.sequenceOfLat.Add(7200);
             this.sequenceOfLat.Add(7200);
+            this.routeUtilizationMetric = 0;
         }
         public Route() { }
         public Route getTempCopy(Route rt_copy, List<Location> locs)
@@ -65,6 +67,7 @@ namespace VrdpoProject
                 cost = rt_copy.cost,
                 sequenceOfEct = new List<decimal>(rt_copy.sequenceOfEct),
                 sequenceOfLat = new List<decimal>(rt_copy.sequenceOfLat),
+                routeUtilizationMetric = rt_copy.routeUtilizationMetric
             };
 
             return route;
@@ -83,6 +86,7 @@ namespace VrdpoProject
             this.cost = original.cost;
             this.sequenceOfEct = new List<decimal>(original.sequenceOfEct);
             this.sequenceOfLat = new List<decimal>(original.sequenceOfLat);
+            this.routeUtilizationMetric = original.routeUtilizationMetric;
         }
 
         public int Id { get => id; set => id = value; }
@@ -98,6 +102,7 @@ namespace VrdpoProject
         internal List<Option> SequenceOfOptions{ get => sequenceOfOptions; set => sequenceOfOptions = value; }
         internal List<Location> SequenceOfLocations { get => sequenceOfLocations; set => sequenceOfLocations = value; }
         internal List<Customer> SequenceOfCustomers { get => sequenceOfCustomers; set => sequenceOfCustomers = value; }
+        public decimal RouteUtilizationMetric { get => routeUtilizationMetric; set => routeUtilizationMetric = value; }
 
         //public string ExportToJson(string filePath)
         //{
