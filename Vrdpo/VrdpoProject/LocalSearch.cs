@@ -70,6 +70,12 @@ namespace VrdpoProject
                             decimal costChangeTargetRt = sol.CalculateDistance(F.Location, B.Location) + sol.CalculateDistance(B.Location, G.Location)
                                                 - sol.CalculateDistance(F.Location, G.Location);
 
+                            var newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - B.Cust.Dem)), 2);
+                            var newUtilizationMetricRoute2 = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load + B.Cust.Dem)), 2);
+                            var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
+                            var ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
+                            sol.RatioCombinedMoveCost = ratio * moveCost;
+
                             //favor relocations from very small routes
                             //int bonus = 0;
                             //if (rt1.SequenceOfLocations.Count <= 4)
@@ -81,7 +87,7 @@ namespace VrdpoProject
                             //{
                             //    continue;
                             //}
-                            if (moveCost + openRoutes * 10000 < rm.TotalCost & targetRouteIndex != 0 & moveCost != 0) // + bpnus
+                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < rm.TotalCost & targetRouteIndex != 0 & moveCost != 0) // + bpnus
                             {
                                 // Console.WriteLine("Total cost : " + rm.TotalCost + " Open Routes : " + openRoutes);
                                 if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost, sol))
@@ -220,8 +226,9 @@ namespace VrdpoProject
                             c2 = rt2.SequenceOfOptions[secondOptionIndex + 1];
 
                             decimal moveCost;
-                            decimal costChangeFirstRoute;
-                            decimal costChangeSecondRoute;
+                            decimal costChangeFirstRoute = 0;
+                            decimal costChangeSecondRoute = 0;
+                            decimal ratio = 1;
 
                             var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
                             var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
@@ -230,6 +237,20 @@ namespace VrdpoProject
 
                             if (rt1 == rt2)
                             {
+                                tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
+                                if (!tw1.Item1)
+                                {
+                                    continue;
+                                }
+                                Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
+                                rtTemp.SequenceOfOptions[firstOptionIndex] = b2;
+                                rtTemp.SequenceOfCustomers[firstOptionIndex] = b2.Cust;
+                                rtTemp.SequenceOfLocations[firstOptionIndex] = b2.Location;
+                                tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, b1.Location);
+                                if (!tw1.Item1 || !tw2.Item1)
+                                {
+                                    continue;
+                                }
                                 if (firstOptionIndex == secondOptionIndex - 1)
                                 {
                                     decimal costRemoved = sol.CalculateDistance(a1.Location, b1.Location) + sol.CalculateDistance(b1.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location);
@@ -241,6 +262,7 @@ namespace VrdpoProject
                                     decimal costRemoved2 = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location);
                                     decimal costAdded2 = sol.CalculateDistance(a2.Location, b1.Location) + sol.CalculateDistance(b1.Location, c2.Location);
                                     moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
+
                                 }
                             } else {
                                 if (rt1.Load - b1.Cust.Dem + b2.Cust.Dem > rt1.Capacity) { continue; }
@@ -252,25 +274,39 @@ namespace VrdpoProject
                                 costChangeFirstRoute = costAdded1 - costRemoved1;
                                 costChangeSecondRoute = costAdded2 - costRemoved2;
                                 moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
-                                if (moveCost < sm.MoveCost & moveCost !=0)
-                                {
-                                    if (PromiseIsBroken(a1.Id, b2.Id, moveCost + sol.Cost, sol))
-                                    {
-                                        continue;
-                                    }
-                                    if (PromiseIsBroken(b2.Id, c1.Id, moveCost + sol.Cost, sol))
-                                    {
-                                        continue;
-                                    }
-                                    if (PromiseIsBroken(a2.Id, b1.Id, moveCost + sol.Cost, sol))
-                                    {
-                                        continue;
-                                    }                                    
-                                    if (PromiseIsBroken(b1.Id, c2.Id, moveCost + sol.Cost, sol))
-                                    {
-                                        continue;
-                                    }
+                                var newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem + b2.Cust.Dem)), 2);
+                                var newUtilizationMetricRoute2 = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load - b2.Cust.Dem + b1.Cust.Dem)), 2);
+                                var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
+                                ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
+                            }
 
+                            if (ratio * moveCost < sm.MoveCost & moveCost !=0)
+                            {
+                                if (PromiseIsBroken(a1.Id, b2.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+                                if (PromiseIsBroken(b2.Id, c1.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+                                if (PromiseIsBroken(a2.Id, b1.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }                                    
+                                if (PromiseIsBroken(b1.Id, c2.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+                                if (rt1 == rt2)
+                                {
+                                    sm.TotalCost = moveCost + openRoutes * 10000;
+                                    sm.PositionOfFirstRoute = firstRouteIndex;
+                                    sm.PositionOfSecondRoute = secondRouteIndex;
+                                    sm.PositionOfFirstOption = firstOptionIndex;
+                                    sm.PositionOfSecondOption = secondOptionIndex;
+                                    sm.MoveCost = moveCost;
+                                } else {
                                     sm.TotalCost = moveCost + openRoutes * 10000;
                                     sm.PositionOfFirstRoute = firstRouteIndex;
                                     sm.PositionOfSecondRoute = secondRouteIndex;
@@ -356,7 +392,7 @@ namespace VrdpoProject
                         for (int optInd2 = start2; optInd2 < rt2.SequenceOfOptions.Count - 1; optInd2++) {
                             openRoutes = sol.Routes.Count;
 
-                            decimal moveCost = (decimal)Math.Pow(10, 9);
+                            decimal moveCost;
                             decimal costAdded;
                             decimal costRemoved;
 
@@ -381,7 +417,7 @@ namespace VrdpoProject
                                 costAdded = sol.CalculateDistance(A.Location, K.Location) + sol.CalculateDistance(B.Location, L.Location);
                                 costRemoved = sol.CalculateDistance(A.Location, B.Location) + sol.CalculateDistance(K.Location, L.Location);
                                 moveCost = costAdded - costRemoved;
-
+                                sol.RatioCombinedMoveCost = moveCost;
                             } else {
                                 if (optInd1 == 0 && optInd2 == 0) { continue; }
 
@@ -392,30 +428,39 @@ namespace VrdpoProject
                                 costAdded = sol.CalculateDistance(A.Location, L.Location) + sol.CalculateDistance(B.Location, K.Location);
                                 costRemoved = sol.CalculateDistance(A.Location, B.Location) + sol.CalculateDistance(K.Location, L.Location);
                                 moveCost = costAdded - costRemoved;
-
-                                if (moveCost < top.MoveCost & moveCost != 0)
-                                {
-
-                                    if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost, sol))
-                                    {
-                                        continue;
-                                    }
-                                    if (PromiseIsBroken(B.Id, K.Id, moveCost + sol.Cost, sol))
-                                    {
-                                        continue;
-                                    }
-
-                                    top.TotalCost = moveCost + openRoutes * 10000;
-                                    top.PositionOfFirstRoute = rtInd1;
-                                    top.PositionOfSecondRoute = rtInd2;
-                                    top.PositionOfFirstOption = optInd1;
-                                    top.PositionOfSecondOption = optInd2;
-                                    top.Ect1 = tw1.Item2;
-                                    top.Ect2 = tw2.Item2;
-                                    top.Lat1 = tw1.Item3;
-                                    top.Lat2 = tw2.Item3;
-                                    top.MoveCost = moveCost;
+                                if (rt1.Load - B.Cust.Dem == 0 || rt2.Load - K.Cust.Dem == 0) {
+                                    //Console.WriteLine("This TWO-OPT move empties a route");
+                                    openRoutes--;
                                 }
+                                var newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - B.Cust.Dem)), 2);
+                                var newUtilizationMetricRoute2 = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load - K.Cust.Dem)), 2);
+                                var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
+                                var ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
+                                sol.RatioCombinedMoveCost = ratio * moveCost;
+                            }
+
+                            if (sol.RatioCombinedMoveCost + openRoutes + 10000 < top.TotalCost & moveCost != 0)
+                            {
+
+                                if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+                                if (PromiseIsBroken(B.Id, K.Id, moveCost + sol.Cost, sol))
+                                {
+                                    continue;
+                                }
+
+                                top.TotalCost = moveCost + openRoutes * 10000;
+                                top.PositionOfFirstRoute = rtInd1;
+                                top.PositionOfSecondRoute = rtInd2;
+                                top.PositionOfFirstOption = optInd1;
+                                top.PositionOfSecondOption = optInd2;
+                                top.Ect1 = tw1.Item2;
+                                top.Ect2 = tw2.Item2;
+                                top.Lat1 = tw1.Item3;
+                                top.Lat2 = tw2.Item3;
+                                top.MoveCost = moveCost;
                             }
                         }
                     }
@@ -621,6 +666,11 @@ namespace VrdpoProject
                                 decimal costRemoved = sol.CalculateDistance(A.Location, B1.Location) + sol.CalculateDistance(B1.Location, C.Location)
                                                     + sol.CalculateDistance(F.Location, G.Location);
                                 decimal moveCost = costAdded - costRemoved;
+                                var newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - B1.Cust.Dem)), 2);
+                                var newUtilizationMetricRoute2 = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load + B2.Cust.Dem)), 2);
+                                var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
+                                var ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
+                                sol.RatioCombinedMoveCost = ratio * moveCost;
 
                                 decimal costChangeOriginRt = sol.CalculateDistance(A.Location, C.Location) - sol.CalculateDistance(A.Location, B1.Location)
                                                     - sol.CalculateDistance(B1.Location, C.Location);
@@ -628,7 +678,7 @@ namespace VrdpoProject
                                                     - sol.CalculateDistance(F.Location, G.Location);
 
 
-                                if (moveCost + openRoutes * 10000 < flip.TotalCost & rtInd2 != 0)
+                                if (sol.RatioCombinedMoveCost + openRoutes * 10000 < flip.TotalCost & rtInd2 != 0)
                                 {
                                     if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost, sol))
                                     {
@@ -816,6 +866,10 @@ namespace VrdpoProject
                                                     decimal moveCost = 0;
                                                     decimal costChangeFirstRoute = 0;
                                                     decimal costChangeSecondRoute = 0;
+                                                    decimal newUtilizationMetricRoute1 = 0;
+                                                    decimal newUtilizationMetricRoute2 = 0;
+                                                    decimal newSolUtilizationMetric = 0;
+                                                    decimal ratio = 0;
                                                     //If cust1 has priority level 0 and cust 2 has priority level 2 then if customer 1 does not have a 3rd option(prior level= 2) you can not do the priority swap
                                                     //So the current priority level of cust 1 must exist in the priority options of cust 2 and the current priority level of cust 2 must exist in the priority options of cust 1
                                                     if (optionsPrioritiesPerCustomer[custID2].Contains(b1.Prio) && (b1.Prio != b2.Prio) && optionsPrioritiesPerCustomer[custID1].Contains(b2.Prio))
@@ -846,6 +900,8 @@ namespace VrdpoProject
                                                                     decimal costRemoved = sol.CalculateDistance(a1.Location, b1.Location) + sol.CalculateDistance(b1.Location, c1.Location) + sol.CalculateDistance(b2.Location, c2.Location);
                                                                     decimal costAdded = sol.CalculateDistance(a1.Location, d1.Location) + sol.CalculateDistance(d1.Location, d2.Location) + sol.CalculateDistance(d2.Location, c2.Location);
                                                                     moveCost = costAdded - costRemoved;
+                                                                    newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem - c1.Cust.Dem + d1.Cust.Dem + d2.Cust.Dem)), 2);
+                                                                    newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric + newUtilizationMetricRoute1;
                                                                 }
                                                                 else if (secondOptionIndex == firstOptionIndex - 1)
                                                                 {
@@ -868,6 +924,8 @@ namespace VrdpoProject
                                                                     decimal costRemoved = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location) + sol.CalculateDistance(b1.Location, c1.Location);
                                                                     decimal costAdded = sol.CalculateDistance(a2.Location, d2.Location) + sol.CalculateDistance(d2.Location, d1.Location) + sol.CalculateDistance(d1.Location, c1.Location);
                                                                     moveCost = costAdded - costRemoved;
+                                                                    newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b2.Cust.Dem - c2.Cust.Dem + d2.Cust.Dem + d1.Cust.Dem)), 2);
+                                                                    newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric + newUtilizationMetricRoute1;
                                                                 }
                                                             }
                                                             else
@@ -928,6 +986,9 @@ namespace VrdpoProject
                                                                 decimal costRemoved2 = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location);
                                                                 decimal costAdded1 = sol.CalculateDistance(a1.Location, d1.Location) + sol.CalculateDistance(d1.Location, c1.Location);
                                                                 decimal costAdded2 = sol.CalculateDistance(a2.Location, d2.Location) + sol.CalculateDistance(d2.Location, c2.Location);
+                                                                newUtilizationMetricRoute1 = (decimal)Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem + d1.Cust.Dem)), 2);
+                                                                newUtilizationMetricRoute2 = (decimal)Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load - b2.Cust.Dem + d2.Cust.Dem)), 2);
+                                                                newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
                                                                 if (rt1 != rt2)
                                                                 {
                                                                     costChangeFirstRoute = costAdded1 - costRemoved1;
@@ -938,7 +999,9 @@ namespace VrdpoProject
                                                         }
 
                                                     }
-                                                    if (moveCost < psm.MoveCost & moveCost != 0)
+                                                    ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
+                                                    sol.RatioCombinedMoveCost = ratio * moveCost;
+                                                    if (sol.RatioCombinedMoveCost < psm.MoveCost & moveCost != 0)
                                                     {
                                                         if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
                                                         {

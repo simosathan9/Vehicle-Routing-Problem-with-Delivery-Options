@@ -165,7 +165,8 @@ namespace VrdpoProject
                         }
 
                         var mincost = decimal.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        mincost = FindMinMoveCost(sm, rm, flip, psm);
+                        
                         /* Remove Comment for Simulated Annealing
                         if (mincost > 0) {
                             decimal delta = mincost;
@@ -192,10 +193,10 @@ namespace VrdpoProject
                         {
                             ls.ApplyRelocationMove(rm, currentSol);
                         }
-                        else if (mincost == top.TotalCost)
-                        {
-                            ls.ApplyTwoOptMove(top, currentSol);
-                        }
+                        //else if (mincost == top.TotalCost)
+                        //{
+                        //    ls.ApplyTwoOptMove(top, currentSol);
+                        //}
                         else if (mincost == flip.TotalCost)
                         {
                             ls.ApplyFlipMove(flip, currentSol);
@@ -295,7 +296,7 @@ namespace VrdpoProject
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2));
+                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
                     }
                 }
                 restartTimer.Stop();
@@ -662,6 +663,8 @@ namespace VrdpoProject
 
         private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost), psm.TotalCost);
         private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
+        private decimal FindMinMoveCost(Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(rm.TotalCost, flip.TotalCost), psm.TotalCost);
+        private decimal FindMinMoveCost(Swap sm, Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), flip.TotalCost), psm.TotalCost);
         void SetRoutedToFalse(List<Customer> customers)
         {
             foreach(Customer customer1 in customers)
