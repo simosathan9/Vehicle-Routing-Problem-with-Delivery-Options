@@ -413,6 +413,40 @@ namespace VrdpoProject
 
                             if (rt1 == rt2) {
                                 if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
+                                tw1 = sol.RespectsTimeWindow(rt1, optInd1,
+                                            rt1.SequenceOfLocations.GetRange(optInd2 + 1, rt2.SequenceOfLocations.Count - (optInd2 + 1)));
+                                tw2 = sol.RespectsTimeWindow(rt1, optInd2, rt1.SequenceOfLocations.GetRange(optInd1 + 1, rt1.SequenceOfLocations.Count - (optInd1 + 1)));
+                                respectsTw1 = tw1.Item1;
+                                respectsTw2 = tw2.Item1;
+                                if (!respectsTw1 || !respectsTw2) { continue; }
+
+                                Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
+                                int frombase = optInd1 + 1;
+                                int fromend = optInd2 + 1;
+                                List<Option> reversedSegment = Enumerable.Reverse(rtTemp.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
+                                List<Location> reversedLocations = Enumerable.Reverse(rtTemp.SequenceOfLocations.GetRange(frombase, fromend - frombase)).ToList();
+                                List<Customer> reversedCustomers = Enumerable.Reverse(rtTemp.SequenceOfCustomers.GetRange(frombase, fromend - frombase)).ToList();
+                                rtTemp.SequenceOfOptions.RemoveRange(frombase, fromend - frombase);
+                                rtTemp.SequenceOfOptions.InsertRange(frombase, reversedSegment);
+                                rtTemp.SequenceOfLocations.RemoveRange(frombase, fromend - frombase);
+                                rtTemp.SequenceOfLocations.InsertRange(frombase, reversedLocations);
+                                rtTemp.SequenceOfCustomers.RemoveRange(frombase, fromend - frombase);
+                                rtTemp.SequenceOfCustomers.InsertRange(frombase, reversedCustomers);
+                                rtTemp.SequenceOfEct = new List<decimal>(rt1.SequenceOfEct);
+                                rtTemp.SequenceOfLat = new List<decimal>(rt1.SequenceOfLat);
+                                // Update rtTemp times and check if it respects time windows
+                                // Parse the sequence of options and update the list of ect and lat
+                                for (int i = 0; i < rtTemp.SequenceOfOptions.Count - 1; i++)
+                                {
+                                    rtTemp.SequenceOfEct[i] = rtTemp.SequenceOfOptions[i].Due;
+                                    rtTemp.SequenceOfLat[i] = rtTemp.SequenceOfOptions[i].Ready;
+                                }
+
+                                
+                                if (!rtTemp.CheckTimeWindowsFeasibility()) 
+                                { 
+                                    continue; 
+                                }
 
                                 costAdded = sol.CalculateDistance(A.Location, K.Location) + sol.CalculateDistance(B.Location, L.Location);
                                 costRemoved = sol.CalculateDistance(A.Location, B.Location) + sol.CalculateDistance(K.Location, L.Location);

@@ -104,6 +104,18 @@ namespace VrdpoProject
         internal List<Customer> SequenceOfCustomers { get => sequenceOfCustomers; set => sequenceOfCustomers = value; }
         public decimal RouteUtilizationMetric { get => routeUtilizationMetric; set => routeUtilizationMetric = value; }
 
+        // Used for intra-route tw check
+        public bool CheckTimeWindowsFeasibility() {
+            for (int i = 0; i < SequenceOfOptions.Count - 1; i++)
+            {
+                if (SequenceOfEct[i + 1] > SequenceOfLat[i + 1])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         //public string ExportToJson(string filePath)
         //{
         //// Create an anonymous object to hold your data

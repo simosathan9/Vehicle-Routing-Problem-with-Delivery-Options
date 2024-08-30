@@ -165,7 +165,7 @@ namespace VrdpoProject
                         }
 
                         var mincost = decimal.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, flip, psm);
+                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
                         
                         /* Remove Comment for Simulated Annealing
                         if (mincost > 0) {
@@ -193,10 +193,10 @@ namespace VrdpoProject
                         {
                             ls.ApplyRelocationMove(rm, currentSol);
                         }
-                        //else if (mincost == top.TotalCost)
-                        //{
-                        //    ls.ApplyTwoOptMove(top, currentSol);
-                        //}
+                        else if (mincost == top.TotalCost)
+                        {
+                            ls.ApplyTwoOptMove(top, currentSol);
+                        }
                         else if (mincost == flip.TotalCost)
                         {
                             ls.ApplyFlipMove(flip, currentSol);
