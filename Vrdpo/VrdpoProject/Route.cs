@@ -15,19 +15,19 @@ namespace VrdpoProject
         private List<Customer> sequenceOfCustomers = new();
         private List<Location> sequenceOfLocations = new();
         private List<Option> sequenceOfOptions = new();
-        private decimal load;
-        private decimal capacity;
-        private decimal duration;
-        private decimal cost;
-        private decimal fixedCost;
+        private double load;
+        private double capacity;
+        private double duration;
+        private double cost;
+        private double fixedCost;
         private int[] sequenceOfStartingTime;
         private int[] sequenceOfEndingTime;
-        private List<decimal> sequenceOfEct = new();
-        private List<decimal> sequenceOfLat = new();
+        private List<double> sequenceOfEct = new();
+        private List<double> sequenceOfLat = new();
         Customer fakeCustomer = new(1000, 0, true);
-        private decimal routeUtilizationMetric;
+        private double routeUtilizationMetric;
 
-        public Route(int id, decimal capacity, Location storage)
+        public Route(int id, double capacity, Location storage)
         {
             Location depot = ir.Depot;
             this.sequenceOfLocations.Add(storage);
@@ -65,8 +65,8 @@ namespace VrdpoProject
                 duration = rt_copy.duration,
                 fixedCost = rt_copy.fixedCost,
                 cost = rt_copy.cost,
-                sequenceOfEct = new List<decimal>(rt_copy.sequenceOfEct),
-                sequenceOfLat = new List<decimal>(rt_copy.sequenceOfLat),
+                sequenceOfEct = new List<double>(rt_copy.sequenceOfEct),
+                sequenceOfLat = new List<double>(rt_copy.sequenceOfLat),
                 routeUtilizationMetric = rt_copy.routeUtilizationMetric
             };
 
@@ -84,25 +84,25 @@ namespace VrdpoProject
             this.duration = original.duration;
             this.fixedCost = original.fixedCost;
             this.cost = original.cost;
-            this.sequenceOfEct = new List<decimal>(original.sequenceOfEct);
-            this.sequenceOfLat = new List<decimal>(original.sequenceOfLat);
+            this.sequenceOfEct = new List<double>(original.sequenceOfEct);
+            this.sequenceOfLat = new List<double>(original.sequenceOfLat);
             this.routeUtilizationMetric = original.routeUtilizationMetric;
         }
 
         public int Id { get => id; set => id = value; }
-        public decimal Load { get => load; set => load = value; }
-        public decimal Capacity { get => capacity; set => capacity = value; }
-        public decimal Duration { get => duration; set => duration = value; }
-        public decimal Cost { get => cost; set => cost = value; }
-        public decimal FixedCost { get => fixedCost; set => fixedCost = value; }
+        public double Load { get => load; set => load = value; }
+        public double Capacity { get => capacity; set => capacity = value; }
+        public double Duration { get => duration; set => duration = value; }
+        public double Cost { get => cost; set => cost = value; }
+        public double FixedCost { get => fixedCost; set => fixedCost = value; }
         public int[] SequenceOfStartingTime { get => sequenceOfStartingTime; set => sequenceOfStartingTime = value; }
         public int[] SequenceOfEndingTime { get => sequenceOfEndingTime; set => sequenceOfEndingTime = value; }
-        public List<decimal> SequenceOfEct { get => sequenceOfEct; set => sequenceOfEct = value; }
-        public List<decimal> SequenceOfLat { get => sequenceOfLat; set => sequenceOfLat = value; }
+        public List<double> SequenceOfEct { get => sequenceOfEct; set => sequenceOfEct = value; }
+        public List<double> SequenceOfLat { get => sequenceOfLat; set => sequenceOfLat = value; }
         internal List<Option> SequenceOfOptions{ get => sequenceOfOptions; set => sequenceOfOptions = value; }
         internal List<Location> SequenceOfLocations { get => sequenceOfLocations; set => sequenceOfLocations = value; }
         internal List<Customer> SequenceOfCustomers { get => sequenceOfCustomers; set => sequenceOfCustomers = value; }
-        public decimal RouteUtilizationMetric { get => routeUtilizationMetric; set => routeUtilizationMetric = value; }
+        public double RouteUtilizationMetric { get => routeUtilizationMetric; set => routeUtilizationMetric = value; }
 
         // Used for intra-route tw check
         public bool CheckTimeWindowsFeasibility() {

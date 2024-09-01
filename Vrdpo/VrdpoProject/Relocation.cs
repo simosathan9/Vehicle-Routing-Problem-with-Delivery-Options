@@ -22,15 +22,15 @@ namespace VrdpoProject
         int targetRoutePosition;
         int originOptionPosition;
         int targetOptionPosition;
-        decimal costChangeOriginRt;
-        decimal costChangeTargetRt;
-        decimal moveCost;
-        decimal totalCost;
+        double costChangeOriginRt;
+        double costChangeTargetRt;
+        double moveCost;
+        double totalCost;
 
         public Relocation()
         {
-            this.totalCost = (decimal)Math.Pow(10, 9);
-            this.MoveCost = (decimal)Math.Pow(10, 9);
+            this.totalCost = Math.Pow(10, 9);
+            this.MoveCost = Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -41,8 +41,8 @@ namespace VrdpoProject
             targetOptionPosition = -1;
             costChangeOriginRt = -1;
             costChangeTargetRt = -1;
-            totalCost = (decimal)Math.Pow(10, 9);
-            moveCost = (decimal)Math.Pow(10, 9);
+            totalCost = Math.Pow(10, 9);
+            moveCost = Math.Pow(10, 9);
         }
 
         public bool IsValid()
@@ -54,9 +54,9 @@ namespace VrdpoProject
         public int TargetRoutePosition { get => targetRoutePosition; set => targetRoutePosition = value; }
         public int OriginOptionPosition { get => originOptionPosition; set => originOptionPosition = value; }
         public int TargetOptionPosition { get => targetOptionPosition; set => targetOptionPosition = value; }
-        public decimal CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
-        public decimal CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
-        public decimal MoveCost { get => moveCost; set => moveCost = value; }
-        public decimal TotalCost { get => totalCost; set => totalCost = value; }
+        public double CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
+        public double CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
+        public double MoveCost { get => moveCost; set => moveCost = value; }
+        public double TotalCost { get => totalCost; set => totalCost = value; }
     }
 }

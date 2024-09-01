@@ -14,10 +14,10 @@ namespace VrdpoProject
         int priorityOfFirstOption;
         int positionOfSecondOption;
         int priorityOfSecondOption;
-        decimal costChangeFirstRt;
-        decimal costChangeSecondRt;
-        decimal moveCost;
-        decimal totalCost;
+        double costChangeFirstRt;
+        double costChangeSecondRt;
+        double moveCost;
+        double totalCost;
         Option altOption1;
         Option altOption2;
         bool moveRejected;
@@ -27,8 +27,8 @@ namespace VrdpoProject
 
         public PrioritySwap()
         {
-            this.MoveCost = (decimal)Math.Pow(10, 9);
-            this.TotalCost = (decimal)Math.Pow(10, 9);
+            this.MoveCost = Math.Pow(10, 9);
+            this.TotalCost = Math.Pow(10, 9);
         }
 
         public void ReinitializeVariables()
@@ -41,8 +41,8 @@ namespace VrdpoProject
             priorityOfSecondOption = -1;
             costChangeFirstRt = -1;
             costChangeSecondRt = -1;
-            totalCost = (decimal)Math.Pow(10, 9);
-            moveCost = (decimal)Math.Pow(10, 9);
+            totalCost = Math.Pow(10, 9);
+            moveCost = Math.Pow(10, 9);
             timeWindowsError = false;
             moveRejected = false;
         }
@@ -58,10 +58,10 @@ namespace VrdpoProject
         public int PriorityOfFirstOption { get => priorityOfFirstOption; set => priorityOfFirstOption = value; }
         public int PositionOfSecondOption { get => positionOfSecondOption; set => positionOfSecondOption = value; }
         public int PriorityOfSecondOption { get => priorityOfSecondOption; set => priorityOfSecondOption = value; }
-        public decimal CostChangeFirstRt { get => costChangeFirstRt; set => costChangeFirstRt = value; }
-        public decimal CostChangeSecondRt { get => costChangeSecondRt; set => costChangeSecondRt = value; }
-        public decimal MoveCost { get => moveCost; set => moveCost = value; }
-        public decimal TotalCost { get => totalCost; set => totalCost = value; }
+        public double CostChangeFirstRt { get => costChangeFirstRt; set => costChangeFirstRt = value; }
+        public double CostChangeSecondRt { get => costChangeSecondRt; set => costChangeSecondRt = value; }
+        public double MoveCost { get => moveCost; set => moveCost = value; }
+        public double TotalCost { get => totalCost; set => totalCost = value; }
         public Option AltOption1 { get => altOption1; set => altOption1 = value; }
         public Option AltOption2 { get => altOption2; set => altOption2 = value; }
         public bool TimeWindowsError { get => timeWindowsError; set => timeWindowsError = value; }

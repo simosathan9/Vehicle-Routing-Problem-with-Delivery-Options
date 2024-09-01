@@ -36,7 +36,7 @@ namespace VrdpoProject
                     PrintSolution(sol);
                 }
 
-                globalBestSol.Cost = (decimal)Math.Pow(10, 9);
+                globalBestSol.Cost = Math.Pow(10, 9);
                 int count = 1;
                 Solution lc_sol = new Solution();
                 foreach (Solution s in feasibleSolutions)
@@ -79,7 +79,7 @@ namespace VrdpoProject
             string jsonContent = File.ReadAllText("settings.json");
             var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
             Solution bestSol = new();
-            bestSol.Cost = (decimal)Math.Pow(10, 9);
+            bestSol.Cost = Math.Pow(10, 9);
             int numberOfRestarts = settings.restarts;
             Solution currentSol;
             int timesFailedFindFeasible = 0;
@@ -101,9 +101,9 @@ namespace VrdpoProject
                 Flip flip = new();
                 PrioritySwap psm = new();
                 Solution localBest = new();
-                localBest.Cost = decimal.MaxValue;
+                localBest.Cost = double.MaxValue;
                 currentSol = new();
-                //decimal temperature = 500; Remove comment for Simulated Annealing
+                //double temperature = 500; Remove comment for Simulated Annealing
 
                 if (settings.multiRestart)
                 {
@@ -144,9 +144,9 @@ namespace VrdpoProject
                         currentSol.InitPromises();
                         reinitCount = 0;
                     }
-                    if (settings.schema == "greedy" && localBest.Cost != decimal.MaxValue)
+                    if (settings.schema == "greedy" && localBest.Cost != double.MaxValue)
                     {
-                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.98 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= (decimal)0.08)
+                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.98 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.08)
                         {
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             Console.WriteLine("Apply random priority swap");
@@ -164,16 +164,16 @@ namespace VrdpoProject
                             flip = ls.FindBestFlipMove(flip, currentSol);
                         }
 
-                        var mincost = decimal.MaxValue;
+                        var mincost = double.MaxValue;
                         mincost = FindMinMoveCost(sm, rm, top, flip, psm);
                         
                         /* Remove Comment for Simulated Annealing
                         if (mincost > 0) {
-                            decimal delta = mincost;
-                            decimal probability = Math.Exp(-delta / temperature);
+                            double delta = mincost;
+                            double probability = Math.Exp(-delta / temperature);
                             Console.WriteLine("Temperature: " + temperature + "Delta: " + delta);
                             Console.WriteLine("Probability: " + probability);
-                            decimal pt = rnd.Nextdecimal();
+                            double pt = rnd.Nextdouble();
                             if (pt >= probability) {
                                 continue;
                             }
@@ -211,7 +211,7 @@ namespace VrdpoProject
                         
                         //temperature *= 0.9997; //Remove comment for Simulated Annealing
                     }
-                    else if (settings.schema == "random" || localBest.Cost == decimal.MaxValue)
+                    else if (settings.schema == "random" || localBest.Cost == double.MaxValue)
                     {
                         int k = rnd.Next(1, 6);
                         if (k == 4)
@@ -241,7 +241,7 @@ namespace VrdpoProject
                                 c = i;
                                 flip = ls.FindBestFlipMove(flip, currentSol);
                                 var service_level = CalculateServiceLevel(currentSol, false);
-                                if (service_level[0] > 0.8m && service_level[1] > 0.9m)
+                                if (service_level[0] > 0.8 && service_level[1] > 0.9)
                                 {
                                     if (flip.MoveCost < 0)
                                     {
@@ -282,7 +282,7 @@ namespace VrdpoProject
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
                     int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
-                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8m && serviceLevel[1] >= 0.9m) {
+                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 + 0.001 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9) {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
                         localBest.RemoveEmptyRoutes();
@@ -303,7 +303,7 @@ namespace VrdpoProject
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost + localBest.Routes.Count * 1000 < bestSol.Cost + bestSol.Routes.Count * 1000 && localBest.Cost < 100000)
+                if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 + 0.001 && localBest.Cost < 100000)
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restartCounter;
@@ -351,7 +351,7 @@ namespace VrdpoProject
                         cus.IsRouted = true;
                     }
                 }
-                while (CalculateServiceLevel(selectedOptions, sol)[0] < 0.8m)
+                while (CalculateServiceLevel(selectedOptions, sol)[0] < 0.8)
                 {
                     InsertBestFirstOption2(selectedOptions, sol);
                     Console.WriteLine(CalculateServiceLevel(selectedOptions, sol)[0] + "  " + CalculateServiceLevel(selectedOptions, sol)[1]);
@@ -361,7 +361,7 @@ namespace VrdpoProject
                     InsertBestFirstOption2(selectedOptions, sol);
                     Console.WriteLine(CalculateServiceLevel(selectedOptions, sol)[0] + "  " + CalculateServiceLevel(selectedOptions, sol)[1]);
                 }**/ 
-                Dictionary<Option, decimal> sc = new Dictionary<Option, decimal>();
+                Dictionary<Option, double> sc = new Dictionary<Option, double>();
                 List<Option> opt;
                 Option tempOpt;
                 // add customers that are not served
@@ -440,7 +440,7 @@ namespace VrdpoProject
                 count++;
             }
 
-            decimal similarity = 0;
+            double similarity = 0;
             for (int i = 0; i < solutions.Count - 1; i++)
             {
                 for (int j = i + 1; j < solutions.Count; j++)
@@ -451,7 +451,7 @@ namespace VrdpoProject
             }
         }
 
-        decimal CalculateJaccardIndex(List<Option> listA, List<Option> listB)
+        double CalculateJaccardIndex(List<Option> listA, List<Option> listB)
         {
             int matchingCount = 0;
             int count = listA.Count;
@@ -463,15 +463,15 @@ namespace VrdpoProject
                 }
             }
 
-            return (decimal)matchingCount / (decimal)count;
+            return matchingCount / count;
         }
 
 
         void InsertBestFirstOption2(List<Option> selectedOptions, Solution sol)
         {
-            decimal bestOptionObjective = decimal.MaxValue;
+            double bestOptionObjective = double.MaxValue;
 
-            Dictionary<Option, decimal> optionScores = new Dictionary<Option, decimal>();
+            Dictionary<Option, double> optionScores = new Dictionary<Option, double>();
 
             optionScores = CalculateObjective(selectedOptions, sol, AvailableFirstOptions(sol, selectedOptions));
 
@@ -490,16 +490,16 @@ namespace VrdpoProject
             }
         }
 
-        Dictionary<Option, decimal> CalculateObjective(List<Option> selectedOptions, Solution sol, List<Option> candOptions)
+        Dictionary<Option, double> CalculateObjective(List<Option> selectedOptions, Solution sol, List<Option> candOptions)
         {
-            decimal weightDistance = 1;
-            decimal weightDueReadyDiff = 0.25m;
-            decimal weightOverlap = 0.25m;
+            double weightDistance = 1;
+            double weightDueReadyDiff = 0.25;
+            double weightOverlap = 0.25;
             List<Option> nearestOptions;
-            decimal weightedSum;
-            Dictionary<Option, decimal> scores = new Dictionary<Option, decimal>();
-            decimal maxDistance = sol.DistanceMatrix.Cast<decimal>().Max();
-            decimal maxDuration = sol.Depot.Due - sol.Depot.Ready;
+            double weightedSum;
+            Dictionary<Option, double> scores = new Dictionary<Option, double>();
+            double maxDistance = sol.DistanceMatrix.Cast<double>().Max();
+            double maxDuration = sol.Depot.Due - sol.Depot.Ready;
             foreach (Option option in candOptions)
             {
                 nearestOptions = FindXnearest(option, sol, selectedOptions);
@@ -580,9 +580,9 @@ namespace VrdpoProject
             return tempOptions;
         }
 
-        decimal CalculateOverlap(Option target, List<Option> nrOptions)
+        double CalculateOverlap(Option target, List<Option> nrOptions)
         {
-            decimal overlap = 0;
+            double overlap = 0;
             foreach (var opt in nrOptions)
             {
                 overlap += Math.Max(0, Math.Min(target.Due, opt.Due) - Math.Max(target.Ready, opt.Ready));
@@ -603,12 +603,12 @@ namespace VrdpoProject
         }
 
 
-        decimal DistanceFromXnearest(List<Option> opts, Option target, Solution sol)
+        double DistanceFromXnearest(List<Option> opts, Option target, Solution sol)
         {
-            decimal sumOfDistances = opts.Sum(neighbor => sol.CalculateDistance(target.Location, neighbor.Location));
+            double sumOfDistances = opts.Sum(neighbor => sol.CalculateDistance(target.Location, neighbor.Location));
 
             // Calculate the average distance
-            decimal averageDistance = sumOfDistances / opts.Count;
+            double averageDistance = sumOfDistances / opts.Count;
 
             return averageDistance;
         }
@@ -661,10 +661,10 @@ namespace VrdpoProject
             Console.WriteLine("///////////////////");
         }
 
-        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost), psm.TotalCost);
-        private decimal FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
-        private decimal FindMinMoveCost(Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(rm.TotalCost, flip.TotalCost), psm.TotalCost);
-        private decimal FindMinMoveCost(Swap sm, Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), flip.TotalCost), psm.TotalCost);
+        private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost), psm.TotalCost);
+        private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
+        private double FindMinMoveCost(Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(rm.TotalCost, flip.TotalCost), psm.TotalCost);
+        private double FindMinMoveCost(Swap sm, Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), flip.TotalCost), psm.TotalCost);
         void SetRoutedToFalse(List<Customer> customers)
         {
             foreach(Customer customer1 in customers)
@@ -749,9 +749,9 @@ namespace VrdpoProject
 
         Option candidateOpt;
         Location A, B;
-        decimal timeAdded, timeRemoved, trialTime;
-        decimal costAdded, costRemoved, trialCost, costAddedPenalized, costRemovedPenalized, trialCostPenalized;
-        decimal[] tw;
+        double timeAdded, timeRemoved, trialTime;
+        double costAdded, costRemoved, trialCost, costAddedPenalized, costRemovedPenalized, trialCostPenalized;
+        double[] tw;
 
         public string Instance { get => instance; set => instance = value; }
 
@@ -848,8 +848,8 @@ namespace VrdpoProject
                                 timeAdded = sol.CalculateTime(A, candidateOpt.Location) + sol.CalculateTime(candidateOpt.Location, B);
                                 timeRemoved = sol.CalculateTime(A, B);
                                 int routeIndex = sol.Routes.IndexOf(rt);
-                                decimal loadFactor = (decimal)(rt.Load + candidateOpt.Cust.Dem) / rt.Capacity; // Use this to fill the routes in a balanced way. Noticed that works better in practice. 
-                                decimal routePenalty = routeIndex * 400 * (1 + loadFactor);
+                                double loadFactor = (rt.Load + candidateOpt.Cust.Dem) / rt.Capacity; // Use this to fill the routes in a balanced way. Noticed that works better in practice. 
+                                double routePenalty = routeIndex * 400 * (1 + loadFactor);
                                 costAddedPenalized = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B) + routePenalty; // for every new route that opens the penalty is higher
                                 costAdded = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B);
                                 costRemovedPenalized = sol.CalculateDistance(A, B);
@@ -906,7 +906,7 @@ namespace VrdpoProject
             insertion.Route.Duration += insertion.Duration;
             insertion.Route.Cost += insertion.Cost;
             insertion.Route.Load += insertion.Customer.Dem;
-            insertion.Route.RouteUtilizationMetric = (decimal)Math.Pow(Convert.ToDouble(insertion.Route.Capacity - insertion.Route.Load), 2);
+            insertion.Route.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(insertion.Route.Capacity - insertion.Route.Load), 2);
             insertion.Customer.IsRouted = true;
             insertion.Option.IsServed = true;
             sol.Cost += insertion.Cost;
@@ -977,12 +977,12 @@ namespace VrdpoProject
             }
             return modelIsFeasible;
         }
-        decimal[] CalculateServiceLevel(Solution sol, bool verbal = true)
+        double[] CalculateServiceLevel(Solution sol, bool verbal = true)
         {
             int po0Sum = 0;
             int po1Sum = 0;
             int po2Sum = 0;
-            decimal sum = 0;
+            double sum = 0;
             int po = -1;
 
             for (int r = 0; r < sol.Routes.Count; r++)
@@ -1012,15 +1012,15 @@ namespace VrdpoProject
                 Console.WriteLine("Priority 2: {0}", sl1);
             }
 
-            return new decimal[] {sl0, sl1};
+            return new double[] {sl0, sl1};
         }
 
-        decimal[] CalculateServiceLevel(List<Option> selectedOptions, Solution sol)
+        double[] CalculateServiceLevel(List<Option> selectedOptions, Solution sol)
         {
             int po0Sum = 0;
             int po1Sum = 0;
             int po2Sum = 0;
-            decimal sum = 0;
+            double sum = 0;
             int po = -1;
 
             for (int c = 0; c < selectedOptions.Count - 1; c++)
@@ -1040,11 +1040,11 @@ namespace VrdpoProject
                 }
             }
             sum = po0Sum + po1Sum + po2Sum;
-            var sl0 = po0Sum / (decimal)sol.Customers.Count;
-            var sl1 = (po0Sum + po1Sum) / (decimal)sol.Customers.Count;
+            var sl0 = po0Sum / sol.Customers.Count;
+            var sl1 = (po0Sum + po1Sum) / sol.Customers.Count;
             Console.WriteLine("Priority 1: {0}", sl0);
             Console.WriteLine("Priority 2: {0}", sl1);
-            return new decimal[] { sl0, sl1 };
+            return new double[] { sl0, sl1 };
         }
     }
 }

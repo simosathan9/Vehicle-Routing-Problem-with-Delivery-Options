@@ -15,8 +15,8 @@ namespace VrdpoProject
         private List<Node> allNodes = new();
         private List<Location> allLocations = new();
         private List<Customer> allCustomers = new();
-        private decimal[,] distanceMatrix;
-        private decimal[,] timeMatrix;
+        private double[,] distanceMatrix;
+        private double[,] timeMatrix;
         private int cap;
         private Location depot;
         private List<Option> options = new();
@@ -48,8 +48,8 @@ namespace VrdpoProject
         }
 
         public int Cap { get => cap; set => cap = value; }
-        public decimal[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
-        public decimal[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
+        public double[,] DistanceMatrix { get => distanceMatrix; set => distanceMatrix = value; }
+        public double[,] TimeMatrix { get => timeMatrix; set => timeMatrix = value; }
         internal List<Customer> AllCustomers { get => allCustomers; set => allCustomers = value; }
         public Location Depot { get => depot; set => depot = value; }
         public Dictionary<int, List<Option>> OptionsPerCustomer { get => optionsPerCustomer; set => optionsPerCustomer = value; }
@@ -104,8 +104,8 @@ namespace VrdpoProject
             }
 
             int rows = allLocations.Count;
-            distanceMatrix = new decimal[rows,rows];
-            timeMatrix = new decimal[rows, rows];
+            distanceMatrix = new double[rows,rows];
+            timeMatrix = new double[rows, rows];
 
             for (int i = 0; i < rows; i++)
             {
@@ -118,14 +118,14 @@ namespace VrdpoProject
 
             Location a;
             Location b;
-            decimal dist;
+            double dist;
             for (int i = 0; i < rows; i++)
             {
                 for (int j = i; j < rows; j++)
                 {
                     a = allLocations[i];
                     b = allLocations[j];
-                    dist = (decimal) Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
+                    dist =  Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
 
                     string jsonContent = File.ReadAllText("settings.json");
                     var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
@@ -133,10 +133,10 @@ namespace VrdpoProject
                     {
                         timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
                         distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                    } else if (settings.type == "decimal") { 
+                    } else if (settings.type == "double") { 
                     
-                        timeMatrix[i, j - i] = (decimal)Math.Round(dist, 3);
-                        distanceMatrix[i, j - i] = (decimal)Math.Round(dist, 3);
+                        timeMatrix[i, j - i] = Math.Round(dist, 3);
+                        distanceMatrix[i, j - i] = Math.Round(dist, 3);
                     }
                 }
             }

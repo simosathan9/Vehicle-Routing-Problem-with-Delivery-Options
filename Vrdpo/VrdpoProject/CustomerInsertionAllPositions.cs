@@ -12,16 +12,16 @@ namespace VrdpoProject
         private Customer customer;
         private Route route;
         private int insertionPosition;
-        private decimal cost;
-        private decimal costPenalized;
-        private decimal duration;
+        private double cost;
+        private double costPenalized;
+        private double duration;
         private Option option;
         private Location location;
-        private decimal ect;
-        private decimal lat;
+        private double ect;
+        private double lat;
 
         public CustomerInsertionAllPositions(Customer customer, Route route, int insertionPosition,
-            decimal cost, decimal costPenalized, decimal duration, Option option, Location location)
+            double cost, double costPenalized, double duration, Option option, Location location)
         {
             this.customer = customer;
             this.route = route;
@@ -57,14 +57,14 @@ namespace VrdpoProject
         }
 
         public int InsertionPosition { get => insertionPosition; set => insertionPosition = value; }
-        public decimal Cost { get => cost; set => cost = value; }
-        public decimal CostPenalized { get => costPenalized; set => costPenalized = value; }
-        public decimal Duration { get => duration; set => duration = value; }
+        public double Cost { get => cost; set => cost = value; }
+        public double CostPenalized { get => costPenalized; set => costPenalized = value; }
+        public double Duration { get => duration; set => duration = value; }
         internal Customer Customer { get => customer; set => customer = value; }
         internal Route Route { get => route; set => route = value; }
         internal Option Option { get => option; set => option = value; }
         internal Location Location { get => location; set => location = value; }
-        public decimal Ect { get => ect; set => ect = value; }
-        public decimal Lat { get => lat; set => lat = value; }
+        public double Ect { get => ect; set => ect = value; }
+        public double Lat { get => lat; set => lat = value; }
     }
 }
