@@ -30,6 +30,7 @@ namespace VrdpoProject
         private string lastMove;
         private double solutionUtilizationMetric;
         private double ratioCombinedMoveCost;
+        private int lowerBoundRoutes;
 
         public Solution()
         {
@@ -52,17 +53,19 @@ namespace VrdpoProject
             this.Repetition = repetition;
             this.SolutionUtilizationMetric = 0;
             this.ratioCombinedMoveCost = 0;
+            this.lowerBoundRoutes = (int)Math.Ceiling((double)model.AllCustomers.Sum(customer => customer.Dem) / model.Cap);
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
         }
 
         public Solution(double duration, double cost, List<Route> routes, double[,] distanceMatrix,
             double[,] timeMatrix, int cap, Location depot, List<Option> options, double[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
-            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition, double solutionUtilizationMetric, double ratioCombinedMoveCost)
+            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition, double solutionUtilizationMetric, double ratioCombinedMoveCost, int lowerBoundRoutes)
         {
             this.Duration = duration;
             this.Cost = cost;
             this.RatioCombinedMoveCost = ratioCombinedMoveCost;
             this.SolutionUtilizationMetric = solutionUtilizationMetric;
+            this.LowerBoundRoutes = lowerBoundRoutes;
             List<Location> clonedLocations = new List<Location>();
             List<Option> clonedOptions = new List<Option>();
             List<Customer> clonedCustomers = new List<Customer>();
@@ -127,7 +130,7 @@ namespace VrdpoProject
             Solution deepCopySol = new Solution(sol.Duration, sol.Cost, sol.Routes,
                 sol.DistanceMatrix, sol.TimeMatrix, sol.Cap, sol.Depot, sol.Options,
                 sol.Promises, sol.Customers, sol.optionsPerCustomer,
-                sol.optionsPrioritiesPerCustomer, sol.Repetition, sol.SolutionUtilizationMetric, sol.RatioCombinedMoveCost);
+                sol.optionsPrioritiesPerCustomer, sol.Repetition, sol.SolutionUtilizationMetric, sol.RatioCombinedMoveCost, sol.LowerBoundRoutes);
             return deepCopySol;
         }
 
@@ -148,6 +151,7 @@ namespace VrdpoProject
         public string LastMove { get => lastMove; set => lastMove = value; }
         public double SolutionUtilizationMetric { get => solutionUtilizationMetric; set => solutionUtilizationMetric = value; }
         public double RatioCombinedMoveCost { get => ratioCombinedMoveCost; set => ratioCombinedMoveCost = value; }
+        public int LowerBoundRoutes { get => lowerBoundRoutes; set => lowerBoundRoutes = value; }
 
         public double CalculateDistance(Location n1, Location n2)
         {

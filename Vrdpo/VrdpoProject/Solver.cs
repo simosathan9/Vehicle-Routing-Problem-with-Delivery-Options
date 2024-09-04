@@ -296,7 +296,7 @@ namespace VrdpoProject
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
+                        Console.WriteLine("{0} {1} {2} {3}", i, (double)currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2));
                     }
                 }
                 restartTimer.Stop();
