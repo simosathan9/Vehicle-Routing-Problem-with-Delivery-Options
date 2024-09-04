@@ -280,7 +280,7 @@ namespace VrdpoProject
                                 var newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem + b2.Cust.Dem)), 2);
                                 var newUtilizationMetricRoute2 = Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load - b2.Cust.Dem + b1.Cust.Dem)), 2);
                                 var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
-                                ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1)*0.1;
+                                ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
                                 if (sol.Routes.Count == sol.LowerBoundRoutes)
                                 {
                                     ratio = 1;
