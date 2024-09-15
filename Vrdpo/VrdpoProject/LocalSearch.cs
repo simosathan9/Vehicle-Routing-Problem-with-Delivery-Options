@@ -73,7 +73,7 @@ namespace VrdpoProject
                             var newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - B.Cust.Dem)), 2);
                             var newUtilizationMetricRoute2 = Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load + B.Cust.Dem)), 2);
                             var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
-                            var ratio = (sol.SolutionUtilizationMetric + 1 / newSolUtilizationMetric + 1);
+                            var ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
                             if (sol.Routes.Count == sol.LowerBoundRoutes)
                             {
                                 ratio = 1;
@@ -484,7 +484,7 @@ namespace VrdpoProject
                                 sol.RatioCombinedMoveCost = ratio * moveCost;
                             }
 
-                            if (sol.RatioCombinedMoveCost + openRoutes + 10000 < top.TotalCost + 0.001 & moveCost != 0)
+                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < top.TotalCost + 0.001 & moveCost != 0)
                             {
 
                                 if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost + 0.001, sol))
