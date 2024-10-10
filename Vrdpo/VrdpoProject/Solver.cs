@@ -85,13 +85,20 @@ namespace VrdpoProject
             int timesFailedFindFeasible = 0;
             var restartTimer = new Stopwatch();
             int restartCounter = -1;
-            
+            double smallDouble = 0;
+
+            if (settings.type == "double")
+            {
+                smallDouble = 0.001;
+            }
+
             for (int restart = 0; restart < numberOfRestarts; restart++)
             {
                 restartTimer.Reset();
                 restartTimer.Start();
                 Random rnd = new(restart);
                 Random rnd5 = new(restart);
+                Random rnd6 = new(restart);
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
@@ -144,9 +151,11 @@ namespace VrdpoProject
                         currentSol.InitPromises();
                         reinitCount = 0;
                     }
-                    if (settings.schema == "greedy" && localBest.Cost != double.MaxValue)
+
+                    Double schemaRandom = rnd6.NextDouble();
+                    if (settings.schema == "greedy" && localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
-                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.98 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.08)
+                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.95 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
                         {
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             Console.WriteLine("Apply random priority swap");
@@ -211,7 +220,7 @@ namespace VrdpoProject
                         
                         //temperature *= 0.9997; //Remove comment for Simulated Annealing
                     }
-                    else if (settings.schema == "random" || localBest.Cost == double.MaxValue)
+                    else if (settings.schema == "random" || localBest.Cost == double.MaxValue || schemaRandom <= settings.randomness)
                     {
                         int k = rnd.Next(1, 6);
                         if (k == 4)
@@ -273,8 +282,9 @@ namespace VrdpoProject
                                 }
                             }
                         }
+                        currentSol.SolutionUtilizationMetric = currentSol.CalculateUtilizationMetric();
+                        RemoveEmptyRoutes(currentSol);
                     }
-                    RemoveEmptyRoutes(currentSol);
                     if (!currentSol.CheckEverything(currentSol))
                     {
                         Console.WriteLine("Infeasible Solution!!!");
@@ -282,7 +292,7 @@ namespace VrdpoProject
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
                     int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
-                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 + 0.001 && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9) {
+                    if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 + smallDouble && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9) {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy(currentSol);
                         localBest.RemoveEmptyRoutes();
@@ -303,7 +313,7 @@ namespace VrdpoProject
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 + 0.001 && localBest.Cost < 100000)
+                if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 + smallDouble && localBest.Cost < 100000)
                 {
                     bestSol = localBest.DeepCopy(localBest);
                     bestSol.Restart = restartCounter;
@@ -934,33 +944,35 @@ namespace VrdpoProject
                 AlwaysKeepAnEmptyRoute(sol);
                 if (selectedOptions != null)
                 {
-                    if (failed == true)
-                    {
-                        topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol, selectedOptions);
-                    }
-                    else
-                    {
-                        topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
-                    }
+                    //if (failed == true)
+                    //{
+                    //    topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol, selectedOptions);
+                    //}
+                    //else
+                    //{
+                    //    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
+                    //}
+                    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
                 } else
                 {
-                    if (failed == true)
-                    {
-                        topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol);
-                    }
-                    else
-                    {
-                        topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
-                    }
+                    //if (failed == true)
+                    //{
+                    //    topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol);
+                    //}
+                    //else
+                    //{
+                    //    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
+                    //}
+                    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
                 }
-                if (failed == true)
-                {
-                    bestInsertion = topThreeOfPenalized[rnd.Next(topThreeOfPenalized.Count)];
-                } else
-                {
-                    bestInsertion = topThree[rnd.Next(topThree.Count)];
-                }
-
+                //if (failed == true)
+                //{
+                //    bestInsertion = topThreeOfPenalized[rnd.Next(topThreeOfPenalized.Count)];
+                //} else
+                //{
+                //    bestInsertion = topThree[rnd.Next(topThree.Count)];
+                //}
+                bestInsertion = topThree[rnd.Next(topThree.Count)];
                 if (bestInsertion.Customer != null)
                 {
                     ApplyCustomerInsertionAllPositions(bestInsertion, sol);

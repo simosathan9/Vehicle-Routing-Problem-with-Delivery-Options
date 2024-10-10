@@ -15,5 +15,6 @@ namespace VrdpoProject
         public bool multiRestart { get; set; }
         public string schema { get; set; }
         public string type { get; set; }
+        public double randomness { get; set; }
     }
 }

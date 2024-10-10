@@ -5,14 +5,27 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace VrdpoProject
 {
 
     public class LocalSearch
     {
-
+        private double smallDouble;
         private Route rt1, rt2;
+        public LocalSearch()
+        {
+            string jsonContent = File.ReadAllText("settings.json");
+            var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
+            if (settings.type == "double")
+            {
+                this.smallDouble = 0.001;
+            } else if (settings.type == "int")
+            {
+                this.smallDouble = 0;
+            }
+        }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
         {
             int openRoutes;
@@ -73,7 +86,7 @@ namespace VrdpoProject
                             var newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - B.Cust.Dem)), 2);
                             var newUtilizationMetricRoute2 = Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load + B.Cust.Dem)), 2);
                             var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
-                            var ratio = (sol.SolutionUtilizationMetric + 1 / newSolUtilizationMetric + 1);
+                            var ratio = (sol.SolutionUtilizationMetric + 1 )/( newSolUtilizationMetric + 1);
                             if (sol.Routes.Count == sol.LowerBoundRoutes)
                             {
                                 ratio = 1;
@@ -91,18 +104,18 @@ namespace VrdpoProject
                             //{
                             //    continue;
                             //}
-                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < rm.TotalCost + 0.001 & targetRouteIndex != 0 & moveCost != 0) // + bpnus
+                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < rm.TotalCost + smallDouble & targetRouteIndex != 0 & moveCost != 0) // + bpnus
                             {
                                 // Console.WriteLine("Total cost : " + rm.TotalCost + " Open Routes : " + openRoutes);
-                                if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
-                                if (PromiseIsBroken(B.Id, G.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(B.Id, G.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
-                                if (PromiseIsBroken(A.Id, C.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(A.Id, C.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
@@ -287,21 +300,21 @@ namespace VrdpoProject
                                 }
                             }
 
-                            if (ratio * moveCost < sm.MoveCost + 0.001 & moveCost !=0)
+                            if (ratio * moveCost < sm.MoveCost + smallDouble & moveCost !=0)
                             {
-                                if (PromiseIsBroken(a1.Id, b2.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(a1.Id, b2.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
-                                if (PromiseIsBroken(b2.Id, c1.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(b2.Id, c1.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
-                                if (PromiseIsBroken(a2.Id, b1.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(a2.Id, b1.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }                                    
-                                if (PromiseIsBroken(b1.Id, c2.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(b1.Id, c2.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
@@ -484,14 +497,14 @@ namespace VrdpoProject
                                 sol.RatioCombinedMoveCost = ratio * moveCost;
                             }
 
-                            if (sol.RatioCombinedMoveCost + openRoutes + 10000 < top.TotalCost + 0.001 & moveCost != 0)
+                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < top.TotalCost + smallDouble & moveCost != 0)
                             {
 
-                                if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
-                                if (PromiseIsBroken(B.Id, K.Id, moveCost + sol.Cost + 0.001, sol))
+                                if (PromiseIsBroken(B.Id, K.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
                                     continue;
                                 }
@@ -727,17 +740,17 @@ namespace VrdpoProject
                                                     - sol.CalculateDistance(F.Location, G.Location);
 
 
-                                if (sol.RatioCombinedMoveCost + openRoutes * 10000 < flip.TotalCost + 0.001 & rtInd2 != 0)
+                                if (sol.RatioCombinedMoveCost + openRoutes * 10000 < flip.TotalCost + smallDouble & rtInd2 != 0)
                                 {
-                                    if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost + 0.001, sol))
+                                    if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost + smallDouble, sol))
                                     {
                                         continue;
                                     }
-                                    if (PromiseIsBroken(B2.Id, G.Id, moveCost + sol.Cost + 0.001, sol))
+                                    if (PromiseIsBroken(B2.Id, G.Id, moveCost + sol.Cost + smallDouble, sol))
                                     {
                                         continue;
                                     }
-                                    if (PromiseIsBroken(A.Id, C.Id, moveCost + sol.Cost + 0.001, sol))
+                                    if (PromiseIsBroken(A.Id, C.Id, moveCost + sol.Cost + smallDouble, sol))
                                     {
                                         continue;
                                     }
@@ -1054,36 +1067,36 @@ namespace VrdpoProject
                                                         ratio = 1;
                                                     }
                                                     sol.RatioCombinedMoveCost = ratio * moveCost;
-                                                    if (sol.RatioCombinedMoveCost < psm.MoveCost + 0.001 & moveCost != 0)
+                                                    if (sol.RatioCombinedMoveCost < psm.MoveCost + smallDouble & moveCost != 0)
                                                     {
                                                         if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
                                                         {
                                                             if (firstOptionIndex == secondOptionIndex - 1)
                                                             {
-                                                                if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost + 0.001, sol))
+                                                                if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost + smallDouble, sol))
                                                                 {
                                                                     continue;
                                                                 }
-                                                                if (PromiseIsBroken(d1.Id, d2.Id, moveCost + sol.Cost + 0.001, sol))
+                                                                if (PromiseIsBroken(d1.Id, d2.Id, moveCost + sol.Cost + smallDouble, sol))
                                                                 {
                                                                     continue;
                                                                 }
-                                                                if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost + 0.001, sol))
+                                                                if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost + smallDouble, sol))
                                                                 {
                                                                     continue;
                                                                 }
                                                             }
                                                             else if (secondOptionIndex == firstOptionIndex - 1)
                                                             {
-                                                                if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost + 0.001, sol))
+                                                                if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost + smallDouble, sol))
                                                                 {
                                                                     continue;
                                                                 }
-                                                                if (PromiseIsBroken(d2.Id, d1.Id, moveCost + sol.Cost + 0.001, sol))
+                                                                if (PromiseIsBroken(d2.Id, d1.Id, moveCost + sol.Cost + smallDouble, sol))
                                                                 {
                                                                     continue;
                                                                 }
-                                                                if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost + 0.001, sol))
+                                                                if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost + smallDouble, sol))
                                                                 {
                                                                     continue;
                                                                 }
@@ -1091,19 +1104,19 @@ namespace VrdpoProject
                                                         }
                                                         else
                                                         {
-                                                            if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost + 0.001, sol))
+                                                            if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost + smallDouble, sol))
                                                             {
                                                                 continue;
                                                             }
-                                                            if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost + 0.001, sol))
+                                                            if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost + smallDouble, sol))
                                                             {
                                                                 continue;
                                                             }
-                                                            if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost + 0.001, sol))
+                                                            if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost + smallDouble, sol))
                                                             {
                                                                 continue;
                                                             }
-                                                            if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost + 0.001, sol))
+                                                            if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost + smallDouble, sol))
                                                             {
                                                                 continue;
                                                             }
