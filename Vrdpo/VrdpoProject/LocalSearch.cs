@@ -249,6 +249,7 @@ namespace VrdpoProject
 
                             var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
                             var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
+                            
 
                             if (!tw1.Item1 || !tw2.Item1) { continue; }
 
@@ -932,6 +933,54 @@ namespace VrdpoProject
                                                     double newUtilizationMetricRoute2 = 0;
                                                     double newSolUtilizationMetric = 0;
                                                     double ratio = 1;
+                                                    
+                                                    int tempCap = b1.Location.Cap;
+                                                    if (b1.Location == d1.Location)
+                                                    {
+                                                        tempCap -= 1;
+                                                    }
+                                                    if (b2.Location == d1.Location)
+                                                    {
+                                                        tempCap -= 1;
+                                                    }
+                                                    if (d1 == d2)
+                                                    {
+                                                        tempCap += 2;
+                                                    }
+                                                    else
+                                                    {
+                                                        tempCap += 1;
+                                                        if (d2.Location == d1.Location)
+                                                        {
+                                                            tempCap += 1;
+                                                        }
+                                                    }
+
+                                                    if (tempCap > d1.Location.MaxCap)
+                                                    {
+                                                        continue;
+                                                    }
+
+                                                    if (d1 != d2)
+                                                    {
+                                                        int tempD2Cap = b2.Location.Cap;
+                                                        if (b1.Location == d2.Location)
+                                                        {
+                                                            tempD2Cap -= 1;
+                                                        }
+                                                        if (b2.Location == d2.Location)
+                                                        {
+                                                            tempD2Cap -= 1;
+                                                        }
+
+                                                        tempD2Cap += 1;
+
+                                                        if (tempD2Cap > d2.Location.MaxCap)
+                                                        {
+                                                            continue;
+                                                        }
+                                                    }
+
                                                     //If cust1 has priority level 0 and cust 2 has priority level 2 then if customer 1 does not have a 3rd option(prior level= 2) you can not do the priority swap
                                                     //So the current priority level of cust 1 must exist in the priority options of cust 2 and the current priority level of cust 2 must exist in the priority options of cust 1
                                                     if (optionsPrioritiesPerCustomer[custID2].Contains(b1.Prio) && (b1.Prio != b2.Prio) && optionsPrioritiesPerCustomer[custID1].Contains(b2.Prio))
