@@ -99,6 +99,7 @@ namespace VrdpoProject
                 Random rnd = new(restart);
                 Random rnd5 = new(restart);
                 Random rnd6 = new(restart);
+                Random rnd7 = new(restart);
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
@@ -155,7 +156,7 @@ namespace VrdpoProject
                     Double schemaRandom = rnd6.NextDouble();
                     if (settings.schema == "greedy" && localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
-                        if (i - lastImprovement > 1000 && rnd.NextDouble() > 0.95 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
+                        if (i - lastImprovement > 1000 && rnd7.NextDouble() > 0.95 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
                         {
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             Console.WriteLine("Apply random priority swap");
@@ -167,7 +168,7 @@ namespace VrdpoProject
                         top = ls.FindBestTwoOptMove(top, currentSol);
                         psm = ls.FindBestPrioritySwapMove(psm, currentSol);
 
-                        if (i > 2000 && ((i - c) > 500))//2000 and 500 1000 and 200 better
+                        if (i > 1000 && ((i - c) > 200))
                         {
                             c = i;
                             flip = ls.FindBestFlipMove(flip, currentSol);
@@ -476,7 +477,6 @@ namespace VrdpoProject
             return matchingCount / count;
         }
 
-
         void InsertBestFirstOption2(List<Option> selectedOptions, Solution sol)
         {
             double bestOptionObjective = double.MaxValue;
@@ -521,7 +521,6 @@ namespace VrdpoProject
 
             return scores;
         }
-
 
         List<Option> AvailableFirstOptions(Solution sol, List<Option> selectedOptions)
         {
@@ -611,7 +610,6 @@ namespace VrdpoProject
 
             return nearestNeighbors;
         }
-
 
         double DistanceFromXnearest(List<Option> opts, Option target, Solution sol)
         {
@@ -712,8 +710,6 @@ namespace VrdpoProject
                 }
             }
         }
-
-
         void ReportSolution(Solution sol, TimeSpan restartTime, TimeSpan totalTime)
         {
             string jsonContent = File.ReadAllText("settings.json");
@@ -755,7 +751,6 @@ namespace VrdpoProject
             writetext.WriteLine("{0} {1} {2} {3}", instance.Replace(".txt", " "), sol.Cost, sol.Routes.Count(list => list.SequenceOfLocations.Count > 2), DateTime.Now.ToString());
             writetext.Close();
         }
-
 
         Option candidateOpt;
         Location A, B;
@@ -801,7 +796,7 @@ namespace VrdpoProject
 
                                 if (t.Item1)
                                 {
-                                    if (trialCost <= topThree.Last().Cost || topThree.Count < 3)
+                                    if (trialCost <= topThree.Last().Cost || topThree.Count < 3)//3
                                     {
                                         if (candidateOpt.Location.Type == 2 | candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
                                         {
@@ -817,7 +812,7 @@ namespace VrdpoProject
                                             CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
                                             topThree.Add(custTemp);
                                             topThree = topThree.OrderBy(o=>o.Cost).ToList();
-                                            topThree = topThree.Take(3).ToList();
+                                            topThree = topThree.Take(3).ToList(); //3
                                         }
                                     }
                                 }
@@ -905,8 +900,6 @@ namespace VrdpoProject
             }
             return topThree;
         }
-
-
 
         void ApplyCustomerInsertionAllPositions(CustomerInsertionAllPositions insertion, Solution sol)
         {

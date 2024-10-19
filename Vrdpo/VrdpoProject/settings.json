@@ -6,5 +6,5 @@
     "multiRestart": false,
     "schema": "greedy",
     "type": "int",
-    "randomness":  0.05
+    "randomness":  0.00
 }
