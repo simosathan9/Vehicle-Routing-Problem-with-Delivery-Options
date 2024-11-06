@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -31,6 +33,7 @@ namespace VrdpoProject
         private double solutionUtilizationMetric;
         private double ratioCombinedMoveCost;
         private int lowerBoundRoutes;
+        private List<bool> solutionOptionsList = new List<bool>();
 
         public Solution()
         {
@@ -53,6 +56,7 @@ namespace VrdpoProject
             this.Repetition = repetition;
             this.SolutionUtilizationMetric = 0;
             this.ratioCombinedMoveCost = 0;
+            this.solutionOptionsList = new List<bool>();
             this.lowerBoundRoutes = (int)Math.Ceiling((double)model.AllCustomers.Sum(customer => customer.Dem) / model.Cap);
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
         }
@@ -134,6 +138,28 @@ namespace VrdpoProject
             return deepCopySol;
         }
 
+        public ulong getSolutionOptionsHashCode()
+        {
+            var solutionOptionsList = new bool[Options.Count + 1];
+            foreach (Option option in Options)
+            {
+                solutionOptionsList[option.Id] = option.IsServed;
+            }
+            /*
+            foreach (bool value in solutionOptionsList)
+            {
+                hashCode = hashCode * 31 + value.GetHashCode();
+            }
+            */
+            ulong hash = 0;     
+            for (int i = 0; i < solutionOptionsList.Length && i < 64; i++){
+                if (solutionOptionsList[i]) {
+                    hash |= (ulong) 1 << i; 
+                } 
+            } 
+            return hash;
+        }
+
         public double Duration { get => duration; set => duration = value; }
         public double Cost { get => cost; set => cost = value; }
         internal List<Route> Routes { get => routes; set => routes = value; }
@@ -152,6 +178,7 @@ namespace VrdpoProject
         public double SolutionUtilizationMetric { get => solutionUtilizationMetric; set => solutionUtilizationMetric = value; }
         public double RatioCombinedMoveCost { get => ratioCombinedMoveCost; set => ratioCombinedMoveCost = value; }
         public int LowerBoundRoutes { get => lowerBoundRoutes; set => lowerBoundRoutes = value; }
+        //public List<bool> SolutionOptionsList { get => solutionOptionsList; set => solutionOptionsList = value; }
 
         public double CalculateDistance(Location n1, Location n2)
         {

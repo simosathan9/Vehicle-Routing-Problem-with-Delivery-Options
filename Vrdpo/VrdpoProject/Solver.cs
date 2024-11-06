@@ -16,6 +16,7 @@ namespace VrdpoProject
         string instance;
         private CustomerInsertionAllPositions bestInsertion = new();
         Solution globalBestSol = new Solution();
+        Dictionary<ulong, int> overallFrequencyMap = new();
         LocalSearch ls = new();
         Random rnd2 = new Random(42);
         TimeSpan globalBestTime = TimeSpan.Zero;
@@ -60,10 +61,10 @@ namespace VrdpoProject
             }
             else
             {
-
                 Solution lc_sol = new Solution();
                 lc_sol = LocalSearch();
                 PrintSolution(lc_sol);
+                PrintFrequencyMap(overallFrequencyMap);
                 Console.WriteLine("The best solution's cost: " + lc_sol.Cost);
                 CalculateServiceLevel(lc_sol);
                 //Export lc_sol to JSON
@@ -100,6 +101,7 @@ namespace VrdpoProject
                 Random rnd5 = new(restart);
                 Random rnd6 = new(restart);
                 Random rnd7 = new(restart);
+                Dictionary<ulong, int> frequencyMap = new();
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
@@ -156,11 +158,11 @@ namespace VrdpoProject
                     Double schemaRandom = rnd6.NextDouble();
                     if (settings.schema == "greedy" && localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
-                        if (i - lastImprovement > 1000 && rnd7.NextDouble() > 0.95 && (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
+                        if (i - lastImprovement > 200 && rnd7.NextDouble() > 0.97) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
                         {
-                            psm = ls.FindBestPrioritySwapMove(psm, currentSol);
-                            Console.WriteLine("Apply random priority swap");
-                            ls.ApplyPrioritySwapMove(psm, currentSol);
+                            flip = ls.FindBestFlipMove(flip, currentSol);
+                            Console.WriteLine("Apply random flip");
+                            ls.ApplyFlipMove(flip, currentSol);
                         }
 
                         sm = ls.FindBestSwapMove(sm, currentSol);
@@ -168,14 +170,14 @@ namespace VrdpoProject
                         top = ls.FindBestTwoOptMove(top, currentSol);
                         psm = ls.FindBestPrioritySwapMove(psm, currentSol);
 
-                        if (i > 1000 && ((i - c) > 200))
-                        {
-                            c = i;
-                            flip = ls.FindBestFlipMove(flip, currentSol);
-                        }
+                        //if (i > 1000 && ((i - c) > 200))
+                        //{
+                        //    c = i;
+                        //    flip = ls.FindBestFlipMove(flip, currentSol);
+                        //}
 
                         var mincost = double.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        mincost = FindMinMoveCost(sm, rm, top, flip);
                         
                         /* Remove Comment for Simulated Annealing
                         if (mincost > 0) {
@@ -209,11 +211,30 @@ namespace VrdpoProject
                         }
                         else if (mincost == flip.TotalCost)
                         {
+                            Console.WriteLine("Apply flip");
                             ls.ApplyFlipMove(flip, currentSol);
                         }
-                        else if (mincost == psm.TotalCost)
+                        //else if (mincost == psm.TotalCost)
+                        //{
+                        //    Console.WriteLine("Apply priority swap");
+                        //    ls.ApplyPrioritySwapMove(psm, currentSol);
+                        //}
+                        ulong hashCode = currentSol.getSolutionOptionsHashCode();
+                        if (frequencyMap.ContainsKey(hashCode))
                         {
-                            ls.ApplyPrioritySwapMove(psm, currentSol);
+                            frequencyMap[hashCode]++;
+                        }
+                        else
+                        {
+                            frequencyMap.Add(hashCode, 1);
+                        }
+                        if (overallFrequencyMap.ContainsKey(hashCode))
+                        {
+                            overallFrequencyMap[hashCode]++;
+                        }
+                        else
+                        {
+                            overallFrequencyMap.Add(hashCode, 1);
                         }
                         RemoveEmptyRoutes(currentSol);
                         currentSol.SolutionUtilizationMetric = currentSol.CalculateUtilizationMetric();
@@ -303,16 +324,17 @@ namespace VrdpoProject
                             Console.WriteLine();
                         }
                         currentSol.Routes = currentSol.Routes.Where(rt => rt.SequenceOfLocations.Count != 2).ToList();
-                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove);
+                        Console.WriteLine("{0} {1} {2} {3} {4} {5}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove, currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList());
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3}", i, (double)currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2));
+                        Console.WriteLine("{0} {1} {2} {3} {4}", i, (double)currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), string.Join(',', currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList()));
                     }
                 }
                 restartTimer.Stop();
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
+                PrintFrequencyMap(frequencyMap);
 
                 if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 + smallDouble && localBest.Cost < 100000)
                 {
@@ -667,6 +689,14 @@ namespace VrdpoProject
             Console.WriteLine("Solution Cost: " + sol.Cost);
             CalculateServiceLevel(sol);
             Console.WriteLine("///////////////////");
+        }
+
+        void PrintFrequencyMap(Dictionary<ulong, int> frequencyMap)
+        {
+            foreach (var kvp in frequencyMap)
+            {
+                Console.WriteLine("Key = {0}, Value = {1}", kvp.Key, kvp.Value);
+            }
         }
 
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost), psm.TotalCost);
