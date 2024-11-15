@@ -634,6 +634,10 @@ namespace VrdpoProject
             }
         }
 
+        // 1) Added mechanisms to allow flips that reduce the overall service level if the bottom levels are not violated
+        // 2) Removed rtInd2 != 0 check
+        // 3) Added check for selecting customers with >1 options only
+        // 4) Added check to avoid target options that are same with the current served option for the examined customer
         public Flip FindBestFlipMove(Flip flip, Solution sol, bool cond = false)
         {
             int openRoutes;
@@ -647,6 +651,7 @@ namespace VrdpoProject
                     Customer custB = rt1.SequenceOfCustomers[custInd1];
                     Customer custC = rt1.SequenceOfCustomers[custInd1 + 1];
                     //Route rt1_copy = new Route(rt1);
+                    if (custB.Options.Count() < 2) { continue; }
                     Route rt1_copy = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                     rt1_copy.SequenceOfCustomers.RemoveAt(custInd1);
                     rt1_copy.SequenceOfOptions.RemoveAt(custInd1);
@@ -659,6 +664,17 @@ namespace VrdpoProject
                     // remove customer and update time windows and capacity
                     for (int optInd = 0; optInd < custB.Options.Count; optInd++)
                     {
+                        Option custBServedOption = null;
+                        List<Option> options = new List<Option>(custB.Options);
+                        foreach (Option opt in options) {
+                            if (sol.Options[opt.Id].IsServed) {
+                                custBServedOption = opt;
+                                break;
+                            }
+                        }
+                        if (custBServedOption == custB.Options[optInd]) {
+                            continue;
+                        }
                         for (int rtInd2 = 0; rtInd2 < sol.Routes.Count; rtInd2++)
                         {
                             openRoutes = sol.Routes.Count;
@@ -693,11 +709,15 @@ namespace VrdpoProject
                                 
                                 if (!tw.Item1) { continue; }
 
-                                if (rt1.SequenceOfOptions[custInd1].Prio < custB.Options[optInd].Prio)
+                                var newServiceLevel = CalculateTempServiceLevel(sol, rt1.SequenceOfOptions[custInd1].Prio, custB.Options[optInd].Prio);
+                                if (newServiceLevel[0] < 0.8 || newServiceLevel[1] < 0.9)
                                 {
-                                    continue;
+                                    if (rt1.SequenceOfOptions[custInd1].Prio < custB.Options[optInd].Prio)
+                                    {
+                                        continue;
+                                    }
                                 }
-
+                                
                                 Option A = rt1.SequenceOfOptions[custInd1 - 1];
                                 Option B1 = rt1.SequenceOfOptions[custInd1];
                                 Option C = rt1.SequenceOfOptions[custInd1 + 1];
@@ -741,7 +761,7 @@ namespace VrdpoProject
                                                     - sol.CalculateDistance(F.Location, G.Location);
 
 
-                                if (sol.RatioCombinedMoveCost + openRoutes * 10000 < flip.TotalCost + smallDouble & rtInd2 != 0)
+                                if (sol.RatioCombinedMoveCost + openRoutes * 10000 < flip.TotalCost + smallDouble) // & rtInd2 != 0)
                                 {
                                     if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost + smallDouble, sol))
                                     {
@@ -788,6 +808,8 @@ namespace VrdpoProject
                 Option A = originRt.SequenceOfOptions[flip.OriginOptionPosition - 1];
                 Option B1 = originRt.SequenceOfOptions[flip.OriginOptionPosition];
                 Option B2 = originRt.SequenceOfCustomers[flip.OriginOptionPosition].Options[flip.NewOptionIndex];//new option to be placed in place of B1
+                //Console.WriteLine("Customer ID: " + originRt.SequenceOfCustomers[flip.OriginOptionPosition].Id);
+                //Console.WriteLine("B1 ID: " + B1.Id + " B2 ID: " + B2.Id);
                 Option C = originRt.SequenceOfOptions[flip.OriginOptionPosition + 1];
                 Option F = targetRt.SequenceOfOptions[flip.TargetOptionPosition];
                 Option G = targetRt.SequenceOfOptions[flip.TargetOptionPosition + 1];
@@ -841,7 +863,10 @@ namespace VrdpoProject
                 targetRt.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(targetRt.Capacity - targetRt.Load), 2);
                 }
                 sol.Cost += flip.MoveCost;
-                B1.IsServed = false; B2.IsServed = true;
+                B1.IsServed = false;
+                B2.IsServed = true;
+                sol.Options.Where(x => x.Id == B1.Id).ToList()[0].IsServed = false;
+                sol.Options.Where(x => x.Id == B2.Id).ToList()[0].IsServed = true;
                 //adjust capacity for shared locations
                 B2.Location.Cap++;
                 B1.Location.Cap--;
@@ -853,348 +878,163 @@ namespace VrdpoProject
                     Console.WriteLine("-----");
                 }
             }
+            /*
+            else {
+                Console.WriteLine("Invalid flip move");
+            }
+            */
         }
 
         public PrioritySwap FindBestPrioritySwapMove(PrioritySwap psm, Solution sol)
         {
-            Dictionary<int, List<Option>> optionsPerCustomer = sol.OptionsPerCustomer; //get a Dict with all the options that regard the customer with id=key
-            Dictionary<int, List<int>> optionsPrioritiesPerCustomer = sol.OptionsPrioritiesPerCustomer; //get a Dict with the corresponding level of priorities available for each customer
-            Route rt1, rt2;
-            Option a1, b1, c1, d1, a2, b2, c2, d2; // d1, d2 the alternative priorities for cust1 and cust 1
-            int offset = 0;
-            int openRoutes;
-            for (int firstRouteIndex = 0; firstRouteIndex < sol.Routes.Count; firstRouteIndex++)
-            {
-                rt1 = sol.Routes[firstRouteIndex];
-                for (int firstOptionIndex = 1; firstOptionIndex < rt1.SequenceOfOptions.Count - 1; firstOptionIndex++)
-                {
-                    b1 = rt1.SequenceOfOptions[firstOptionIndex];
-                    var customer1 = sol.Customers.Where(x => x.Id == rt1.SequenceOfCustomers[firstOptionIndex].Id).ToList()[0];
-                    //var customer1 = rt1.SequenceOfCustomers[firstOptionIndex];
-                    int custID1 = b1.Cust.Id;
-                    if (custID1 == 1000) { continue; }
-                    if (customer1.Options.Count > 1) //if optionsPerCustomer[custID1].Count <= 1 there is no reason to check if there is any chance to do a priority swap with another customer
-                    {
-                        //foreach (Option opt1 in optionsPerCustomer[custID1]) //Check all the available Options of Customer 1
-                        foreach (Option opt1 in customer1.Options) //Check all the available Options of Customer 1
-                        {
-                            if ((opt1.Location.Cap < opt1.Location.MaxCap && opt1.Location.Type == 1) || opt1.Location.Type == 2)
-                            {
-                                for (int secondRouteIndex = firstRouteIndex; secondRouteIndex < sol.Routes.Count; secondRouteIndex++)
-                                {
-                                    rt2 = sol.Routes[secondRouteIndex];
-                                    int startOfSecondOptionIndex = 1;
-                                    if (rt1 == rt2)
-                                    {
-                                        startOfSecondOptionIndex = firstOptionIndex + 1;
+            Dictionary<int, List<Option>> optionsPerCustomer = sol.Customers.ToDictionary(x => x.Id, x => new List<Option>());
+            // Create a Dictionary where keys are Customer objects and values a list with the Option objects of that Customer
+            foreach (Customer c in sol.Customers) {
+                foreach (Option opt in c.Options) {
+                    optionsPerCustomer[c.Id].Add(opt); // Add the options that correspond to Customer c to its List
+                }
+            }
+            Option b1, b2;
+            int openRoutes = sol.Routes.Count;
+            foreach (Route rt1 in sol.Routes) { //Start iterating over the available Routes
+                foreach (Option opt1 in rt1.SequenceOfOptions) { // Iterate over each option of the current Route rt1
+                    if (opt1 == rt1.SequenceOfOptions.First() || opt1 == rt1.SequenceOfOptions.Last()) {continue;} //Avoid the first and last option of the route
+                    b1 = opt1;
+                    Customer customerB1 = b1.Cust;
+                    if (customerB1.Id == 1000) {continue;} //Probably unnecessary because there are no options corresponding to the warehouse but add it to be safe
+                    if (optionsPerCustomer[customerB1.Id].Count <= 1) {continue;} // Avoid creating a list for customers with only one available option
+                    List<Option> notServedOptionsCustomerB1 = optionsPerCustomer[customerB1.Id]; //Create a list with the remaining options of customer B1
+                    notServedOptionsCustomerB1.Remove(b1); // remove the option that is currently served from the not served options list
+                    foreach (Option notServedOptionB1 in notServedOptionsCustomerB1) { //Start searching to find a match for each not served option of customer B1
+                        if (notServedOptionB1.Location.Type == 1 && notServedOptionB1.Location.Cap >= notServedOptionB1.Location.MaxCap) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
+                        // Otherwise start searching for match either in the same or other route
+                        foreach (Route rt2 in sol.Routes) {
+                            foreach (Option opt2 in rt2.SequenceOfOptions) {
+                                if (opt2 == rt2.SequenceOfOptions.First() || opt2 == rt2.SequenceOfOptions.Last()) {continue;} //Avoid the first and last option of the route
+                                if (opt1 == opt2) {continue;} //Avoid searching if it is the same option
+                                b2 = opt2;
+                                Customer customerB2 = b2.Cust;
+                                if (customerB2.Id == 1000) {continue;} //Probably unnecessary because there are no options corresponding to the warehouse but add it to be safe
+                                if (optionsPerCustomer[customerB2.Id].Count <= 1) {continue;} // Avoid creating a list for customers with only one available option
+                                List<Option> notServedOptionsCustomerB2 = optionsPerCustomer[customerB2.Id]; //Create a list with the remaining options of customer B2
+                                notServedOptionsCustomerB2.Remove(b2); // remove the option that is currently served from the not served options list
+                                foreach (Option notServedOptionB2 in notServedOptionsCustomerB2) {
+                                    if (notServedOptionB2.Location.Type == 1 && notServedOptionB2.Location.Cap >= notServedOptionB2.Location.MaxCap) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
+                                    if (notServedOptionB1.Location == notServedOptionB2.Location) {
+                                        if (notServedOptionB1.Location.Cap >= notServedOptionB1.Location.MaxCap - 1) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
                                     }
-                                    for (int secondOptionIndex = startOfSecondOptionIndex; secondOptionIndex < rt2.SequenceOfOptions.Count - 1; secondOptionIndex++)
-                                    {
-                                        openRoutes = sol.Routes.Count;
-                                        b2 = rt2.SequenceOfOptions[secondOptionIndex];
-                                        var customer2 = sol.Customers.Where(x => x.Id == rt2.SequenceOfCustomers[secondOptionIndex].Id).ToList()[0];
-                                        //var customer2 = rt2.SequenceOfCustomers[secondOptionIndex];
-                                        int custID2 = b2.Cust.Id;
-                                        if (custID2 == 1000) { continue; }
-                                        if (customer2.Options.Count > 1) //same as in the line 770
-                                        {
-                                            //foreach (Option opt2 in optionsPerCustomer[custID2])
-                                            foreach (Option opt2 in customer2.Options)
-                                            {
-                                                psm.TimeWindowsError = false;
-                                                //check if a shared location will be used two times with this swap
-                                                offset = 0;
-                                                if (opt1.Location.Id == opt2.Location.Id)
-                                                {
-                                                    offset = 1;
-                                                }
-                                                if ((sol.Options.Where(x => x.Id == opt2.Id).ToList()[0].Location.Cap < opt2.Location.MaxCap - offset && opt2.Location.Type == 1) || opt2.Location.Type == 2)
-                                                {
-
-                                                    if (rt1.Load - b1.Cust.Dem + b2.Cust.Dem > rt1.Capacity)
-                                                    {
-                                                        continue;
-                                                    }
-                                                    if (rt2.Load - b2.Cust.Dem + b1.Cust.Dem > rt2.Capacity)
-                                                    {
-                                                        continue;
-                                                    }
-
-                                                    a1 = rt1.SequenceOfOptions[firstOptionIndex - 1];
-                                                    d1 = opt1;
-                                                    c1 = rt1.SequenceOfOptions[firstOptionIndex + 1];
-                                                    a2 = rt2.SequenceOfOptions[secondOptionIndex - 1];
-                                                    d2 = opt2;
-                                                    c2 = rt2.SequenceOfOptions[secondOptionIndex + 1];
-                                                    double moveCost = 0;
-                                                    double costChangeFirstRoute = 0;
-                                                    double costChangeSecondRoute = 0;
-                                                    double newUtilizationMetricRoute1 = 0;
-                                                    double newUtilizationMetricRoute2 = 0;
-                                                    double newSolUtilizationMetric = 0;
-                                                    double ratio = 1;
-                                                    
-                                                    int tempCap = b1.Location.Cap;
-                                                    if (b1.Location == d1.Location)
-                                                    {
-                                                        tempCap -= 1;
-                                                    }
-                                                    if (b2.Location == d1.Location)
-                                                    {
-                                                        tempCap -= 1;
-                                                    }
-                                                    if (d1 == d2)
-                                                    {
-                                                        tempCap += 2;
-                                                    }
-                                                    else
-                                                    {
-                                                        tempCap += 1;
-                                                        if (d2.Location == d1.Location)
-                                                        {
-                                                            tempCap += 1;
-                                                        }
-                                                    }
-
-                                                    if (tempCap > d1.Location.MaxCap)
-                                                    {
-                                                        continue;
-                                                    }
-
-                                                    if (d1 != d2)
-                                                    {
-                                                        int tempD2Cap = b2.Location.Cap;
-                                                        if (b1.Location == d2.Location)
-                                                        {
-                                                            tempD2Cap -= 1;
-                                                        }
-                                                        if (b2.Location == d2.Location)
-                                                        {
-                                                            tempD2Cap -= 1;
-                                                        }
-
-                                                        tempD2Cap += 1;
-
-                                                        if (tempD2Cap > d2.Location.MaxCap)
-                                                        {
-                                                            continue;
-                                                        }
-                                                    }
-
-                                                    //If cust1 has priority level 0 and cust 2 has priority level 2 then if customer 1 does not have a 3rd option(prior level= 2) you can not do the priority swap
-                                                    //So the current priority level of cust 1 must exist in the priority options of cust 2 and the current priority level of cust 2 must exist in the priority options of cust 1
-                                                    if (optionsPrioritiesPerCustomer[custID2].Contains(b1.Prio) && (b1.Prio != b2.Prio) && optionsPrioritiesPerCustomer[custID1].Contains(b2.Prio))
-                                                    {
-                                                        if (opt1.Prio == b2.Prio && (opt1.Id != b1.Id) && (opt2.Id != b2.Id) && opt2.Prio == b1.Prio)
-                                                        { //Check that the alternative option of cust1 has same level of priority with the current level of customer 2 and ensure that opt1 does not refer to the option of cust 1 that is already in the route
-                                                            if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
-                                                            {
-                                                                if (firstOptionIndex == secondOptionIndex - 1)
-                                                                {
-                                                                    var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, d1.Location);
-                                                                    if (!tw1.Item1)
-                                                                    {
-                                                                        continue;
-                                                                    }
-                                                                    //Route rtTemp =  new Route(rt1);
-                                                                    Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
-                                                                    rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
-                                                                    rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
-                                                                    rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;
-                                                                    var tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, d2.Location);
-                                                                    if (!tw1.Item1 || !tw2.Item1)
-                                                                    {
-                                                                        psm.TimeWindowsError = true;
-                                                                        continue;
-                                                                    }
-                                                                    //in this case c1=b2 and a2=b1, so do not remove twice distance between the options that might change priority level
-                                                                    double costRemoved = sol.CalculateDistance(a1.Location, b1.Location) + sol.CalculateDistance(b1.Location, c1.Location) + sol.CalculateDistance(b2.Location, c2.Location);
-                                                                    double costAdded = sol.CalculateDistance(a1.Location, d1.Location) + sol.CalculateDistance(d1.Location, d2.Location) + sol.CalculateDistance(d2.Location, c2.Location);
-                                                                    moveCost = costAdded - costRemoved;
-                                                                    newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem - c1.Cust.Dem + d1.Cust.Dem + d2.Cust.Dem)), 2);
-                                                                    newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric + newUtilizationMetricRoute1;
-                                                                }
-                                                                else if (secondOptionIndex == firstOptionIndex - 1)
-                                                                {
-                                                                    var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, d2.Location);
-                                                                    if (!tw2.Item1)
-                                                                    {
-                                                                        continue;
-                                                                    }
-                                                                    //var rtTemp = new Route(rt2);
-                                                                    Route rtTemp = rt2.getTempCopy(rt2, sol.Options.Select(x => x.Location).ToHashSet().ToList());
-                                                                    rtTemp.SequenceOfOptions[secondOptionIndex] = d2;
-                                                                    rtTemp.SequenceOfCustomers[secondOptionIndex] = d2.Cust;
-                                                                    rtTemp.SequenceOfLocations[secondOptionIndex] = d2.Location;
-                                                                    var tw1 = sol.RespectsTimeWindow2(rtTemp, firstOptionIndex, d1.Location);
-                                                                    if (!tw1.Item1 || !tw2.Item1)
-                                                                    {
-                                                                        psm.TimeWindowsError = true;
-                                                                        continue;
-                                                                    }
-                                                                    double costRemoved = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location) + sol.CalculateDistance(b1.Location, c1.Location);
-                                                                    double costAdded = sol.CalculateDistance(a2.Location, d2.Location) + sol.CalculateDistance(d2.Location, d1.Location) + sol.CalculateDistance(d1.Location, c1.Location);
-                                                                    moveCost = costAdded - costRemoved;
-                                                                    newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b2.Cust.Dem - c2.Cust.Dem + d2.Cust.Dem + d1.Cust.Dem)), 2);
-                                                                    newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric + newUtilizationMetricRoute1;
-                                                                }
-                                                            }
-                                                            else
-                                                            {
-                                                                if (rt1 == rt2)
-                                                                {
-                                                                    if (firstOptionIndex < secondOptionIndex)
-                                                                    {
-                                                                        var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, d1.Location);
-                                                                        if (!tw1.Item1)
-                                                                        {
-                                                                            continue;
-                                                                        }
-                                                                        //var rtTemp = new Route(rt1);
-                                                                        Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
-                                                                        rtTemp.SequenceOfOptions[firstOptionIndex] = d1;
-                                                                        rtTemp.SequenceOfCustomers[firstOptionIndex] = d1.Cust;
-                                                                        rtTemp.SequenceOfLocations[firstOptionIndex] = d1.Location;
-                                                                        var tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, d2.Location);
-                                                                        if (!tw1.Item1 || !tw2.Item1)
-                                                                        {
-                                                                            psm.TimeWindowsError = true;
-                                                                            continue;
-                                                                        }
-                                                                    }
-                                                                    else if (firstOptionIndex > secondOptionIndex)
-                                                                    {
-                                                                        var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, d2.Location);
-                                                                        if (!tw2.Item1)
-                                                                        {
-                                                                            continue;
-                                                                        }
-                                                                        //var rtTemp = new Route(rt2);
-                                                                        Route rtTemp = rt2.getTempCopy(rt2, sol.Options.Select(x => x.Location).ToHashSet().ToList());
-                                                                        rtTemp.SequenceOfOptions[secondOptionIndex] = d2;
-                                                                        rtTemp.SequenceOfCustomers[secondOptionIndex] = d2.Cust;
-                                                                        rtTemp.SequenceOfLocations[secondOptionIndex] = d2.Location;
-                                                                        var tw1 = sol.RespectsTimeWindow2(rtTemp, firstOptionIndex, d1.Location);
-                                                                        if (!tw1.Item1 || !tw2.Item1)
-                                                                        {
-                                                                            psm.TimeWindowsError = true;
-                                                                            continue;
-                                                                        }
-                                                                    }
-                                                                }
-                                                                else
-                                                                {
-                                                                    var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, d1.Location);
-                                                                    var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, d2.Location);
-                                                                    if (!tw1.Item1 || !tw2.Item1)
-                                                                    {
-                                                                        psm.TimeWindowsError = true;
-                                                                        continue;
-                                                                    }
-                                                                }
-                                                                //In any other case whether intra or inter route you break 4 arcs and create 4 new arcs
-                                                                double costRemoved1 = sol.CalculateDistance(a1.Location, b1.Location) + sol.CalculateDistance(b1.Location, c1.Location);
-                                                                double costRemoved2 = sol.CalculateDistance(a2.Location, b2.Location) + sol.CalculateDistance(b2.Location, c2.Location);
-                                                                double costAdded1 = sol.CalculateDistance(a1.Location, d1.Location) + sol.CalculateDistance(d1.Location, c1.Location);
-                                                                double costAdded2 = sol.CalculateDistance(a2.Location, d2.Location) + sol.CalculateDistance(d2.Location, c2.Location);
-                                                                newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem + d1.Cust.Dem)), 2);
-                                                                newUtilizationMetricRoute2 = Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load - b2.Cust.Dem + d2.Cust.Dem)), 2);
-                                                                newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
-                                                                if (rt1 != rt2)
-                                                                {
-                                                                    costChangeFirstRoute = costAdded1 - costRemoved1;
-                                                                    costChangeSecondRoute = costAdded2 - costRemoved2;
-                                                                }
-                                                                moveCost = costAdded1 + costAdded2 - (costRemoved1 + costRemoved2);
-                                                            }
-                                                        }
-
-                                                    }
-                                                    ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
-                                                    if (sol.Routes.Count == sol.LowerBoundRoutes)
-                                                    {
-                                                        ratio = 1;
-                                                    }
-                                                    sol.RatioCombinedMoveCost = ratio * moveCost;
-                                                    if (sol.RatioCombinedMoveCost < psm.MoveCost + smallDouble & moveCost != 0)
-                                                    {
-                                                        if (rt1 == rt2 && (firstOptionIndex == secondOptionIndex - 1 || secondOptionIndex == firstOptionIndex - 1))
-                                                        {
-                                                            if (firstOptionIndex == secondOptionIndex - 1)
-                                                            {
-                                                                if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                                {
-                                                                    continue;
-                                                                }
-                                                                if (PromiseIsBroken(d1.Id, d2.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                                {
-                                                                    continue;
-                                                                }
-                                                                if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                                {
-                                                                    continue;
-                                                                }
-                                                            }
-                                                            else if (secondOptionIndex == firstOptionIndex - 1)
-                                                            {
-                                                                if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                                {
-                                                                    continue;
-                                                                }
-                                                                if (PromiseIsBroken(d2.Id, d1.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                                {
-                                                                    continue;
-                                                                }
-                                                                if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                                {
-                                                                    continue;
-                                                                }
-                                                            }
-                                                        }
-                                                        else
-                                                        {
-                                                            if (PromiseIsBroken(a1.Id, d1.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                            {
-                                                                continue;
-                                                            }
-                                                            if (PromiseIsBroken(d1.Id, c1.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                            {
-                                                                continue;
-                                                            }
-                                                            if (PromiseIsBroken(a2.Id, d2.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                            {
-                                                                continue;
-                                                            }
-                                                            if (PromiseIsBroken(d2.Id, c2.Id, moveCost + sol.Cost + smallDouble, sol))
-                                                            {
-                                                                continue;
-                                                            }
-                                                        }
-                                                 
-                                                        psm.TotalCost = moveCost + openRoutes * 10000;
-                                                        psm.PositionOfFirstRoute = firstRouteIndex;
-                                                        psm.PositionOfSecondRoute = secondRouteIndex;
-                                                        psm.PositionOfFirstOption = firstOptionIndex;
-                                                        psm.PositionOfSecondOption = secondOptionIndex;
-                                                        psm.CostChangeFirstRt = costChangeFirstRoute;
-                                                        psm.CostChangeSecondRt = costChangeSecondRoute;
-                                                        psm.MoveCost = moveCost;
-                                                        //psm.AltOption1 = opt1;
-                                                        //psm.AltOption2 = opt2;
-                                                        psm.AltOption1 = sol.Options.Single(x => x.Id == opt1.Id);
-                                                        psm.AltOption2 = (Option)sol.Options.Single(x => x.Id == opt2.Id);
-                                                    }
-
-                                                }
-
+                                    if (notServedOptionB1.Prio == notServedOptionB2.Prio) {continue;} // No reason to check for options with the same priorities
+                                    if (notServedOptionB1.Prio != b2.Prio) {continue;} // If the priority of the cust B1 option that we want to insert is not the same with the priority of the cust B2 option that we want to remove continue
+                                    if (notServedOptionB2.Prio != b1.Prio) {continue;} // If the priority of the cust B2 option that we want to insert is not the same with the priority of the cust B1 option that we want to remove continue
+                                    // Do Time Window checks and Capacity checks
+                                    if (rt1.Load - b1.Cust.Dem + notServedOptionB1.Cust.Dem > rt1.Capacity) {continue;} // If the capacity of the route will be violated from the insertion continue
+                                    if (rt2.Load - b2.Cust.Dem + notServedOptionB2.Cust.Dem > rt2.Capacity) {continue;} // If the capacity of the route will be violated from the insertion continue
+                                    // Check if the time windows are respected for the insertion of the new options in different routes
+                                    if (rt1 != rt2) {
+                                        var tw1 = sol.RespectsTimeWindow2(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location);
+                                        var tw2 = sol.RespectsTimeWindow2(rt2, rt2.SequenceOfOptions.IndexOf(b2), notServedOptionB2.Location);
+                                        if (!tw1.Item1 || !tw2.Item1) {continue;}
+                                    }
+                                    else {
+                                        var tw1 = sol.RespectsTimeWindow2(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location);
+                                        if (!tw1.Item1) {continue;} // If the insertion of the first option leads to TW violation continue.
+                                        // If no TW window violation then insert the new option in the temp route and check for the second option
+                                        Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
+                                        List<int> sequenceOfOptionsIDrtTemp1 = rtTemp.SequenceOfOptions.Select(x => x.Id).ToList(); // Create this because rtTemp.SequenceOfOptions contains cloned objects that are not the same with rt1.SequenceOfOptions
+                                        int indexB1 = sequenceOfOptionsIDrtTemp1.IndexOf(b1.Id);
+                                        List<int> sequenceOfLocationsIDrtTemp1 = rtTemp.SequenceOfLocations.Select(x => x.Id).ToList(); // Create this because rtTemp.SequenceOfLocations contains cloned objects that are not the same with rt1.SequenceOfLocations
+                                        int indexB1Location = sequenceOfLocationsIDrtTemp1.IndexOf(b1.Location.Id);
+                                        rtTemp.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1)] = notServedOptionB1;
+                                        rtTemp.SequenceOfLocations[rt1.SequenceOfOptions.IndexOf(b1)] = notServedOptionB1.Location;
+                                        List<int> sequenceOfOptionsIDrtTemp2 = rtTemp.SequenceOfOptions.Select(x => x.Id).ToList(); // Create this because rtTemp.SequenceOfOptions contains cloned objects that are not the same with rt1.SequenceOfOptions
+                                        int indexB2 = sequenceOfOptionsIDrtTemp2.IndexOf(b2.Id);
+                                        List<int> sequenceOfLocationsIDrtTemp2 = rtTemp.SequenceOfLocations.Select(x => x.Id).ToList();
+                                        int indexB2Location = sequenceOfLocationsIDrtTemp2.IndexOf(b2.Location.Id);
+                                        var tw2 = sol.RespectsTimeWindow2(rtTemp, indexB2, notServedOptionB2.Location);
+                                        if (!tw2.Item1) {continue;} // If the insertion of the second option leads to TW violation continue.
+                                    }
+                                    double newUtilizationMetricRoute1 = 0;
+                                    double newUtilizationMetricRoute2 = 0;
+                                    double newSolUtilizationMetric = 0;
+                                    double costChangeFirstRoute = 0;
+                                    double costChangeSecondRoute = 0;
+                                    double moveCost = 0;
+                                    double ratio = 1;
+                                    // Calculate the cost of the move
+                                    if (rt1 != rt2) {
+                                        double costRemoved1 = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Location, b1.Location) + sol.CalculateDistance(b1.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Location);
+                                        double costAdded1 = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Location, notServedOptionB1.Location) + sol.CalculateDistance(notServedOptionB1.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Location);
+                                        double costRemoved2 = sol.CalculateDistance(rt2.SequenceOfOptions[rt2.SequenceOfOptions.IndexOf(b2) - 1].Location, b2.Location) + sol.CalculateDistance(b2.Location, rt2.SequenceOfOptions[rt2.SequenceOfOptions.IndexOf(b2) + 1].Location);
+                                        double costAdded2 = sol.CalculateDistance(rt2.SequenceOfOptions[rt2.SequenceOfOptions.IndexOf(b2) - 1].Location, notServedOptionB2.Location) + sol.CalculateDistance(notServedOptionB2.Location, rt2.SequenceOfOptions[rt2.SequenceOfOptions.IndexOf(b2) + 1].Location);
+                                        moveCost = costAdded1 + costAdded2 - costRemoved1 - costRemoved2;
+                                        costChangeFirstRoute = costAdded1 - costRemoved1;
+                                        costChangeSecondRoute = costAdded2 - costRemoved2;
+                                        newUtilizationMetricRoute1 = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem + notServedOptionB1.Cust.Dem)), 2);
+                                        newUtilizationMetricRoute2 = Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load - b2.Cust.Dem + notServedOptionB2.Cust.Dem)), 2);
+                                        newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
+                                    } else {
+                                        if (Math.Abs(rt1.SequenceOfOptions.IndexOf(b1) - rt1.SequenceOfOptions.IndexOf(b2)) == 1) { // Calculate cost change if they are next to each other
+                                            if (rt1.SequenceOfOptions.IndexOf(b1) < rt1.SequenceOfOptions.IndexOf(b2)) {
+                                                double costRemoved = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Location, b1.Location) + sol.CalculateDistance(b1.Location, b2.Location) + sol.CalculateDistance(b2.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) + 1].Location);
+                                                double costAdded = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Location, notServedOptionB1.Location) + sol.CalculateDistance(notServedOptionB1.Location, notServedOptionB2.Location) + sol.CalculateDistance(notServedOptionB2.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) + 1].Location);
+                                                moveCost = costAdded - costRemoved;
+                                            } else {
+                                                double costRemoved = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) - 1].Location, b2.Location) + sol.CalculateDistance(b2.Location, b1.Location) + sol.CalculateDistance(b1.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Location);
+                                                double costAdded = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) - 1].Location, notServedOptionB2.Location) + sol.CalculateDistance(notServedOptionB2.Location, notServedOptionB1.Location) + sol.CalculateDistance(notServedOptionB1.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Location);
+                                                moveCost = costAdded - costRemoved;
                                             }
-
+                                        } else {
+                                            double costRemoved = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Location, b1.Location) + sol.CalculateDistance(b1.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Location);
+                                            costRemoved += sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) - 1].Location, b2.Location) + sol.CalculateDistance(b2.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) + 1].Location);
+                                            double costAdded = sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Location, notServedOptionB1.Location) + sol.CalculateDistance(notServedOptionB1.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Location);
+                                            costAdded += sol.CalculateDistance(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) - 1].Location, notServedOptionB2.Location) + sol.CalculateDistance(notServedOptionB2.Location, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) + 1].Location);
+                                            moveCost = costAdded - costRemoved;
+                                        }
+                                        newSolUtilizationMetric = Math.Pow(Convert.ToDouble(rt1.Capacity - (rt1.Load - b1.Cust.Dem + notServedOptionB1.Cust.Dem + b2.Cust.Dem - notServedOptionB2.Cust.Dem)), 2);
+                                    }
+                                    ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
+                                    if (sol.Routes.Count == sol.LowerBoundRoutes) {
+                                        ratio = 1;
+                                    }
+                                    double ratioCombinedMoveCost = ratio * moveCost;
+                                    if (ratioCombinedMoveCost + openRoutes * 10000 < psm.TotalCost + smallDouble) {
+                                        if (rt1 == rt2) {
+                                            if (Math.Abs(rt1.SequenceOfOptions.IndexOf(b1) - rt1.SequenceOfOptions.IndexOf(b2)) == 1) { // Calculate cost change if they are next to each other
+                                                if (rt1.SequenceOfOptions.IndexOf(b1) < rt1.SequenceOfOptions.IndexOf(b2)) {
+                                                    if (PromiseIsBroken(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Id, notServedOptionB1.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                    if (PromiseIsBroken(notServedOptionB1.Id, notServedOptionB2.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                    if (PromiseIsBroken(notServedOptionB2.Id, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) + 1].Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                } else {
+                                                    if (PromiseIsBroken(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) - 1].Id, notServedOptionB2.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                    if (PromiseIsBroken(notServedOptionB2.Id, notServedOptionB1.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                    if (PromiseIsBroken(notServedOptionB1.Id, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                }
+                                            } else {
+                                                if (PromiseIsBroken(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Id, notServedOptionB1.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                if (PromiseIsBroken(notServedOptionB1.Id, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                if (PromiseIsBroken(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) - 1].Id, notServedOptionB2.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                                if (PromiseIsBroken(notServedOptionB2.Id, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b2) + 1].Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                            }
+                                        } else {
+                                            if (PromiseIsBroken(rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) - 1].Id, notServedOptionB1.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                            if (PromiseIsBroken(notServedOptionB1.Id, rt1.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1) + 1].Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                            if (PromiseIsBroken(rt2.SequenceOfOptions[rt2.SequenceOfOptions.IndexOf(b2) - 1].Id, notServedOptionB2.Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
+                                            if (PromiseIsBroken(notServedOptionB2.Id, rt2.SequenceOfOptions[rt2.SequenceOfOptions.IndexOf(b2) + 1].Id, moveCost + sol.Cost + smallDouble, sol)) {continue;}
                                         }
 
+                                        psm.TotalCost = moveCost + openRoutes * 10000;
+                                        psm.MoveCost = moveCost;
+                                        psm.PositionOfFirstRoute = sol.Routes.IndexOf(rt1);
+                                        psm.PositionOfSecondRoute = sol.Routes.IndexOf(rt2);
+                                        psm.PositionOfFirstOption = rt1.SequenceOfOptions.IndexOf(b1);
+                                        psm.PositionOfSecondOption = rt2.SequenceOfOptions.IndexOf(b2);
+                                        psm.CostChangeFirstRt = costChangeFirstRoute;
+                                        psm.CostChangeSecondRt = costChangeSecondRoute;
+                                        psm.AltOption1 = notServedOptionB1;
+                                        psm.AltOption2 = notServedOptionB2;
                                     }
                                 }
                             }
-
                         }
                     }
                 }
@@ -1213,39 +1053,33 @@ namespace VrdpoProject
                 {
                     Console.WriteLine("-----");
                 }
-                Option a1 = rt1.SequenceOfOptions[psm.PositionOfFirstOption - 1];
                 Option b1 = rt1.SequenceOfOptions[psm.PositionOfFirstOption];
-                Option c1 = rt1.SequenceOfOptions[psm.PositionOfFirstOption + 1];
-                Option d1 = psm.AltOption1;
-                Option a2 = rt2.SequenceOfOptions[psm.PositionOfSecondOption - 1];
+                // Option B2 = originRt.SequenceOfCustomers[flip.OriginOptionPosition].Options[flip.NewOptionIndex];
+                //Option d1 = psm.AltOption1;
+                Option d1 = rt1.SequenceOfCustomers[psm.PositionOfFirstOption].Options.FirstOrDefault(opt => opt.Id == psm.AltOption1.Id);
                 Option b2 = rt2.SequenceOfOptions[psm.PositionOfSecondOption];
-                Option c2 = rt2.SequenceOfOptions[psm.PositionOfSecondOption + 1];
-                Option d2 = psm.AltOption2;
-                /*
-                Console.WriteLine("This Priority Swap Move reduces cost by {0} ", psm.MoveCost);
-                Console.WriteLine("I change customer {0} from location {1} and priority {2} to location {3} and priority {4} ", b1.Cust.Id, b1.Location.Id, b1.Prio, d1.Location.Id, d1.Prio);
-                Console.WriteLine("I change customer {0} from location {1} and priority {2} to location {3} and priority {4} ", b2.Cust.Id, b2.Location.Id, b2.Prio, d2.Location.Id, d2.Prio);
-                if (rt1==rt2)
-                {
-                    Console.WriteLine("Same route");
-                    if (psm.PositionOfFirstOption == psm.PositionOfSecondOption + 1 || psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1) {
-                        Console.WriteLine("Next to each other");
-                    }
-                    Console.WriteLine("FirstOptionIndex {0} SecondOptionIndex {1} ", psm.PositionOfFirstOption, psm.PositionOfSecondOption);
-                    Console.WriteLine("b1 ID = {0} and a2 ID = {1} a1 ID = {2}", b1.Cust.Id, a2.Cust.Id, a1.Cust.Id);
-                    Console.WriteLine("c1 ID = {0} and b2 ID = {1} c2 ID = {2} ", c1.Cust.Id, b2.Cust.Id, c2.Cust.Id);
-                }
-                else
-                {
-                    Console.WriteLine("Different route");
-                }
-                */
+                //Option d2 = psm.AltOption2;
+                Option d2 = rt2.SequenceOfCustomers[psm.PositionOfSecondOption].Options.FirstOrDefault(opt => opt.Id == psm.AltOption2.Id);
+                //
+                Console.WriteLine("Customer 1: " + b1.Cust.Id);
+                Console.WriteLine("B1 ID: " + b1.Id + " D1 ID: " + d1.Id);
+                Console.WriteLine("Customer 2: " + b2.Cust.Id);
+                Console.WriteLine("B2 ID: " + b2.Id + " D2 ID: " + d2.Id);
+                Console.WriteLine("-----");
+                Console.WriteLine("Route 1 Before: " + string.Join(",", rt1.SequenceOfOptions.Select(x => x.Id).ToList()));
+                Console.WriteLine("Route 2 Before: " + string.Join(",", rt2.SequenceOfOptions.Select(x => x.Id).ToList()));
+                Console.WriteLine("-----");
+                //
                 rt1.SequenceOfOptions[psm.PositionOfFirstOption] = d1;
                 rt1.SequenceOfCustomers[psm.PositionOfFirstOption] = d1.Cust;
                 rt1.SequenceOfLocations[psm.PositionOfFirstOption] = d1.Location;
                 rt2.SequenceOfOptions[psm.PositionOfSecondOption] = d2;
                 rt2.SequenceOfCustomers[psm.PositionOfSecondOption] = d2.Cust;
                 rt2.SequenceOfLocations[psm.PositionOfSecondOption] = d2.Location;
+                Console.WriteLine("---------");
+                Console.WriteLine("Route 1 After: " + string.Join(",", rt1.SequenceOfOptions.Select(x => x.Id).ToList()));
+                Console.WriteLine("Route 2 After: " + string.Join(",", rt2.SequenceOfOptions.Select(x => x.Id).ToList()));
+                Console.WriteLine("---------");
                 b1.Location.Cap -= 1;
                 b2.Location.Cap -= 1;
                 d1.Location.Cap += 1;
@@ -1265,23 +1099,23 @@ namespace VrdpoProject
                     {
                         if (psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1)
                         {
-                            sol.Promises[a1.Id, d1.Id] = sol.Cost;
+                            sol.Promises[rt1.SequenceOfOptions[psm.PositionOfFirstOption - 1].Id, d1.Id] = sol.Cost;
                             sol.Promises[d1.Id, d2.Id] = sol.Cost;
-                            sol.Promises[d2.Id, c2.Id] = sol.Cost;
+                            sol.Promises[d2.Id, rt1.SequenceOfOptions[psm.PositionOfSecondOption + 1].Id] = sol.Cost;
                         }
                         else if (psm.PositionOfSecondOption == psm.PositionOfFirstOption - 1)
                         {
-                            sol.Promises[a2.Id, d2.Id] = sol.Cost;
+                            sol.Promises[rt1.SequenceOfOptions[psm.PositionOfSecondOption - 1].Id, d2.Id] = sol.Cost;
                             sol.Promises[d2.Id, d1.Id] = sol.Cost;
-                            sol.Promises[d1.Id, c1.Id] = sol.Cost;
+                            sol.Promises[d1.Id, rt1.SequenceOfOptions[psm.PositionOfFirstOption + 1].Id] = sol.Cost;
                         }
                     }
                     else
                     {
-                        sol.Promises[a1.Id, d1.Id] = sol.Cost;
-                        sol.Promises[d1.Id, c1.Id] = sol.Cost;
-                        sol.Promises[a2.Id, d2.Id] = sol.Cost;
-                        sol.Promises[d2.Id, c2.Id] = sol.Cost;
+                        sol.Promises[rt1.SequenceOfOptions[psm.PositionOfFirstOption - 1].Id, d1.Id] = sol.Cost;
+                        sol.Promises[d1.Id, rt1.SequenceOfOptions[psm.PositionOfFirstOption + 1].Id] = sol.Cost;
+                        sol.Promises[rt1.SequenceOfOptions[psm.PositionOfSecondOption - 1].Id, d2.Id] = sol.Cost;
+                        sol.Promises[d2.Id, rt1.SequenceOfOptions[psm.PositionOfSecondOption + 1].Id] = sol.Cost;
                     }
                     if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
                     {
@@ -1299,16 +1133,20 @@ namespace VrdpoProject
                     sol.UpdateTimes(rt1);
                     sol.UpdateTimes(rt2);
                     sol.Cost += psm.MoveCost;
-                    sol.Promises[a1.Id, d1.Id] = sol.Cost;
-                    sol.Promises[d1.Id, c1.Id] = sol.Cost;
-                    sol.Promises[a2.Id, d2.Id] = sol.Cost;
-                    sol.Promises[d2.Id, c2.Id] = sol.Cost;
+                    sol.Promises[rt1.SequenceOfOptions[psm.PositionOfFirstOption - 1].Id, d1.Id] = sol.Cost;
+                    sol.Promises[d1.Id, rt1.SequenceOfOptions[psm.PositionOfFirstOption + 1].Id] = sol.Cost;
+                    sol.Promises[rt2.SequenceOfOptions[psm.PositionOfSecondOption - 1].Id, d2.Id] = sol.Cost;
+                    sol.Promises[d2.Id, rt2.SequenceOfOptions[psm.PositionOfSecondOption + 1].Id] = sol.Cost;
                     if (!sol.CheckRouteFeasibility(rt1) || !sol.CheckRouteFeasibility(rt2))
                     {
                         Console.WriteLine("-----");
                     }
                 }
             }
+            //else
+            //{
+            //    Console.WriteLine("Invalid Priority Swap Move");
+            //}
         }
 
 
@@ -1323,6 +1161,68 @@ namespace VrdpoProject
             }
             rt.Load = tl;
             rt.Cost = tc;
+        }
+
+        double[] CalculateTempServiceLevel(Solution sol, int leavingPriority, int enteringPriority, bool verbal = false)
+        {
+            int po0Sum = 0;
+            int po1Sum = 0;
+            int po2Sum = 0;
+            double sum = 0;
+            int po = -1;
+
+            for (int r = 0; r < sol.Routes.Count; r++)
+            {
+                for (int c = 1; c < sol.Routes[r].SequenceOfOptions.Count - 1; c++)
+                {
+                    po = sol.Routes[r].SequenceOfOptions[c].Prio;
+                    switch (po)
+                    {
+                        case 0:
+                            po0Sum++;
+                            break;
+                        case 1:
+                            po1Sum++;
+                            break;
+                        case 2:
+                            po2Sum++;
+                            break;
+                    }
+                }
+            }
+            switch (leavingPriority)
+            {
+                case 0:
+                    po0Sum--;
+                    break;
+                case 1:
+                    po1Sum--;
+                    break;
+                case 2:
+                    po2Sum--;
+                    break;
+            }
+            switch (enteringPriority)
+            {
+                case 0:
+                    po0Sum++;
+                    break;
+                case 1:
+                    po1Sum++;
+                    break;
+                case 2:
+                    po2Sum++;
+                    break;
+            }
+            sum = po0Sum + po1Sum + po2Sum;
+            var sl0 = po0Sum / sum;
+            var sl1 = (po0Sum + po1Sum) / sum;
+            if (verbal) {
+                Console.WriteLine("Priority 1: {0}", sl0);
+                Console.WriteLine("Priority 2: {0}", sl1);
+            }
+
+            return new double[] {sl0, sl1};
         }
 
         //! make these to accept only tuples of ids not whole new options

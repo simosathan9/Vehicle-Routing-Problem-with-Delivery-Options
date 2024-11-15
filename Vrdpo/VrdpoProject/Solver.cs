@@ -156,19 +156,25 @@ namespace VrdpoProject
                     }
 
                     Double schemaRandom = rnd6.NextDouble();
-                    if (settings.schema == "greedy" && localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
+                    if (settings.schema == "greedy" ) //&& localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
-                        if (i - lastImprovement > 200 && rnd7.NextDouble() > 0.97) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
+                        
+                        if (i - lastImprovement > 200 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
                         {
                             flip = ls.FindBestFlipMove(flip, currentSol);
-                            Console.WriteLine("Apply random flip");
                             ls.ApplyFlipMove(flip, currentSol);
+                            Console.WriteLine("Apply random flip");
+                            //Console.WriteLine("Apply random psm");
+                            //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                            //ls.ApplyPrioritySwapMove(psm, currentSol);
+                            continue;
                         }
 
                         sm = ls.FindBestSwapMove(sm, currentSol);
                         rm = ls.FindBestRelocationMove(rm, currentSol);
                         top = ls.FindBestTwoOptMove(top, currentSol);
                         psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                        flip = ls.FindBestFlipMove(flip, currentSol);
 
                         //if (i > 1000 && ((i - c) > 200))
                         //{
@@ -177,7 +183,7 @@ namespace VrdpoProject
                         //}
 
                         var mincost = double.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, top, flip);
+                        mincost = FindMinMoveCost(sm, rm, top, flip, psm); 
                         
                         /* Remove Comment for Simulated Annealing
                         if (mincost > 0) {
@@ -211,14 +217,15 @@ namespace VrdpoProject
                         }
                         else if (mincost == flip.TotalCost)
                         {
-                            Console.WriteLine("Apply flip");
                             ls.ApplyFlipMove(flip, currentSol);
+                            //Console.WriteLine("Apply flip");
                         }
-                        //else if (mincost == psm.TotalCost)
-                        //{
-                        //    Console.WriteLine("Apply priority swap");
-                        //    ls.ApplyPrioritySwapMove(psm, currentSol);
-                        //}
+                        
+                        else if (mincost == psm.TotalCost)
+                        {
+                            ls.ApplyPrioritySwapMove(psm, currentSol);
+                            Console.WriteLine("Apply priority swap");   
+                        }
                         ulong hashCode = currentSol.getSolutionOptionsHashCode();
                         if (frequencyMap.ContainsKey(hashCode))
                         {
@@ -324,11 +331,11 @@ namespace VrdpoProject
                             Console.WriteLine();
                         }
                         currentSol.Routes = currentSol.Routes.Where(rt => rt.SequenceOfLocations.Count != 2).ToList();
-                        Console.WriteLine("{0} {1} {2} {3} {4} {5}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove, currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList());
+                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove, currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList());
                     }
                     if (settings.verbal)
                     {
-                        Console.WriteLine("{0} {1} {2} {3} {4}", i, (double)currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), string.Join(',', currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList()));
+                        Console.WriteLine("{0} {1} {2} {3}", i, (double)currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), string.Join(',', currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList()));
                     }
                 }
                 restartTimer.Stop();
@@ -700,6 +707,7 @@ namespace VrdpoProject
         }
 
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost), psm.TotalCost);
+        private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), psm.TotalCost);
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
         private double FindMinMoveCost(Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(rm.TotalCost, flip.TotalCost), psm.TotalCost);
         private double FindMinMoveCost(Swap sm, Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), flip.TotalCost), psm.TotalCost);
