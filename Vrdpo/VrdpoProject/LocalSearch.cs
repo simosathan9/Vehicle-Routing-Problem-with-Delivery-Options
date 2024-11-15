@@ -887,11 +887,23 @@ namespace VrdpoProject
 
         public PrioritySwap FindBestPrioritySwapMove(PrioritySwap psm, Solution sol)
         {
-            Dictionary<int, List<Option>> optionsPerCustomer = sol.Customers.ToDictionary(x => x.Id, x => new List<Option>());
-            // Create a Dictionary where keys are Customer objects and values a list with the Option objects of that Customer
-            foreach (Customer c in sol.Customers) {
-                foreach (Option opt in c.Options) {
-                    optionsPerCustomer[c.Id].Add(opt); // Add the options that correspond to Customer c to its List
+            Dictionary<int, List<Option>> optionsPerCustomer = new Dictionary<int, List<Option>>();
+            foreach (Route rt in sol.Routes)
+            {
+            // Iterate through Route 1 customers and their corresponding options
+                for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
+                {
+                    Customer customer = rt.SequenceOfCustomers[i];
+                    Option option = rt.SequenceOfOptions[i];
+
+                    // If the customer is not already in the dictionary, add them
+                    if (!optionsPerCustomer.ContainsKey(customer.Id))
+                    {
+                        optionsPerCustomer[customer.Id] = new List<Option>();
+                    }
+
+                    // Add the current option to the customer's option list
+                    optionsPerCustomer[customer.Id].Add(option);
                 }
             }
             Option b1, b2;
@@ -920,7 +932,7 @@ namespace VrdpoProject
                                 notServedOptionsCustomerB2.Remove(b2); // remove the option that is currently served from the not served options list
                                 foreach (Option notServedOptionB2 in notServedOptionsCustomerB2) {
                                     if (notServedOptionB2.Location.Type == 1 && notServedOptionB2.Location.Cap >= notServedOptionB2.Location.MaxCap) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
-                                    if (notServedOptionB1.Location == notServedOptionB2.Location) {
+                                    if (notServedOptionB1.Location.Id.Equals(notServedOptionB2.Location.Id)) {
                                         if (notServedOptionB1.Location.Cap >= notServedOptionB1.Location.MaxCap - 1) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
                                     }
                                     if (notServedOptionB1.Prio == notServedOptionB2.Prio) {continue;} // No reason to check for options with the same priorities
