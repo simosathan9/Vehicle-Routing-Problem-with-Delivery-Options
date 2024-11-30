@@ -159,14 +159,26 @@ namespace VrdpoProject
                     if (settings.schema == "greedy" ) //&& localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
                         
-                        if (i - lastImprovement > 200 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
+                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
                         {
+                            //flip = ls.FindBestFlipMove(flip, currentSol);
+                            //ls.ApplyFlipMove(flip, currentSol);
+                            //Console.WriteLine("Apply random flip");
+                            psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             flip = ls.FindBestFlipMove(flip, currentSol);
-                            ls.ApplyFlipMove(flip, currentSol);
-                            Console.WriteLine("Apply random flip");
-                            //Console.WriteLine("Apply random psm");
-                            //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                            var localMinCost = FindMinMoveCost(flip, psm);
+                            if (localMinCost == flip.TotalCost)
+                            {
+                                ls.ApplyFlipMove(flip, currentSol);
+                                Console.WriteLine("Apply random flip");
+                            }
+                            else if (localMinCost == psm.TotalCost)
+                            {
+                                ls.ApplyPrioritySwapMove(psm, currentSol);
+                                Console.WriteLine("Apply random priority swap");
+                            }
                             //ls.ApplyPrioritySwapMove(psm, currentSol);
+                            //Console.WriteLine("Apply random priority swap");
                             continue;
                         }
 
@@ -176,22 +188,18 @@ namespace VrdpoProject
                         psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                         flip = ls.FindBestFlipMove(flip, currentSol);
 
-                        //if (i > 1000 && ((i - c) > 200))
-                        //{
-                        //    c = i;
-                        //    flip = ls.FindBestFlipMove(flip, currentSol);
-                        //}
-
                         var mincost = double.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, top, flip, psm); 
+                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        int openRoutesTemp = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
+                        var minCostChange = mincost - openRoutesTemp * 10000 - currentSol.Cost;
                         
                         /* Remove Comment for Simulated Annealing
-                        if (mincost > 0) {
-                            double delta = mincost;
+                        if (minCostChange > 0) {
+                            double delta = minCostChange;
                             double probability = Math.Exp(-delta / temperature);
                             Console.WriteLine("Temperature: " + temperature + "Delta: " + delta);
-                            Console.WriteLine("Probability: " + probability);
-                            double pt = rnd.Nextdouble();
+                            //Console.WriteLine("Probability: " + probability);
+                            double pt = rnd.NextDouble();
                             if (pt >= probability) {
                                 continue;
                             }
@@ -220,7 +228,6 @@ namespace VrdpoProject
                             ls.ApplyFlipMove(flip, currentSol);
                             //Console.WriteLine("Apply flip");
                         }
-                        
                         else if (mincost == psm.TotalCost)
                         {
                             ls.ApplyPrioritySwapMove(psm, currentSol);
@@ -318,6 +325,46 @@ namespace VrdpoProject
                     {
                         Console.WriteLine("Infeasible Solution!!!");
                     }
+
+                    Solution checkingSolution = new Solution();
+                    Route route1 = new Route(40, 150, checkingSolution.Depot);
+                    Route route2 = new Route(41, 150, checkingSolution.Depot);
+                    Route route3 = new Route(42, 150, checkingSolution.Depot);
+                    checkingSolution.Routes.Add(route1);
+                    checkingSolution.Routes.Add(route2);
+                    checkingSolution.Routes.Add(route3);
+                    //checkingSolution.Routes[0].SequenceOfOptions = new List<Option>();
+                    //checkingSolution.Routes[1].SequenceOfOptions = new List<Option>();
+                    //checkingSolution.Routes[2].SequenceOfOptions = new List<Option>();
+                    List<int> list1 = [26,19, 25, 9, 2, 17, 31, 6, 8];
+                    List<int> list2 = [0, 3, 22, 47, 5, 38, 10];
+                    List<int> list3 = [45, 14, 7, 42, 1, 4, 13, 34, 35];
+                    var optionsToAdd1 = checkingSolution.Options
+                        .Where(x => list1.Contains(x.Id))
+                        .OrderBy(x => list1.IndexOf(x.Id)) // Order by the index in list1
+                        .ToList();
+                    checkingSolution.Routes[0].SequenceOfOptions.AddRange(optionsToAdd1);
+
+                    // Ensure options are added in the order specified in list2
+                    var optionsToAdd2 = checkingSolution.Options
+                        .Where(x => list2.Contains(x.Id))
+                        .OrderBy(x => list2.IndexOf(x.Id)) // Order by the index in list2
+                        .ToList();
+                    checkingSolution.Routes[1].SequenceOfOptions.AddRange(optionsToAdd2);
+
+                    // Ensure options are added in the order specified in list3
+                    var optionsToAdd3 = checkingSolution.Options
+                        .Where(x => list3.Contains(x.Id))
+                        .OrderBy(x => list3.IndexOf(x.Id)) // Order by the index in list3
+                        .ToList();
+                    checkingSolution.Routes[2].SequenceOfOptions.AddRange(optionsToAdd3);
+                    Option opt = checkingSolution.Routes[0].SequenceOfOptions[0];
+                    checkingSolution.Routes[0].SequenceOfOptions.RemoveAt(0);
+                    checkingSolution.Routes[1].SequenceOfOptions.RemoveAt(0);
+                    checkingSolution.Routes[2].SequenceOfOptions.RemoveAt(0);
+                    checkingSolution.Routes[0].SequenceOfOptions.Add(opt);
+                    checkingSolution.Routes[1].SequenceOfOptions.Add(opt);
+                    checkingSolution.Routes[2].SequenceOfOptions.Add(opt);
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
                     int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
@@ -711,6 +758,7 @@ namespace VrdpoProject
         private double FindMinMoveCost(Swap sm, Relocation rm, TwoOpt top, Flip flip) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
         private double FindMinMoveCost(Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(rm.TotalCost, flip.TotalCost), psm.TotalCost);
         private double FindMinMoveCost(Swap sm, Relocation rm, Flip flip, PrioritySwap psm) => Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), flip.TotalCost), psm.TotalCost);
+        private double FindMinMoveCost(Flip flip, PrioritySwap psm) => Math.Min(flip.TotalCost, psm.TotalCost);
         void SetRoutedToFalse(List<Customer> customers)
         {
             foreach(Customer customer1 in customers)
@@ -1048,8 +1096,8 @@ namespace VrdpoProject
                 }
             }
             sum = po0Sum + po1Sum + po2Sum;
-            var sl0 = po0Sum / sum;
-            var sl1 = (po0Sum + po1Sum) / sum;
+            var sl0 = (double)po0Sum / sum;
+            var sl1 = (double)(po0Sum + po1Sum) / sum;
             if (verbal) {
                 Console.WriteLine("Priority 1: {0}", sl0);
                 Console.WriteLine("Priority 2: {0}", sl1);
