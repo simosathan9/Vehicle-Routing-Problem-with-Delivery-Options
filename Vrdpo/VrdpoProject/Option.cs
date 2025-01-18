@@ -24,13 +24,13 @@ namespace VrdpoProject
             this.location = location;
             this.cust = cust;
             this.prio = prio;
-            this.serviceTime = (serviceTime * 10);//+ location.ServiceTime;
+            this.serviceTime = (serviceTime * 10);
             this.cost = cost;
             isServed = false;
             this.ready = ready;
             this.due = due;
         }
-
+        
         public Option Clone(Location loc)
         {
             // needs to add cloned customer seperately

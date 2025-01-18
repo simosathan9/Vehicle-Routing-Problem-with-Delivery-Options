@@ -8,6 +8,8 @@ using Microsoft.VisualBasic.FileIO;
 using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+
 
 namespace VrdpoProject
 {
@@ -22,6 +24,7 @@ namespace VrdpoProject
         TimeSpan globalBestTime = TimeSpan.Zero;
         public void Solve()
         {
+            Console.WriteLine($"Running on: {RuntimeInformation.FrameworkDescription}");
             string jsonContent = File.ReadAllText("settings.json");
             var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
             var totalTimer = new Stopwatch();
@@ -61,6 +64,9 @@ namespace VrdpoProject
             }
             else
             {
+                Solution checkingSolution = new Solution();
+                //checkingSolution.TestSolution(checkingSolution);
+
                 Solution lc_sol = new Solution();
                 lc_sol = LocalSearch();
                 PrintSolution(lc_sol);
@@ -170,12 +176,12 @@ namespace VrdpoProject
                             if (localMinCost == flip.TotalCost)
                             {
                                 ls.ApplyFlipMove(flip, currentSol);
-                                Console.WriteLine("Apply random flip");
+                                //Console.WriteLine("Apply random flip");
                             }
                             else if (localMinCost == psm.TotalCost)
                             {
                                 ls.ApplyPrioritySwapMove(psm, currentSol);
-                                Console.WriteLine("Apply random priority swap");
+                                //Console.WriteLine("Apply random priority swap");
                             }
                             //ls.ApplyPrioritySwapMove(psm, currentSol);
                             //Console.WriteLine("Apply random priority swap");
@@ -231,7 +237,7 @@ namespace VrdpoProject
                         else if (mincost == psm.TotalCost)
                         {
                             ls.ApplyPrioritySwapMove(psm, currentSol);
-                            Console.WriteLine("Apply priority swap");   
+                           // Console.WriteLine("Apply priority swap");   
                         }
                         ulong hashCode = currentSol.getSolutionOptionsHashCode();
                         if (frequencyMap.ContainsKey(hashCode))
@@ -325,46 +331,6 @@ namespace VrdpoProject
                     {
                         Console.WriteLine("Infeasible Solution!!!");
                     }
-
-                    Solution checkingSolution = new Solution();
-                    Route route1 = new Route(40, 150, checkingSolution.Depot);
-                    Route route2 = new Route(41, 150, checkingSolution.Depot);
-                    Route route3 = new Route(42, 150, checkingSolution.Depot);
-                    checkingSolution.Routes.Add(route1);
-                    checkingSolution.Routes.Add(route2);
-                    checkingSolution.Routes.Add(route3);
-                    //checkingSolution.Routes[0].SequenceOfOptions = new List<Option>();
-                    //checkingSolution.Routes[1].SequenceOfOptions = new List<Option>();
-                    //checkingSolution.Routes[2].SequenceOfOptions = new List<Option>();
-                    List<int> list1 = [26,19, 25, 9, 2, 17, 31, 6, 8];
-                    List<int> list2 = [0, 3, 22, 47, 5, 38, 10];
-                    List<int> list3 = [45, 14, 7, 42, 1, 4, 13, 34, 35];
-                    var optionsToAdd1 = checkingSolution.Options
-                        .Where(x => list1.Contains(x.Id))
-                        .OrderBy(x => list1.IndexOf(x.Id)) // Order by the index in list1
-                        .ToList();
-                    checkingSolution.Routes[0].SequenceOfOptions.AddRange(optionsToAdd1);
-
-                    // Ensure options are added in the order specified in list2
-                    var optionsToAdd2 = checkingSolution.Options
-                        .Where(x => list2.Contains(x.Id))
-                        .OrderBy(x => list2.IndexOf(x.Id)) // Order by the index in list2
-                        .ToList();
-                    checkingSolution.Routes[1].SequenceOfOptions.AddRange(optionsToAdd2);
-
-                    // Ensure options are added in the order specified in list3
-                    var optionsToAdd3 = checkingSolution.Options
-                        .Where(x => list3.Contains(x.Id))
-                        .OrderBy(x => list3.IndexOf(x.Id)) // Order by the index in list3
-                        .ToList();
-                    checkingSolution.Routes[2].SequenceOfOptions.AddRange(optionsToAdd3);
-                    Option opt = checkingSolution.Routes[0].SequenceOfOptions[0];
-                    checkingSolution.Routes[0].SequenceOfOptions.RemoveAt(0);
-                    checkingSolution.Routes[1].SequenceOfOptions.RemoveAt(0);
-                    checkingSolution.Routes[2].SequenceOfOptions.RemoveAt(0);
-                    checkingSolution.Routes[0].SequenceOfOptions.Add(opt);
-                    checkingSolution.Routes[1].SequenceOfOptions.Add(opt);
-                    checkingSolution.Routes[2].SequenceOfOptions.Add(opt);
 
                     var serviceLevel = CalculateServiceLevel(currentSol, false);
                     int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
@@ -995,7 +961,7 @@ namespace VrdpoProject
             insertion.Route.Duration += insertion.Duration;
             insertion.Route.Cost += insertion.Cost;
             insertion.Route.Load += insertion.Customer.Dem;
-            insertion.Route.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(insertion.Route.Capacity - insertion.Route.Load), 2);
+            insertion.Route.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(insertion.Route.Capacity - insertion.Route.Load), 2); // power change
             insertion.Customer.IsRouted = true;
             insertion.Option.IsServed = true;
             sol.Cost += insertion.Cost;
@@ -1068,7 +1034,7 @@ namespace VrdpoProject
             }
             return modelIsFeasible;
         }
-        double[] CalculateServiceLevel(Solution sol, bool verbal = true)
+        public double[] CalculateServiceLevel(Solution sol, bool verbal = true)
         {
             int po0Sum = 0;
             int po1Sum = 0;

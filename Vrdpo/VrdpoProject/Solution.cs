@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Schema;
 using OxyPlot;
 //using Newtonsoft.Json;
 
@@ -221,7 +222,7 @@ namespace VrdpoProject
 
             if (l.Id == rt.SequenceOfLocations[loc + 1].Id)
             {
-                lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]), l.Due - l.ServiceTime); //??
+                lat = Math.Min(rt.SequenceOfLat[loc + 1] - CalculateTime(l, rt.SequenceOfLocations[loc + 1]), l.Due - l.ServiceTime);
 
                if (l.Id == rt.SequenceOfLocations[loc].Id)
                 {
@@ -329,7 +330,7 @@ namespace VrdpoProject
 
                     if (rt.SequenceOfLocations[k].Id == location.Id)
                     {
-                        lats[j + 1] += (rt.SequenceOfLocations[k].ServiceTime);//- 20);
+                        lats[j + 1] += (rt.SequenceOfLocations[k].ServiceTime);
 
                         lats[j] = Math.Min(location.Due - location.ServiceTime,
                                                lats[j + 1] - CalculateTime(location, rt.SequenceOfLocations[k + 1])
@@ -401,7 +402,7 @@ namespace VrdpoProject
                                                + tempRoute.SequenceOfLocations[i].ServiceTime);
                 if (tempRoute.SequenceOfLocations[i - 1] == tempRoute.SequenceOfLocations[i])
                 {
-                    tempRoute.SequenceOfEct[i] -= (tempRoute.SequenceOfLocations[i].ServiceTime);// - 20);
+                    tempRoute.SequenceOfEct[i] -= (tempRoute.SequenceOfLocations[i].ServiceTime);
                 }
                 tempRoute.SequenceOfEct.Insert(tempRoute.SequenceOfEct.Count - 1, ect);
             }
@@ -413,7 +414,7 @@ namespace VrdpoProject
                                                - tempRoute.SequenceOfLocations[j].ServiceTime);
                 if (tempRoute.SequenceOfLocations[j + 1] == tempRoute.SequenceOfLocations[j])
                 {
-                    tempRoute.SequenceOfLat[j + 1] += (tempRoute.SequenceOfLocations[j + 1].ServiceTime);//- 20);
+                    tempRoute.SequenceOfLat[j + 1] += (tempRoute.SequenceOfLocations[j + 1].ServiceTime);
 
                     lat = Math.Min(tempRoute.SequenceOfLocations[j].Due - tempRoute.SequenceOfLocations[j].ServiceTime,
                                                tempRoute.SequenceOfLat[j + 1] - CalculateTime(tempRoute.SequenceOfLocations[j], tempRoute.SequenceOfLocations[j + 1])
@@ -504,7 +505,6 @@ namespace VrdpoProject
             double utilizationMetric = 0;
             foreach (Route rt in Routes)
             {
-                //Console.WriteLine(rt.RouteUtilizationMetric);
                 utilizationMetric += rt.RouteUtilizationMetric;
             }
             return utilizationMetric;
@@ -560,6 +560,91 @@ namespace VrdpoProject
             return true;
         }
 
+        public void TestSolution(Solution checkingSolution)
+        {
+            Route route1 = new Route(40, 150, checkingSolution.Depot);
+            Route route2 = new Route(41, 150, checkingSolution.Depot);
+            Route route3 = new Route(42, 150, checkingSolution.Depot);
+            checkingSolution.Routes.Add(route1);
+            checkingSolution.Routes.Add(route2);
+            checkingSolution.Routes.Add(route3);
+
+            List<int> list1 = new List<int> { 26, 19, 25, 9, 2, 17, 31, 6, 8 };
+            List<int> list2 = new List<int> { 0, 3, 22, 47, 5, 38, 10 };
+            List<int> list3 = new List<int> { 45, 14, 7, 42, 1, 4, 13, 34, 35 };
+
+            var optionsToAdd1 = checkingSolution.Options
+                .Where(x => list1.Contains(x.Id))
+                .OrderBy(x => list1.IndexOf(x.Id)) 
+                .ToList();
+            checkingSolution.Routes[0].SequenceOfOptions.AddRange(optionsToAdd1);
+
+            var optionsToAdd2 = checkingSolution.Options
+                .Where(x => list2.Contains(x.Id))
+                .OrderBy(x => list2.IndexOf(x.Id)) 
+                .ToList();
+            checkingSolution.Routes[1].SequenceOfOptions.AddRange(optionsToAdd2);
+
+            var optionsToAdd3 = checkingSolution.Options
+                .Where(x => list3.Contains(x.Id))
+                .OrderBy(x => list3.IndexOf(x.Id)) 
+                .ToList();
+            checkingSolution.Routes[2].SequenceOfOptions.AddRange(optionsToAdd3);
+
+            Option opt = checkingSolution.Routes[0].SequenceOfOptions[0];
+            checkingSolution.Routes[0].SequenceOfOptions.RemoveAt(0);
+            checkingSolution.Routes[1].SequenceOfOptions.RemoveAt(0);
+            checkingSolution.Routes[2].SequenceOfOptions.RemoveAt(0);
+            checkingSolution.Routes[0].SequenceOfOptions.Add(opt);
+            checkingSolution.Routes[1].SequenceOfOptions.Add(opt);
+            checkingSolution.Routes[2].SequenceOfOptions.Add(opt);
+
+            var sequenceOfLocations1 = checkingSolution.Routes[0]
+                .SequenceOfOptions
+                .Select(option => option.Location)
+                .ToList();
+
+            var sequenceOfLocations2 = checkingSolution.Routes[1]
+                .SequenceOfOptions
+                .Select(option => option.Location)
+                .ToList();
+
+            var sequenceOfLocations3 = checkingSolution.Routes[2]
+                .SequenceOfOptions
+                .Select(option => option.Location)
+                .ToList();
+
+            checkingSolution.Routes[0].SequenceOfLocations = new();
+            checkingSolution.Routes[0].SequenceOfLocations.AddRange(sequenceOfLocations1);
+            checkingSolution.Routes[1].SequenceOfLocations = new();
+            checkingSolution.Routes[1].SequenceOfLocations.AddRange(sequenceOfLocations2);
+            checkingSolution.Routes[2].SequenceOfLocations = new();
+            checkingSolution.Routes[2].SequenceOfLocations.AddRange(sequenceOfLocations3);
+
+            double cost = 0;
+            foreach (Route rt in checkingSolution.Routes)
+            {
+                for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
+                {
+                    Option currentOpt = rt.SequenceOfOptions[i];
+                    Option nextOpt = rt.SequenceOfOptions[i + 1];
+                    bool tw = CalculateTimes(rt);
+                    if (!tw)
+                    {
+                        Console.WriteLine("Time Window Feasibility Error");
+                    }
+                    cost += CalculateDistance(rt.SequenceOfOptions[i].Location, nextOpt.Location);
+                }
+                //rt1 total time: 5998
+                //rt2 total time: 6581
+                //rt3 total time: 4643
+                //total cost: 2805
+            }
+            Solver solp = new Solver();
+            solp.CalculateServiceLevel(checkingSolution, true);
+            CheckEverything(checkingSolution);
+        }
+
         public bool CheckRouteFeasibility(Route rt)
         {
             int totalCapacity = 0;
@@ -612,6 +697,48 @@ namespace VrdpoProject
         public void RemoveEmptyRoutes()
         {
             this.Routes.RemoveAll(rt => rt.Load == 0);
+        }
+
+        public bool Check(Solution sol)
+        {
+            cost = 0;
+            foreach (Route rt in sol.Routes)
+            {
+                double totalTime = 0;
+                for (int i = 0; i < rt.SequenceOfLocations.Count - 1; i++)
+                {
+                    totalTime += CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i + 1]);
+
+                    if (rt.SequenceOfLocations[i + 1].Ready > totalTime)
+                    {
+                        totalTime = rt.SequenceOfLocations[i + 1].Ready;
+                    }
+
+                    if (rt.SequenceOfLocations[i].Id != rt.SequenceOfLocations[i + 1].Id)
+                    {
+                        totalTime += rt.SequenceOfLocations[i + 1].ServiceTime;
+                    }
+
+                    if (!(totalTime <= rt.SequenceOfLocations[i + 1].Due))
+                    {
+                        return false;
+                    }
+                }
+
+                for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
+                {
+                    Option currentOpt = rt.SequenceOfOptions[i];
+                    Option nextOpt = rt.SequenceOfOptions[i + 1];
+                    cost += CalculateDistance(rt.SequenceOfOptions[i].Location, nextOpt.Location);
+                }
+            }
+            Console.WriteLine("Cost: " + cost);
+            if (sol.Cost != cost)
+            {
+                Console.WriteLine("Cost: " + cost);
+                return false;
+            }
+            return true;
         }
 
         //public void ExportToJson(string filePath)
