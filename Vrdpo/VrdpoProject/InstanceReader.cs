@@ -61,7 +61,7 @@ namespace VrdpoProject
         public void BuildModel()
         {
             depot = new Location(Int32.Parse(temp1[0]), Int32.Parse(temp1[1]), Int32.Parse(temp1[2]),
-                Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[6]), 0);
+                Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[7]), 0);
             allLocations.Add(depot);
 
             for (var i = 6; i < 6 + numbCus; i++)
@@ -75,15 +75,17 @@ namespace VrdpoProject
             for (var j = 9 + numbCus; j < 8 + numbCus + numbLoc; j++)
             {
                 string[] temp2 = Regex.Split(instance[j], @"\t+");
+                var type = Int32.Parse(temp2[6]);
                 Location loc = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]),
-                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), 10*Int32.Parse(temp2[7]), 0);
-                if (loc.Type == 1)
-                {
-                    loc.Due += 20;
-                } else if (loc.Type == 2)
-                {
-                    loc.Due += 50;
-                }
+                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), 10*Int32.Parse(temp2[7]), type==1?20:50,0);
+                //if (loc.Type == 1)
+                //{
+                //    loc.Due += 20;
+                //}
+                //else if (loc.Type == 2)
+                //{
+                //    loc.Due += 50;
+                //}
                 allLocations.Add(loc);
             }
             

@@ -17,8 +17,9 @@ namespace VrdpoProject
         private int type;
         private int serviceTime;
         private int cap = 0;
+        private int deliveryServiceTime;
         //private int customer_id option_id
-        public Location(int id, int xx, int yy, int maxCap, int ready, int due, int type, int serviceTime, int cap=0)
+        public Location(int id, int xx, int yy, int maxCap, int ready, int due, int type, int serviceTime, int deliveryServiceTime, int cap=0)
         {
             this.id = id;
             this.xx = xx;
@@ -29,10 +30,11 @@ namespace VrdpoProject
             this.type = type;
             this.serviceTime = serviceTime;
             this.cap = cap;
+            this.DeliveryServiceTime = deliveryServiceTime;
         }
         public Location Clone()
         {
-            return new Location(this.Id, this.Xx, this.Yy, this.maxCap, this.Ready, this.Due, this.Type, this.serviceTime, this.cap);
+            return new Location(this.Id, this.Xx, this.Yy, this.maxCap, this.Ready, this.Due, this.Type, this.serviceTime, this.DeliveryServiceTime, this.cap);
         }
 
         public int Id { get => id; set => id = value; }
@@ -44,5 +46,6 @@ namespace VrdpoProject
         public int Type { get => type; set => type = value; }
         public int ServiceTime { get => serviceTime; set => serviceTime = value; }
         public int Cap { get => cap; set => cap = value; }
+        public int DeliveryServiceTime { get => deliveryServiceTime; set => deliveryServiceTime = value; }
     }
 }

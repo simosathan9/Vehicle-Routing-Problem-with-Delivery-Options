@@ -20,18 +20,6 @@ namespace VrdpoProject
         private double ect;
         private double lat;
 
-        public CustomerInsertionAllPositions(Customer customer, Route route, int insertionPosition,
-            double cost, double costPenalized, double duration, Option option, Location location)
-        {
-            this.customer = customer;
-            this.route = route;
-            this.insertionPosition = insertionPosition;
-            this.cost = cost;
-            this.costPenalized = costPenalized;
-            this.duration = duration;
-            this.option = option;
-            this.location = location;
-        }
 
         public CustomerInsertionAllPositions()
         {
@@ -54,6 +42,9 @@ namespace VrdpoProject
             this.duration = original.duration;
             this.option = original.option;
             this.location = original.location;
+            
+            this.Ect = original.Ect;
+            this.Lat = original.Lat;
         }
 
         public int InsertionPosition { get => insertionPosition; set => insertionPosition = value; }

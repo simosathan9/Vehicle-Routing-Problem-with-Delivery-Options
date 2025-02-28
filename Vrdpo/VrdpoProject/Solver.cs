@@ -141,6 +141,7 @@ namespace VrdpoProject
                 }
 
                 restartCounter++;
+                Console.WriteLine("Restart: " + restartCounter);
                 for (int i = 0; i < settings.repetitions; i++)
                 {
                     if (i - lastImprovement > 3000)
@@ -165,11 +166,8 @@ namespace VrdpoProject
                     if (settings.schema == "greedy" ) //&& localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
                         
-                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)
+                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)0.99
                         {
-                            //flip = ls.FindBestFlipMove(flip, currentSol);
-                            //ls.ApplyFlipMove(flip, currentSol);
-                            //Console.WriteLine("Apply random flip");
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             flip = ls.FindBestFlipMove(flip, currentSol);
                             var localMinCost = FindMinMoveCost(flip, psm);
@@ -183,8 +181,7 @@ namespace VrdpoProject
                                 ls.ApplyPrioritySwapMove(psm, currentSol);
                                 //Console.WriteLine("Apply random priority swap");
                             }
-                            //ls.ApplyPrioritySwapMove(psm, currentSol);
-                            //Console.WriteLine("Apply random priority swap");
+
                             continue;
                         }
 
@@ -196,6 +193,7 @@ namespace VrdpoProject
 
                         var mincost = double.MaxValue;
                         mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        //mincost = FindMinMoveCost(sm, rm, flip, psm);
                         int openRoutesTemp = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
                         var minCostChange = mincost - openRoutesTemp * 10000 - currentSol.Cost;
                         
@@ -232,12 +230,10 @@ namespace VrdpoProject
                         else if (mincost == flip.TotalCost)
                         {
                             ls.ApplyFlipMove(flip, currentSol);
-                            //Console.WriteLine("Apply flip");
                         }
                         else if (mincost == psm.TotalCost)
                         {
                             ls.ApplyPrioritySwapMove(psm, currentSol);
-                           // Console.WriteLine("Apply priority swap");   
                         }
                         ulong hashCode = currentSol.getSolutionOptionsHashCode();
                         if (frequencyMap.ContainsKey(hashCode))
@@ -824,7 +820,6 @@ namespace VrdpoProject
             {
                 selectedOptions = sol.Options; // maybe deep copy
             }
-
             for (int i = 0; i < selectedOptions.Count; i++)
             {
                 candidateOpt = selectedOptions[i];
@@ -980,50 +975,24 @@ namespace VrdpoProject
             {
                 failed = true;
             }
-
             while (sol.Customers.Any(x => !x.IsRouted))
             {   
                 bestInsertion = new CustomerInsertionAllPositions();
                 List<CustomerInsertionAllPositions> topThree = new List<CustomerInsertionAllPositions>();
-                List<CustomerInsertionAllPositions> topThreeOfPenalized = new List<CustomerInsertionAllPositions>();
                 AlwaysKeepAnEmptyRoute(sol);
                 if (selectedOptions != null)
                 {
-                    //if (failed == true)
-                    //{
-                    //    topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol, selectedOptions);
-                    //}
-                    //else
-                    //{
-                    //    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
-                    //}
                     topThree = IdentifyMinimumCostInsertion(bestInsertion, sol, selectedOptions);
                 } else
                 {
-                    //if (failed == true)
-                    //{
-                    //    topThreeOfPenalized = IdentifyMinimumPenalizedCostInsertion(bestInsertion, sol);
-                    //}
-                    //else
-                    //{
-                    //    topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
-                    //}
                     topThree = IdentifyMinimumCostInsertion(bestInsertion, sol);
                 }
-                //if (failed == true)
-                //{
-                //    bestInsertion = topThreeOfPenalized[rnd.Next(topThreeOfPenalized.Count)];
-                //} else
-                //{
-                //    bestInsertion = topThree[rnd.Next(topThree.Count)];
-                //}
                 bestInsertion = topThree[rnd.Next(topThree.Count)];
                 if (bestInsertion.Customer != null)
                 {
                     ApplyCustomerInsertionAllPositions(bestInsertion, sol);
                 } else
                 {
-                    //Console.WriteLine("Initial solution is not feasible. Try again !");
                     modelIsFeasible = false;
                     if (failed == true)
                     {

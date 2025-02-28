@@ -254,24 +254,18 @@ namespace VrdpoProject
                             double ratio = 1;
 
                             var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
-                            var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);
-                            
+                            var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);  
 
                             if (!tw1.Item1 || !tw2.Item1) { continue; }
 
                             if (rt1 == rt2)
                             {
-                                tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
-                                if (!tw1.Item1)
-                                {
-                                    continue;
-                                }
                                 Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                                 rtTemp.SequenceOfOptions[firstOptionIndex] = b2;
                                 rtTemp.SequenceOfCustomers[firstOptionIndex] = b2.Cust;
                                 rtTemp.SequenceOfLocations[firstOptionIndex] = b2.Location;
                                 tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, b1.Location);
-                                if (!tw1.Item1 || !tw2.Item1)
+                                if (!tw2.Item1)
                                 {
                                     continue;
                                 }
@@ -329,23 +323,18 @@ namespace VrdpoProject
                                 {
                                     continue;
                                 }
-                                if (rt1 == rt2)
+
+                                sm.TotalCost = moveCost + openRoutes * 10000;
+                                sm.PositionOfFirstRoute = firstRouteIndex;
+                                sm.PositionOfSecondRoute = secondRouteIndex;
+                                sm.PositionOfFirstOption = firstOptionIndex;
+                                sm.PositionOfSecondOption = secondOptionIndex;
+                                sm.MoveCost = moveCost;
+
+                                if (rt1 != rt2)
                                 {
-                                    sm.TotalCost = moveCost + openRoutes * 10000;
-                                    sm.PositionOfFirstRoute = firstRouteIndex;
-                                    sm.PositionOfSecondRoute = secondRouteIndex;
-                                    sm.PositionOfFirstOption = firstOptionIndex;
-                                    sm.PositionOfSecondOption = secondOptionIndex;
-                                    sm.MoveCost = moveCost;
-                                } else {
-                                    sm.TotalCost = moveCost + openRoutes * 10000;
-                                    sm.PositionOfFirstRoute = firstRouteIndex;
-                                    sm.PositionOfSecondRoute = secondRouteIndex;
-                                    sm.PositionOfFirstOption = firstOptionIndex;
-                                    sm.PositionOfSecondOption = secondOptionIndex;
                                     sm.CostChangeFirstRt = costChangeFirstRoute;
                                     sm.CostChangeSecondRt = costChangeSecondRoute;
-                                    sm.MoveCost = moveCost;
                                 }
                             }
                         }
@@ -444,12 +433,11 @@ namespace VrdpoProject
 
                             if (rt1 == rt2) {
                                 if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
-                                tw1 = sol.RespectsTimeWindow(rt1, optInd1,
-                                            rt1.SequenceOfLocations.GetRange(optInd2 + 1, rt2.SequenceOfLocations.Count - (optInd2 + 1)));
-                                tw2 = sol.RespectsTimeWindow(rt1, optInd2, rt1.SequenceOfLocations.GetRange(optInd1 + 1, rt1.SequenceOfLocations.Count - (optInd1 + 1)));
-                                respectsTw1 = tw1.Item1;
-                                respectsTw2 = tw2.Item1;
-                                if (!respectsTw1 || !respectsTw2) { continue; }
+
+                                //tw2 = sol.RespectsTimeWindow(rt1, optInd2, rt1.SequenceOfLocations.GetRange(optInd1 + 1, rt1.SequenceOfLocations.Count - (optInd1 + 1)));
+                                //respectsTw1 = tw1.Item1;
+                                //respectsTw2 = tw2.Item1;
+                                //if (!respectsTw1 || !respectsTw2) { continue; }
 
                                 Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                                 int frombase = optInd1 + 1;
@@ -577,11 +565,11 @@ namespace VrdpoProject
             Option B = rt1.SequenceOfOptions[top.PositionOfFirstOption + 1];
             Option K = rt2.SequenceOfOptions[top.PositionOfSecondOption];
             Option L = rt2.SequenceOfOptions[top.PositionOfSecondOption + 1];
+            int frombase = top.PositionOfFirstOption + 1;
+            int fromend = top.PositionOfSecondOption + 1;
             if (rt1 == rt2)
             {
                 // reverses the nodes in the segment [positionOfFirstNode + 1,  top.positionOfSecondNode]
-                int frombase = top.PositionOfFirstOption + 1;
-                int fromend = top.PositionOfSecondOption + 1;
                 List<Option> reversedSegment = Enumerable.Reverse(rt1.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
                 List<Location> reversedLocations = Enumerable.Reverse(rt1.SequenceOfLocations.GetRange(frombase, fromend - frombase)).ToList();
                 List<Customer> reversedCustomers = Enumerable.Reverse(rt1.SequenceOfCustomers.GetRange(frombase, fromend - frombase)).ToList();
@@ -598,8 +586,6 @@ namespace VrdpoProject
             }
             else
             {
-                int frombase = top.PositionOfFirstOption + 1;
-                int fromend = top.PositionOfSecondOption + 1;
                 // slice with the nodes from position top.positionOfFirstNode + 1 onwards
                 List<Option> relocatedSegmentOfRt1 = rt1.SequenceOfOptions.GetRange(frombase, rt1.SequenceOfOptions.Count - frombase).ToList();
                 List<Location> relocatedLocations1 = rt1.SequenceOfLocations.GetRange(frombase, rt1.SequenceOfLocations.Count - frombase).ToList();
@@ -828,12 +814,12 @@ namespace VrdpoProject
                 Option F = targetRt.SequenceOfOptions[flip.TargetOptionPosition];
                 Option G = targetRt.SequenceOfOptions[flip.TargetOptionPosition + 1];
 
-                
+                originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
+                originRt.SequenceOfCustomers.RemoveAt(flip.OriginOptionPosition);
+                originRt.SequenceOfLocations.RemoveAt(flip.OriginOptionPosition);
+
                 if (originRt == targetRt)
                 {
-                    originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
-                    originRt.SequenceOfCustomers.RemoveAt(flip.OriginOptionPosition);
-                    originRt.SequenceOfLocations.RemoveAt(flip.OriginOptionPosition);
                     if (flip.OriginOptionPosition < flip.TargetOptionPosition)
                     {
                         targetRt.SequenceOfOptions.Insert(flip.TargetOptionPosition, B2);
@@ -853,9 +839,6 @@ namespace VrdpoProject
                 }
                 else
                 {
-                originRt.SequenceOfOptions.RemoveAt(flip.OriginOptionPosition);
-                originRt.SequenceOfCustomers.RemoveAt(flip.OriginOptionPosition);
-                originRt.SequenceOfLocations.RemoveAt(flip.OriginOptionPosition);
                 originRt.SequenceOfEct.RemoveAt(flip.OriginOptionPosition);
                 originRt.SequenceOfLat.RemoveAt(flip.OriginOptionPosition);
 
@@ -869,10 +852,11 @@ namespace VrdpoProject
                 targetRt.Cost += flip.CostChangeTargetRt;
                 originRt.Load -= B1.Cust.Dem;
                 targetRt.Load += B2.Cust.Dem;
-                UpdateRouteCostAndLoad(originRt, sol);
-                UpdateRouteCostAndLoad(targetRt, sol);
                 sol.UpdateTimes(originRt);
                 sol.UpdateTimes(targetRt);
+                UpdateRouteCostAndLoad(originRt, sol);
+                UpdateRouteCostAndLoad(targetRt, sol);
+
                 originRt.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(originRt.Capacity - originRt.Load), 2);
                 targetRt.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(targetRt.Capacity - targetRt.Load), 2);
                 }
@@ -1121,9 +1105,9 @@ namespace VrdpoProject
                 if (rt1 == rt2)
                 {
                     rt1.Cost += psm.MoveCost;
+                    sol.UpdateTimes(rt1);
                     UpdateRouteCostAndLoad(rt1, sol);
                     rt1.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
-                    sol.UpdateTimes(rt1);
                     sol.Cost += psm.MoveCost;
                     if (rt1 == rt2 && (psm.PositionOfFirstOption == psm.PositionOfSecondOption - 1 || psm.PositionOfSecondOption == psm.PositionOfFirstOption - 1))
                     {
@@ -1156,12 +1140,12 @@ namespace VrdpoProject
                 {
                     rt1.Cost += psm.CostChangeFirstRt;
                     rt2.Cost += psm.CostChangeSecondRt;
+                    sol.UpdateTimes(rt1);
+                    sol.UpdateTimes(rt2);
                     UpdateRouteCostAndLoad(rt1, sol);
                     UpdateRouteCostAndLoad(rt2, sol);
                     rt1.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(rt1.Capacity - rt1.Load), 2);
                     rt2.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(rt2.Capacity - rt2.Load), 2);
-                    sol.UpdateTimes(rt1);
-                    sol.UpdateTimes(rt2);
                     sol.Cost += psm.MoveCost;
                     sol.Promises[rt1.SequenceOfOptions[psm.PositionOfFirstOption - 1].Id, d1.Id] = sol.Cost;
                     sol.Promises[d1.Id, rt1.SequenceOfOptions[psm.PositionOfFirstOption + 1].Id] = sol.Cost;
