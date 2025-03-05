@@ -497,10 +497,111 @@ namespace VrdpoProject
 
                 if (!(totalTime <= rt.SequenceOfLocations[i + 1].Due))
                 {
+                    Console.WriteLine("Time Window Feasibility Error");
+                    //Console.WriteLine("Current option {0} and next option {1}", rt.SequenceOfOptions[i].Id, rt.SequenceOfOptions[i + 1].Id);
+                    //Console.WriteLine("Location {0} is visited at time {1} but it is due at {2}", rt.SequenceOfLocations[i + 1].Id, totalTime, rt.SequenceOfLocations[i + 1].Due);
+                    //Console.WriteLine("Current opt {0} and next opt {1}", rt.SequenceOfOptions[i].Id, rt.SequenceOfOptions[i + 1].Id);
                     return false;
                 }
             }
             return true;
+        }
+
+        public Tuple<bool, double[], double[]> CheckEctLatTestingSolution(Route rt, int loc, Location location)
+        {
+
+            double[] ects = new double[rt.SequenceOfLocations.Count + 1];
+            double[] lats = Enumerable.Repeat((double)7200, rt.SequenceOfLocations.Count + 1).ToArray();
+            int k = 1;
+
+            for (int i = 1; i < rt.SequenceOfLocations.Count + 1; i++)
+            {
+                if (i == loc + 1)
+                {
+                    k--;
+                    ects[i] = Math.Max(location.Ready + location.ServiceTime + location.DeliveryServiceTime,
+                                               ects[i - 1] + CalculateTime(location, rt.SequenceOfLocations[k])
+                                               + location.ServiceTime + location.DeliveryServiceTime);
+
+                    if (i != 1 && (location.Id == rt.SequenceOfLocations[k].Id))
+                    {
+                        ects[i] = ects[i] - (location.ServiceTime);
+
+                    }
+                }
+                else if (i == loc + 2)
+                {
+                    ects[i] = Math.Max(rt.SequenceOfLocations[k].Ready + rt.SequenceOfLocations[k].ServiceTime + rt.SequenceOfLocations[k].DeliveryServiceTime,
+                                               ects[i - 1] + CalculateTime(rt.SequenceOfLocations[k], location)
+                                               + rt.SequenceOfLocations[k].ServiceTime + rt.SequenceOfLocations[k].DeliveryServiceTime);
+
+                    if ((location.Id == rt.SequenceOfLocations[k].Id))
+                    {
+                        ects[i] = ects[i] - (rt.SequenceOfLocations[k].ServiceTime);
+
+                    }
+                }
+                else
+                {
+                    ects[i] = Math.Max(rt.SequenceOfLocations[k].Ready + rt.SequenceOfLocations[k].ServiceTime + rt.SequenceOfLocations[k].DeliveryServiceTime,
+                                                   ects[i - 1] + CalculateTime(rt.SequenceOfLocations[k], rt.SequenceOfLocations[k - 1])
+                                                   + rt.SequenceOfLocations[k].ServiceTime + rt.SequenceOfLocations[k].DeliveryServiceTime);
+
+                    if (rt.SequenceOfLocations[k - 1] == rt.SequenceOfLocations[k])
+                    {
+                        ects[i] = ects[i] - (rt.SequenceOfLocations[k].ServiceTime);
+
+                    }
+                }
+                k++;
+            }
+
+
+            k = rt.SequenceOfLocations.Count - 2;
+            for (int j = rt.SequenceOfLocations.Count - 1; j > -1; j--)
+            {
+                if (j == loc + 1)
+                {
+                    k++;
+                    if (rt.SequenceOfLocations[k].Id == location.Id)
+                    {
+                        lats[j + 1] += (rt.SequenceOfLocations[k].ServiceTime);
+                    }
+
+                    lats[j] = Math.Min(location.Due - location.ServiceTime - location.DeliveryServiceTime,
+                       lats[j + 1] - CalculateTime(location, rt.SequenceOfLocations[k])
+                       - location.ServiceTime - location.DeliveryServiceTime);
+
+                }
+                else if (j == loc)
+                {
+                    if (location.Id == rt.SequenceOfLocations[k].Id)
+                    {
+                        lats[j + 1] += (location.ServiceTime);
+                    }
+
+                    lats[j] = Math.Min(rt.SequenceOfLocations[k].Due - rt.SequenceOfLocations[k].ServiceTime - rt.SequenceOfLocations[k].DeliveryServiceTime,
+                                              lats[j + 1] - CalculateTime(rt.SequenceOfLocations[k], location)
+                                              - rt.SequenceOfLocations[k].ServiceTime - rt.SequenceOfLocations[k].DeliveryServiceTime);
+                }
+                else
+                {
+                    if (rt.SequenceOfLocations[k + 1].Id == rt.SequenceOfLocations[k].Id)
+                    {
+                        lats[j + 1] += (rt.SequenceOfLocations[k + 1].ServiceTime);
+                    }
+
+                    lats[j] = Math.Min(rt.SequenceOfLocations[k].Due - rt.SequenceOfLocations[k].ServiceTime - rt.SequenceOfLocations[k].DeliveryServiceTime,
+                                                   lats[j + 1] - CalculateTime(rt.SequenceOfLocations[k], rt.SequenceOfLocations[k + 1])
+                                                   - rt.SequenceOfLocations[k].ServiceTime - rt.SequenceOfLocations[k].DeliveryServiceTime);
+                }
+                k--;
+            }
+
+            bool feasible = ects.Zip(lats, (a, b) => a <= b).All(x => x);//maybe <=
+
+            return new Tuple<bool, double[], double[]>(feasible, ects, lats);
+
         }
 
         public double CalculateUtilizationMetric()
@@ -572,9 +673,16 @@ namespace VrdpoProject
             checkingSolution.Routes.Add(route2);
             checkingSolution.Routes.Add(route3);
 
+            
             List<int> list1 = new List<int> { 26, 19, 25, 9, 2, 17, 31, 6, 8 };
             List<int> list2 = new List<int> { 0, 3, 22, 47, 5, 38, 10 };
             List<int> list3 = new List<int> { 45, 14, 7, 42, 1, 4, 13, 34, 35 };
+            
+/*
+            List<int> list1 = new List<int> { 7, 24, 10, 3, 4, 19, 33, 37, 28, 6 };
+            List<int> list2 = new List<int> { 8, 14, 9, 5, 21, 27, 0, 1, 2, 23 };
+            List<int> list3 = new List<int> { 12, 17, 35, 11, 30 };
+            */
 
             var optionsToAdd1 = checkingSolution.Options
                 .Where(x => list1.Contains(x.Id))
@@ -595,6 +703,7 @@ namespace VrdpoProject
             checkingSolution.Routes[2].SequenceOfOptions.AddRange(optionsToAdd3);
 
             Option opt = checkingSolution.Routes[0].SequenceOfOptions[0];
+            //Console.WriteLine("Option to be moved: {0}", opt.Id);
             checkingSolution.Routes[0].SequenceOfOptions.RemoveAt(0);
             checkingSolution.Routes[1].SequenceOfOptions.RemoveAt(0);
             checkingSolution.Routes[2].SequenceOfOptions.RemoveAt(0);
@@ -638,6 +747,17 @@ namespace VrdpoProject
                     }
                     cost += CalculateDistance(rt.SequenceOfOptions[i].Location, nextOpt.Location);
                 }
+
+                for (int i = 0; i < rt.SequenceOfLocations.Count-2; i++)
+                {
+                    var tw2 = CheckEctLatTestingSolution(rt, i, rt.SequenceOfLocations[i+1]);
+                    if (!tw2.Item1)
+                    {
+                        Console.WriteLine("Time Window Feasibility Error");
+                        Console.WriteLine("Route {0} Location {1} Ect: {2} Lat: {3}", rt.Id, rt.SequenceOfLocations[i + 1].Id, tw2.Item2[i + 1], tw2.Item3[i + 1]);
+                        Console.WriteLine("Hello World");
+                    }
+                }
                 //rt1 total time: 5998
                 //rt2 total time: 6581
                 //rt3 total time: 4643
@@ -645,11 +765,20 @@ namespace VrdpoProject
             }
             Solver solp = new Solver();
             solp.CalculateServiceLevel(checkingSolution, true);
+            solp.PrintSolutionForTesting(checkingSolution);
             CheckEverything(checkingSolution);
+            Console.WriteLine("Total cost: {0}", cost);
+            Console.WriteLine("Hello World");
         }
 
         public bool CheckRouteFeasibility(Route rt)
         {
+            /*Console.WriteLine("Options in route {0}", rt.Id);
+            foreach (Option opt in rt.SequenceOfOptions)
+            {
+                Console.WriteLine(opt.Id);
+            }
+            */
             int totalCapacity = 0;
             bool timeWindowFeasibility = true;
             bool depotFeasibility = true;
@@ -660,11 +789,13 @@ namespace VrdpoProject
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
                 bool tw = CalculateTimes(rt);
+                /*
                 if (rt.SequenceOfEct[i + 1] > rt.SequenceOfLat[i + 1])
                 {
                     Console.WriteLine("Time Window Feasibility Error");
                     timeWindowFeasibility = false;
                 }
+                */
                 if (!tw)
                 {
                     Console.WriteLine("Time Window Feasibility Error");
@@ -678,7 +809,9 @@ namespace VrdpoProject
                         depotFeasibility = false;
                     }
                 }
+                //Console.WriteLine("Current location: {0} Next location: {1}", currentOpt.Location.Id, nextOpt.Location.Id);
                 cost += CalculateDistance(rt.SequenceOfOptions[i].Location, nextOpt.Location);
+                Console.WriteLine("Cost: {0}", cost);
             }
             if (Math.Abs(cost - rt.Cost) > 0.001)
             {
@@ -694,7 +827,7 @@ namespace VrdpoProject
             {
                 Console.WriteLine("Route Capacity Feasibility Error");
             }
-            return (timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility);
+            return timeWindowFeasibility && capacityFeasibility && depotFeasibility && costFeasibility;
         }
 
         public void RemoveEmptyRoutes()

@@ -65,7 +65,7 @@ namespace VrdpoProject
             else
             {
                 Solution checkingSolution = new Solution();
-                //checkingSolution.TestSolution(checkingSolution);
+                checkingSolution.TestSolution(checkingSolution);
 
                 Solution lc_sol = new Solution();
                 lc_sol = LocalSearch();
@@ -700,6 +700,35 @@ namespace VrdpoProject
                 }
                 Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, r.Load);
                 if (!sol.CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE!"); }
+                Console.WriteLine("--------------");
+            }
+            Console.WriteLine("Solution Cost: " + sol.Cost);
+            CalculateServiceLevel(sol);
+            Console.WriteLine("///////////////////");
+        }
+
+        public void PrintSolutionForTesting(Solution sol)
+        {
+            Console.WriteLine("Solution Cost: {0}", sol.Cost);
+
+            foreach (Route r in sol.Routes)
+            {
+                Console.WriteLine("--------------");
+                Console.WriteLine("Route {0}:", r.Id); Console.WriteLine();
+                if (r.SequenceOfLocations.Count == 2)
+                {
+                    sol.Cost -= r.Cost;
+                    continue;
+                }
+                Console.WriteLine("LOCATION | CUSTOMER");
+                int load = 0;
+                for (int i = 0; i < r.SequenceOfOptions.Count; i++)
+                {
+                    Console.WriteLine("{0} {1}", r.SequenceOfOptions[i].Location.Id, r.SequenceOfOptions[i].Id);
+                    load += r.SequenceOfOptions[i].Cust.Dem;
+                }
+                Console.WriteLine("Max capacity: {0} Load:{1}", r.Capacity, load);//, r.Load);
+                //if (!sol.CheckRouteFeasibility(r)) { Console.WriteLine("INFEASIBLE!"); }
                 Console.WriteLine("--------------");
             }
             Console.WriteLine("Solution Cost: " + sol.Cost);

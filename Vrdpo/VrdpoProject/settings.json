@@ -1,6 +1,6 @@
 {
-    "restarts": 20,
-    "repetitions": 20000,
+    "restarts": 5,
+    "repetitions": 1000,
     "verbal": true,
     "promisesRestartRatio": 1.5,
     "multiRestart": false,
