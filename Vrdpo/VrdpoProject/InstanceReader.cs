@@ -133,6 +133,8 @@ namespace VrdpoProject
                     var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
                     if (settings.type == "int")
                     {
+                        //timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                        //distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
                         timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
                         distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
                     } else if (settings.type == "double") {

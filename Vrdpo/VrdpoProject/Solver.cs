@@ -64,8 +64,8 @@ namespace VrdpoProject
             }
             else
             {
-                Solution checkingSolution = new Solution();
-                checkingSolution.TestSolution(checkingSolution);
+                //Solution checkingSolution = new Solution();
+                //checkingSolution.TestSolution(checkingSolution);
 
                 Solution lc_sol = new Solution();
                 lc_sol = LocalSearch();
@@ -144,10 +144,10 @@ namespace VrdpoProject
                 Console.WriteLine("Restart: " + restartCounter);
                 for (int i = 0; i < settings.repetitions; i++)
                 {
-                    if (i - lastImprovement > 3000)
-                    {
-                        break;
-                    }
+                    //if (i - lastImprovement > 3000)
+                    //{
+                    //    break;
+                    //}
 
                     reinitCount++;
                     rm.ReinitializeVariables();
