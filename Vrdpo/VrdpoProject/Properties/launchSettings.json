@@ -2,7 +2,7 @@
   "profiles": {
     "VrdpoProject": {
       "commandName": "Project",
-      "commandLineArgs": "U_25medium_1.txt"
+      "commandLineArgs": "V_50small_1.txt"
     }
   }
 }

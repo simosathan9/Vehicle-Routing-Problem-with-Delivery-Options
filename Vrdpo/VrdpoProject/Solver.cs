@@ -166,7 +166,7 @@ namespace VrdpoProject
                     if (settings.schema == "greedy" ) //&& localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
                     {
                         
-                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)0.99
+                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)0.99 500/0.99
                         {
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             flip = ls.FindBestFlipMove(flip, currentSol);

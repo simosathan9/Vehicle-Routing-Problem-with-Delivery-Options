@@ -1157,10 +1157,6 @@ namespace VrdpoProject
                     }
                 }
             }
-            //else
-            //{
-            //    Console.WriteLine("Invalid Priority Swap Move");
-            //}
         }
 
 
@@ -1237,19 +1233,6 @@ namespace VrdpoProject
             }
 
             return new double[] {sl0, sl1};
-        }
-
-        //! make these to accept only tuples of ids not whole new options
-        bool CheckPromises(List<Option[]> arcs, double newCost, Solution sol)
-        {
-            foreach(Option[] arc in arcs)
-            {
-                if (newCost >= sol.Promises[arc[0].Id, arc[1].Id])
-                {
-                    return false;
-                }
-            }
-            return true;
         }
 
         bool PromiseIsBroken(int a, int b, double newCost, Solution sol)
