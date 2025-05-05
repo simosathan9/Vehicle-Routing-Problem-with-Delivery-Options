@@ -70,13 +70,14 @@ namespace VrdpoProject
                 Solution lc_sol = new Solution();
                 lc_sol = LocalSearch();
                 PrintSolution(lc_sol);
-                PrintFrequencyMap(overallFrequencyMap);
+                //PrintFrequencyMap(overallFrequencyMap);
                 Console.WriteLine("The best solution's cost: " + lc_sol.Cost);
                 CalculateServiceLevel(lc_sol);
                 //Export lc_sol to JSON
                 //lc_sol.ExportToJson("./solution_data.json");
                 totalTimer.Stop();
                 ReportSolution(lc_sol, globalBestTime, totalTimer.Elapsed);
+                Console.WriteLine(totalTimer);
             }
         }
 
@@ -119,7 +120,6 @@ namespace VrdpoProject
                 Solution localBest = new();
                 localBest.Cost = double.MaxValue;
                 currentSol = new();
-                //double temperature = 500; Remove comment for Simulated Annealing
 
                 if (settings.multiRestart)
                 {
@@ -163,10 +163,10 @@ namespace VrdpoProject
                     }
 
                     Double schemaRandom = rnd6.NextDouble();
-                    if (settings.schema == "greedy" ) //&& localBest.Cost != double.MaxValue && schemaRandom > settings.randomness)
+                    if (settings.schema == "greedy" ) 
                     {
                         
-                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) //&& (currentSol.Cost - localBest.Cost) / localBest.Cost <= 0.05)0.99 500/0.99
+                        if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) 
                         {
                             psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             flip = ls.FindBestFlipMove(flip, currentSol);
@@ -193,27 +193,8 @@ namespace VrdpoProject
 
                         var mincost = double.MaxValue;
                         mincost = FindMinMoveCost(sm, rm, top, flip, psm);
-                        //mincost = FindMinMoveCost(sm, rm, flip, psm);
                         int openRoutesTemp = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
                         var minCostChange = mincost - openRoutesTemp * 10000 - currentSol.Cost;
-                        
-                        /* Remove Comment for Simulated Annealing
-                        if (minCostChange > 0) {
-                            double delta = minCostChange;
-                            double probability = Math.Exp(-delta / temperature);
-                            Console.WriteLine("Temperature: " + temperature + "Delta: " + delta);
-                            //Console.WriteLine("Probability: " + probability);
-                            double pt = rnd.NextDouble();
-                            if (pt >= probability) {
-                                continue;
-                            }
-                        }
-                        */
-                        
-                        //if (mincost > 2000)
-                        //{
-                        //    continue;
-                        //}
                         
                         if (mincost == sm.TotalCost)
                         {
@@ -254,9 +235,6 @@ namespace VrdpoProject
                         }
                         RemoveEmptyRoutes(currentSol);
                         currentSol.SolutionUtilizationMetric = currentSol.CalculateUtilizationMetric();
-                        //Console.WriteLine("Utilization Metric: " + currentSol.SolutionUtilizationMetric);
-                        
-                        //temperature *= 0.9997; //Remove comment for Simulated Annealing
                     }
                     else if (settings.schema == "random" || localBest.Cost == double.MaxValue || schemaRandom <= settings.randomness)
                     {
@@ -350,7 +328,7 @@ namespace VrdpoProject
                 restartTimer.Stop();
                 CalculateServiceLevel(localBest);
                 PrintSolution(localBest);
-                PrintFrequencyMap(frequencyMap);
+                //PrintFrequencyMap(frequencyMap);
 
                 if (localBest.Cost + localBest.Routes.Count * 10000 < bestSol.Cost + bestSol.Routes.Count * 10000 + smallDouble && localBest.Cost < 100000)
                 {

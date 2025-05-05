@@ -210,7 +210,7 @@ namespace VrdpoProject
             for (int i = 0; i < Math.Pow(Options.Count + 1, 2); i++) Promises[i % (Options.Count + 1), i / (Options.Count + 1)] = double.MaxValue;
         }
 
-        
+
         //public double[] RespectsTimeWindow(Route rt, int loc, Location l)
         //{
         //    /// loc: the position to be placed after
@@ -360,7 +360,7 @@ namespace VrdpoProject
         //        }
         //        k--;
         //    }
-      
+
         //    bool feasible = ects.Zip(lats, (a, b) => a <= b).All(x => x);//maybe <=
 
         //    return new Tuple<bool, double[], double[]>(feasible, ects, lats);
@@ -439,7 +439,7 @@ namespace VrdpoProject
         //    }
         //}
 
-        public Tuple<bool, double[], double[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
+        public Tuple<bool, double[], double[]> RespectsTimeWindow21(Route rt, int loc, List<Location> locations)
         {
             // Create a modified route with the new locations inserted
             Route tempRoute = new(44, 150, depot);
@@ -447,12 +447,6 @@ namespace VrdpoProject
             // Take locations up to insertion point, add new locations
             tempRoute.SequenceOfLocations = new List<Location>(rt.SequenceOfLocations.Take(loc + 1));
             tempRoute.SequenceOfLocations.AddRange(locations);
-
-            // If there are remaining locations in the original route, add them too
-            if (loc + 1 < rt.SequenceOfLocations.Count)
-            {
-                tempRoute.SequenceOfLocations.AddRange(rt.SequenceOfLocations.Skip(loc + 1));
-            }
 
             // Initialize ECT and LAT lists for the modified route
             tempRoute.SequenceOfEct = new List<double>(new double[tempRoute.SequenceOfLocations.Count]);
@@ -562,8 +556,54 @@ namespace VrdpoProject
             );
         }
 
+        public Tuple<bool, double[], double[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
+        {
+            // Compose new location sequence
+            List<Location> seq = new(rt.SequenceOfLocations.Take(loc + 1));
+            seq.AddRange(locations);
 
+            int n = seq.Count;
+            double[] ect = new double[n];
+            double[] lat = new double[n];
 
+            // Forward pass
+            ect[0] = seq[0].DeliveryServiceTime;
+            for (int i = 1; i < n; i++)
+            {
+                double t = ect[i - 1] + CalculateTime(seq[i], seq[i - 1]);
+                if (seq[i].Id != seq[i - 1].Id)
+                    t += seq[i].ServiceTime;
+
+                if (seq[i].Ready > t)
+                    t = seq[i].Ready;
+
+                t += seq[i].DeliveryServiceTime;
+                ect[i] = t;
+
+                if (t > seq[i].Due || t < ect[i - 1])
+                    return Tuple.Create(false, ect, lat); // early exit
+            }
+
+            // Backward pass
+            lat[n - 1] = seq[n - 1].Due;
+            for (int j = n - 2; j >= 0; j--)
+            {
+                double l = lat[j + 1] - seq[j + 1].DeliveryServiceTime;
+                if (seq[j].Id != seq[j + 1].Id)
+                    l -= seq[j + 1].ServiceTime;
+
+                l -= CalculateTime(seq[j + 1], seq[j]);
+                lat[j] = Math.Min(seq[j].Due, l);
+
+                if (lat[j] < ect[j])
+                    return Tuple.Create(false, ect, lat); // infeasible
+            }
+
+            if (ect[n - 1] > 7200)
+                return Tuple.Create(false, ect, lat);
+
+            return Tuple.Create(true, ect, lat);
+        }
 
         //public void UpdateTimes(Route rt)
         //{
