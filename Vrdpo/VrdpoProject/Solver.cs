@@ -120,6 +120,9 @@ namespace VrdpoProject
                 Solution localBest = new();
                 localBest.Cost = double.MaxValue;
                 currentSol = new();
+                int psw_count = 0;
+                int flip_count = 0;
+
 
                 if (settings.multiRestart)
                 {
@@ -154,7 +157,7 @@ namespace VrdpoProject
                     sm.ReinitializeVariables();
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
-                    psm.ReinitializeVariables();
+                    //psm.ReinitializeVariables();
 
                     if (reinitCount == currentSol.Options.Count * settings.promisesRestartRatio)
                     {
@@ -168,19 +171,22 @@ namespace VrdpoProject
                         
                         if (i - lastImprovement > 500 && rnd7.NextDouble() > 0.99) 
                         {
-                            psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                            //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             flip = ls.FindBestFlipMove(flip, currentSol);
-                            var localMinCost = FindMinMoveCost(flip, psm);
-                            if (localMinCost == flip.TotalCost)
-                            {
-                                ls.ApplyFlipMove(flip, currentSol);
-                                //Console.WriteLine("Apply random flip");
-                            }
-                            else if (localMinCost == psm.TotalCost)
-                            {
-                                ls.ApplyPrioritySwapMove(psm, currentSol);
-                                //Console.WriteLine("Apply random priority swap");
-                            }
+                            ls.ApplyFlipMove(flip, currentSol);
+                            //var localMinCost = FindMinMoveCost(flip, psm);
+                            //if (localMinCost == flip.TotalCost)
+                            //{
+                            //    ls.ApplyFlipMove(flip, currentSol);
+                            //    flip_count++;
+                            //    //Console.WriteLine("Apply random flip");
+                            //}
+                            //else if (localMinCost == psm.TotalCost)
+                            //{
+                            //    ls.ApplyPrioritySwapMove(psm, currentSol);
+                            //    psw_count++;
+                            //    //Console.WriteLine("Apply random priority swap");
+                            //}
 
                             continue;
                         }
@@ -188,11 +194,12 @@ namespace VrdpoProject
                         sm = ls.FindBestSwapMove(sm, currentSol);
                         rm = ls.FindBestRelocationMove(rm, currentSol);
                         top = ls.FindBestTwoOptMove(top, currentSol);
-                        psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                        //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                         flip = ls.FindBestFlipMove(flip, currentSol);
 
                         var mincost = double.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
+                        mincost = FindMinMoveCost(sm, rm, top, flip);//, psm);
+
                         int openRoutesTemp = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
                         var minCostChange = mincost - openRoutesTemp * 10000 - currentSol.Cost;
                         
@@ -211,11 +218,13 @@ namespace VrdpoProject
                         else if (mincost == flip.TotalCost)
                         {
                             ls.ApplyFlipMove(flip, currentSol);
+                          //  flip_count++;
                         }
-                        else if (mincost == psm.TotalCost)
-                        {
-                            ls.ApplyPrioritySwapMove(psm, currentSol);
-                        }
+                        //else if (mincost == psm.TotalCost)
+                        //{
+                        //    ls.ApplyPrioritySwapMove(psm, currentSol);
+                        //    psw_count++;
+                        //}
                         ulong hashCode = currentSol.getSolutionOptionsHashCode();
                         if (frequencyMap.ContainsKey(hashCode))
                         {
@@ -238,7 +247,7 @@ namespace VrdpoProject
                     }
                     else if (settings.schema == "random" || localBest.Cost == double.MaxValue || schemaRandom <= settings.randomness)
                     {
-                        int k = rnd.Next(1, 6);
+                        int k = rnd.Next(2, 6);
                         if (k == 4)
                         {
                             sm = ls.FindBestSwapMove(sm, currentSol);
@@ -254,11 +263,11 @@ namespace VrdpoProject
                             top = ls.FindBestTwoOptMove(top, currentSol);
                             ls.ApplyTwoOptMove(top, currentSol);
                         }
-                        else if (k == 1)
-                        {
-                            psm = ls.FindBestPrioritySwapMove(psm, currentSol);
-                            ls.ApplyPrioritySwapMove(psm, currentSol);
-                        }
+                        //else if (k == 1)
+                        //{
+                        //    psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                        //    ls.ApplyPrioritySwapMove(psm, currentSol);
+                        //}
                         else if (k == 5)
                         {
                             if ((i - c) > 1 && i > 1)
@@ -340,6 +349,8 @@ namespace VrdpoProject
 
                 Console.WriteLine("///////////////////////");
                 Console.WriteLine(localBest.Cost + " " + bestSol.Cost);
+                //Console.WriteLine(flip_count);
+                //Console.WriteLine(psw_count);
             }
             CalculateServiceLevel(bestSol);
             return bestSol;

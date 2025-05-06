@@ -439,122 +439,122 @@ namespace VrdpoProject
         //    }
         //}
 
-        public Tuple<bool, double[], double[]> RespectsTimeWindow21(Route rt, int loc, List<Location> locations)
-        {
+        //public Tuple<bool, double[], double[]> RespectsTimeWindow21(Route rt, int loc, List<Location> locations)
+        //{
             // Create a modified route with the new locations inserted
-            Route tempRoute = new(44, 150, depot);
+            //Route tempRoute = new(44, 150, depot);
 
-            // Take locations up to insertion point, add new locations
-            tempRoute.SequenceOfLocations = new List<Location>(rt.SequenceOfLocations.Take(loc + 1));
-            tempRoute.SequenceOfLocations.AddRange(locations);
+        //    // Take locations up to insertion point, add new locations
+        //    tempRoute.SequenceOfLocations = new List<Location>(rt.SequenceOfLocations.Take(loc + 1));
+        //    tempRoute.SequenceOfLocations.AddRange(locations);
 
-            // Initialize ECT and LAT lists for the modified route
-            tempRoute.SequenceOfEct = new List<double>(new double[tempRoute.SequenceOfLocations.Count]);
-            tempRoute.SequenceOfLat = new List<double>(new double[tempRoute.SequenceOfLocations.Count]);
+        //    // Initialize ECT and LAT lists for the modified route
+        //    tempRoute.SequenceOfEct = new List<double>(new double[tempRoute.SequenceOfLocations.Count]);
+        //    tempRoute.SequenceOfLat = new List<double>(new double[tempRoute.SequenceOfLocations.Count]);
 
-            // ------------------- FORWARD PASS -------------------
-            // ECT of first location = just its DeliveryServiceTime
-            tempRoute.SequenceOfEct[0] = tempRoute.SequenceOfLocations[0].DeliveryServiceTime;
+        //    // ------------------- FORWARD PASS -------------------
+        //    // ECT of first location = just its DeliveryServiceTime
+        //    tempRoute.SequenceOfEct[0] = tempRoute.SequenceOfLocations[0].DeliveryServiceTime;
 
-            // Calculate ECT for each subsequent location
-            for (int i = 1; i < tempRoute.SequenceOfLocations.Count; i++)
-            {
-                // Start from previous location's completion time
-                double currentTime = tempRoute.SequenceOfEct[i - 1];
+        //    // Calculate ECT for each subsequent location
+        //    for (int i = 1; i < tempRoute.SequenceOfLocations.Count; i++)
+        //    {
+        //        // Start from previous location's completion time
+        //        double currentTime = tempRoute.SequenceOfEct[i - 1];
 
-                // Add travel time to current location
-                currentTime += CalculateTime(tempRoute.SequenceOfLocations[i],
-                                             tempRoute.SequenceOfLocations[i - 1]);
+        //        // Add travel time to current location
+        //        currentTime += CalculateTime(tempRoute.SequenceOfLocations[i],
+        //                                     tempRoute.SequenceOfLocations[i - 1]);
 
-                // Add service time if locations differ (IDs differ)
-                if (tempRoute.SequenceOfLocations[i].Id != tempRoute.SequenceOfLocations[i - 1].Id)
-                {
-                    currentTime += tempRoute.SequenceOfLocations[i].ServiceTime;
-                }
+        //        // Add service time if locations differ (IDs differ)
+        //        if (tempRoute.SequenceOfLocations[i].Id != tempRoute.SequenceOfLocations[i - 1].Id)
+        //        {
+        //            currentTime += tempRoute.SequenceOfLocations[i].ServiceTime;
+        //        }
 
-                // Wait if arrived before 'Ready' time
-                if (tempRoute.SequenceOfLocations[i].Ready > currentTime)
-                {
-                    currentTime = tempRoute.SequenceOfLocations[i].Ready;
-                }
+        //        // Wait if arrived before 'Ready' time
+        //        if (tempRoute.SequenceOfLocations[i].Ready > currentTime)
+        //        {
+        //            currentTime = tempRoute.SequenceOfLocations[i].Ready;
+        //        }
 
-                // Add delivery service time to finalize completion time
-                currentTime += tempRoute.SequenceOfLocations[i].DeliveryServiceTime;
+        //        // Add delivery service time to finalize completion time
+        //        currentTime += tempRoute.SequenceOfLocations[i].DeliveryServiceTime;
 
-                // Store the ECT
-                tempRoute.SequenceOfEct[i] = currentTime;
-            }
+        //        // Store the ECT
+        //        tempRoute.SequenceOfEct[i] = currentTime;
+        //    }
 
-            // ------------------- BACKWARD PASS -------------------
-            // LAT of the last location = that location's Due
-            int lastIndex = tempRoute.SequenceOfLocations.Count - 1;
-            tempRoute.SequenceOfLat[lastIndex] = tempRoute.SequenceOfLocations[lastIndex].Due;
+        //    // ------------------- BACKWARD PASS -------------------
+        //    // LAT of the last location = that location's Due
+        //    int lastIndex = tempRoute.SequenceOfLocations.Count - 1;
+        //    tempRoute.SequenceOfLat[lastIndex] = tempRoute.SequenceOfLocations[lastIndex].Due;
 
-            // Move backward from second-to-last location down to the first
-            for (int j = lastIndex - 1; j >= 0; j--)
-            {
-                // Start from the latest finish time of the next location
-                double latestFinishNext = tempRoute.SequenceOfLat[j + 1];
+        //    // Move backward from second-to-last location down to the first
+        //    for (int j = lastIndex - 1; j >= 0; j--)
+        //    {
+        //        // Start from the latest finish time of the next location
+        //        double latestFinishNext = tempRoute.SequenceOfLat[j + 1];
 
-                // Subtract next location's delivery service time
-                latestFinishNext -= tempRoute.SequenceOfLocations[j + 1].DeliveryServiceTime;
+        //        // Subtract next location's delivery service time
+        //        latestFinishNext -= tempRoute.SequenceOfLocations[j + 1].DeliveryServiceTime;
 
-                // If IDs differ, subtract next location's service time
-                if (tempRoute.SequenceOfLocations[j].Id != tempRoute.SequenceOfLocations[j + 1].Id)
-                {
-                    latestFinishNext -= tempRoute.SequenceOfLocations[j + 1].ServiceTime;
-                }
+        //        // If IDs differ, subtract next location's service time
+        //        if (tempRoute.SequenceOfLocations[j].Id != tempRoute.SequenceOfLocations[j + 1].Id)
+        //        {
+        //            latestFinishNext -= tempRoute.SequenceOfLocations[j + 1].ServiceTime;
+        //        }
 
-                // Subtract travel time from location j to j+1
-                latestFinishNext -= CalculateTime(tempRoute.SequenceOfLocations[j + 1],
-                                                  tempRoute.SequenceOfLocations[j]);
+        //        // Subtract travel time from location j to j+1
+        //        latestFinishNext -= CalculateTime(tempRoute.SequenceOfLocations[j + 1],
+        //                                          tempRoute.SequenceOfLocations[j]);
 
-                // Clamp to the current location's Due
-                tempRoute.SequenceOfLat[j] =
-                    Math.Min(tempRoute.SequenceOfLocations[j].Due, latestFinishNext);
-            }
+        //        // Clamp to the current location's Due
+        //        tempRoute.SequenceOfLat[j] =
+        //            Math.Min(tempRoute.SequenceOfLocations[j].Due, latestFinishNext);
+        //    }
 
-            // ------------------- EXTRA CHECKS -------------------
-            // 1. ECT must be non-decreasing
-            bool timeOrderValid =
-                tempRoute.SequenceOfEct.SequenceEqual(tempRoute.SequenceOfEct.OrderBy(x => x));
+        //    // ------------------- EXTRA CHECKS -------------------
+        //    // 1. ECT must be non-decreasing
+        //    bool timeOrderValid =
+        //        tempRoute.SequenceOfEct.SequenceEqual(tempRoute.SequenceOfEct.OrderBy(x => x));
 
-            // 2. LAT must be non-decreasing
-            bool latOrderValid =
-                tempRoute.SequenceOfLat.SequenceEqual(tempRoute.SequenceOfLat.OrderBy(x => x));
+        //    // 2. LAT must be non-decreasing
+        //    bool latOrderValid =
+        //        tempRoute.SequenceOfLat.SequenceEqual(tempRoute.SequenceOfLat.OrderBy(x => x));
 
-            // 3. Final ECT must not exceed 7200
-            bool withinTimeLimit = tempRoute.SequenceOfEct.Last() <= 7200;
+        //    // 3. Final ECT must not exceed 7200
+        //    bool withinTimeLimit = tempRoute.SequenceOfEct.Last() <= 7200;
 
-            // If any extra check fails, return infeasible immediately
-            if (!timeOrderValid || !latOrderValid || !withinTimeLimit)
-            {
-                return new Tuple<bool, double[], double[]>(
-                    false,
-                    tempRoute.SequenceOfEct.ToArray(),
-                    tempRoute.SequenceOfLat.ToArray()
-                );
-            }
+        //    // If any extra check fails, return infeasible immediately
+        //    if (!timeOrderValid || !latOrderValid || !withinTimeLimit)
+        //    {
+        //        return new Tuple<bool, double[], double[]>(
+        //            false,
+        //            tempRoute.SequenceOfEct.ToArray(),
+        //            tempRoute.SequenceOfLat.ToArray()
+        //        );
+        //    }
 
-            // ------------------- FEASIBILITY CHECK -------------------
-            // ECT[i] must be <= LAT[i] for each location
-            bool feasible = true;
-            for (int i = 0; i < tempRoute.SequenceOfEct.Count; i++)
-            {
-                if (tempRoute.SequenceOfEct[i] > tempRoute.SequenceOfLat[i])
-                {
-                    feasible = false;
-                    break;
-                }
-            }
+        //    // ------------------- FEASIBILITY CHECK -------------------
+        //    // ECT[i] must be <= LAT[i] for each location
+        //    bool feasible = true;
+        //    for (int i = 0; i < tempRoute.SequenceOfEct.Count; i++)
+        //    {
+        //        if (tempRoute.SequenceOfEct[i] > tempRoute.SequenceOfLat[i])
+        //        {
+        //            feasible = false;
+        //            break;
+        //        }
+        //    }
 
-            // Return (feasible, ECT[], LAT[])
-            return new Tuple<bool, double[], double[]>(
-                feasible,
-                tempRoute.SequenceOfEct.ToArray(),
-                tempRoute.SequenceOfLat.ToArray()
-            );
-        }
+        //    // Return (feasible, ECT[], LAT[])
+        //    return new Tuple<bool, double[], double[]>(
+        //        feasible,
+        //        tempRoute.SequenceOfEct.ToArray(),
+        //        tempRoute.SequenceOfLat.ToArray()
+        //    );
+        //}
 
         public Tuple<bool, double[], double[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
         {
@@ -887,81 +887,81 @@ namespace VrdpoProject
             return new Tuple<bool, List<double>, List<double>>(feasible, rt.SequenceOfEct, rt.SequenceOfLat);
         }
 
-        public Tuple<bool, List<double>, List<double>> CheckEctLatTestingSolution2(Route rt)
-        {
+        //public Tuple<bool, List<double>, List<double>> CheckEctLatTestingSolution2(Route rt)
+        //{
 
-            rt.SequenceOfEct = new List<double>(new double[rt.SequenceOfLocations.Count]);
-            rt.SequenceOfLat = Enumerable.Repeat(7200.0, rt.SequenceOfLocations.Count).ToList();
+        //    rt.SequenceOfEct = new List<double>(new double[rt.SequenceOfLocations.Count]);
+        //    rt.SequenceOfLat = Enumerable.Repeat(7200.0, rt.SequenceOfLocations.Count).ToList();
 
-            for (int i = 1; i < rt.SequenceOfLocations.Count; i++)
-            {
-                var arrivaltime = rt.SequenceOfEct[i - 1] + CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i - 1]) +
-                    (rt.SequenceOfLocations[i - 1].Id == rt.SequenceOfLocations[i].Id
-                    ? 0
-                    : rt.SequenceOfLocations[i].ServiceTime);
+        //    for (int i = 1; i < rt.SequenceOfLocations.Count; i++)
+        //    {
+        //        var arrivaltime = rt.SequenceOfEct[i - 1] + CalculateTime(rt.SequenceOfLocations[i], rt.SequenceOfLocations[i - 1]) +
+        //            (rt.SequenceOfLocations[i - 1].Id == rt.SequenceOfLocations[i].Id
+        //            ? 0
+        //            : rt.SequenceOfLocations[i].ServiceTime);
 
-                arrivaltime = Math.Max(arrivaltime, rt.SequenceOfLocations[i].Ready);
+        //        arrivaltime = Math.Max(arrivaltime, rt.SequenceOfLocations[i].Ready);
 
-                rt.SequenceOfEct[i] = arrivaltime + rt.SequenceOfLocations[i].DeliveryServiceTime;
+        //        rt.SequenceOfEct[i] = arrivaltime + rt.SequenceOfLocations[i].DeliveryServiceTime;
 
-            }
+        //    }
 
-            for (int j = rt.SequenceOfLocations.Count - 2; j >= 0; j--)
-            {
-                //if (rt.SequenceOfLocations[j + 1].Id == rt.SequenceOfLocations[j].Id)
-                //{
-                //    rt.SequenceOfLat[j + 1] += rt.SequenceOfLocations[j + 1].ServiceTime;
-                //}
+        //    for (int j = rt.SequenceOfLocations.Count - 2; j >= 0; j--)
+        //    {
+        //        //if (rt.SequenceOfLocations[j + 1].Id == rt.SequenceOfLocations[j].Id)
+        //        //{
+        //        //    rt.SequenceOfLat[j + 1] += rt.SequenceOfLocations[j + 1].ServiceTime;
+        //        //}
 
-                double travelTime = CalculateTime(rt.SequenceOfLocations[j + 1], rt.SequenceOfLocations[j]);
+        //        double travelTime = CalculateTime(rt.SequenceOfLocations[j + 1], rt.SequenceOfLocations[j]);
 
-                double requiredTime = travelTime + rt.SequenceOfLocations[j].DeliveryServiceTime;
+        //        double requiredTime = travelTime + rt.SequenceOfLocations[j].DeliveryServiceTime;
 
-                //bool isCurrentFirstInBlock = (j == 0) || (rt.SequenceOfLocations[j].Id != rt.SequenceOfLocations[j - 1].Id);
-                bool isCurrentFirstInBlock = (j > 0) && (rt.SequenceOfLocations[j].Id != rt.SequenceOfLocations[j - 1].Id);
+        //        //bool isCurrentFirstInBlock = (j == 0) || (rt.SequenceOfLocations[j].Id != rt.SequenceOfLocations[j - 1].Id);
+        //        bool isCurrentFirstInBlock = (j > 0) && (rt.SequenceOfLocations[j].Id != rt.SequenceOfLocations[j - 1].Id);
 
-                if (isCurrentFirstInBlock)
-                {
-                    requiredTime += rt.SequenceOfLocations[j].ServiceTime;
-                }
+        //        if (isCurrentFirstInBlock)
+        //        {
+        //            requiredTime += rt.SequenceOfLocations[j].ServiceTime;
+        //        }
 
-                double latestArrivalFromNext = rt.SequenceOfLat[j + 1] - requiredTime;
+        //        double latestArrivalFromNext = rt.SequenceOfLat[j + 1] - requiredTime;
 
-                double dueConstraint = rt.SequenceOfLocations[j].Due
-                                       - (isCurrentFirstInBlock ? rt.SequenceOfLocations[j].ServiceTime : 0)
-                                       - rt.SequenceOfLocations[j].DeliveryServiceTime;
+        //        double dueConstraint = rt.SequenceOfLocations[j].Due
+        //                               - (isCurrentFirstInBlock ? rt.SequenceOfLocations[j].ServiceTime : 0)
+        //                               - rt.SequenceOfLocations[j].DeliveryServiceTime;
 
-                rt.SequenceOfLat[j] = Math.Min(dueConstraint, latestArrivalFromNext);
-            }
-
-
-            //for (int j = rt.SequenceOfLocations.Count - 2; j > -1; j--)
-            //{
-            //    if (rt.SequenceOfLocations[j + 1].Id == rt.SequenceOfLocations[j].Id)
-            //    {
-            //        rt.SequenceOfLat[j + 1] = rt.SequenceOfLat[j + 1] + (rt.SequenceOfLocations[j + 1].ServiceTime);
-            //    }
-
-            //    //var latestarrival = rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j + 1], rt.SequenceOfLocations[j]) -
-            //    //    rt.SequenceOfLocations[j].DeliveryServiceTime - rt.SequenceOfLocations[j].ServiceTime;
+        //        rt.SequenceOfLat[j] = Math.Min(dueConstraint, latestArrivalFromNext);
+        //    }
 
 
-            //    bool skipParkingTime = (j > 0 && rt.SequenceOfLocations[j - 1].Id == rt.SequenceOfLocations[j].Id);
+        //    //for (int j = rt.SequenceOfLocations.Count - 2; j > -1; j--)
+        //    //{
+        //    //    if (rt.SequenceOfLocations[j + 1].Id == rt.SequenceOfLocations[j].Id)
+        //    //    {
+        //    //        rt.SequenceOfLat[j + 1] = rt.SequenceOfLat[j + 1] + (rt.SequenceOfLocations[j + 1].ServiceTime);
+        //    //    }
 
-            //    var latestarrival = rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j + 1], rt.SequenceOfLocations[j])
-            //                       - rt.SequenceOfLocations[j].DeliveryServiceTime
-            //                       - (skipParkingTime ? 0 : rt.SequenceOfLocations[j].ServiceTime);
-
-            //    rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime - rt.SequenceOfLocations[j].DeliveryServiceTime, latestarrival);
+        //    //    //var latestarrival = rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j + 1], rt.SequenceOfLocations[j]) -
+        //    //    //    rt.SequenceOfLocations[j].DeliveryServiceTime - rt.SequenceOfLocations[j].ServiceTime;
 
 
-            //}
+        //    //    bool skipParkingTime = (j > 0 && rt.SequenceOfLocations[j - 1].Id == rt.SequenceOfLocations[j].Id);
 
-            bool feasible = rt.SequenceOfEct.Zip(rt.SequenceOfLat, (a, b) => a <= b).All(x => x);
+        //    //    var latestarrival = rt.SequenceOfLat[j + 1] - CalculateTime(rt.SequenceOfLocations[j + 1], rt.SequenceOfLocations[j])
+        //    //                       - rt.SequenceOfLocations[j].DeliveryServiceTime
+        //    //                       - (skipParkingTime ? 0 : rt.SequenceOfLocations[j].ServiceTime);
 
-            return new Tuple<bool, List<double>, List<double>>(feasible, rt.SequenceOfEct, rt.SequenceOfLat);
+        //    //    rt.SequenceOfLat[j] = Math.Min(rt.SequenceOfLocations[j].Due - rt.SequenceOfLocations[j].ServiceTime - rt.SequenceOfLocations[j].DeliveryServiceTime, latestarrival);
 
-        }
+
+        //    //}
+
+        //    bool feasible = rt.SequenceOfEct.Zip(rt.SequenceOfLat, (a, b) => a <= b).All(x => x);
+
+        //    return new Tuple<bool, List<double>, List<double>>(feasible, rt.SequenceOfEct, rt.SequenceOfLat);
+
+        //}
 
         public double CalculateUtilizationMetric()
         {
