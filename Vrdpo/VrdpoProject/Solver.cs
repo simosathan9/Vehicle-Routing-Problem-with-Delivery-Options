@@ -147,10 +147,10 @@ namespace VrdpoProject
                 Console.WriteLine("Restart: " + restartCounter);
                 for (int i = 0; i < settings.repetitions; i++)
                 {
-                    //if (i - lastImprovement > 3000)
-                    //{
-                    //    break;
-                    //}
+                    if (i - lastImprovement > 2000)
+                    {
+                        break;
+                    }
 
                     reinitCount++;
                     rm.ReinitializeVariables();
