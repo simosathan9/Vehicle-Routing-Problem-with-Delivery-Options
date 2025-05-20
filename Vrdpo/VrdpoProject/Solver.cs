@@ -157,7 +157,7 @@ namespace VrdpoProject
                     sm.ReinitializeVariables();
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
-                    //psm.ReinitializeVariables();
+                    psm.ReinitializeVariables();
 
                     if (reinitCount == currentSol.Options.Count * settings.promisesRestartRatio)
                     {
@@ -174,19 +174,20 @@ namespace VrdpoProject
                             //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                             flip = ls.FindBestFlipMove(flip, currentSol);
                             ls.ApplyFlipMove(flip, currentSol);
-                            //var localMinCost = FindMinMoveCost(flip, psm);
-                            //if (localMinCost == flip.TotalCost)
-                            //{
-                            //    ls.ApplyFlipMove(flip, currentSol);
-                            //    flip_count++;
-                            //    //Console.WriteLine("Apply random flip");
-                            //}
-                            //else if (localMinCost == psm.TotalCost)
-                            //{
-                            //    ls.ApplyPrioritySwapMove(psm, currentSol);
-                            //    psw_count++;
-                            //    //Console.WriteLine("Apply random priority swap");
-                            //}
+                            /*var localMinCost = FindMinMoveCost(flip, psm);
+                            if (localMinCost == flip.TotalCost)
+                            {
+                                ls.ApplyFlipMove(flip, currentSol);
+                                flip_count++;
+                                Console.WriteLine("Apply random flip");
+                            }
+                            else if (localMinCost == psm.TotalCost)
+                            {
+                                ls.ApplyPrioritySwapMove(psm, currentSol);
+                                psw_count++;
+                                Console.WriteLine("Apply random priority swap");
+                            }
+                            */
 
                             continue;
                         }
@@ -194,15 +195,15 @@ namespace VrdpoProject
                         sm = ls.FindBestSwapMove(sm, currentSol);
                         rm = ls.FindBestRelocationMove(rm, currentSol);
                         top = ls.FindBestTwoOptMove(top, currentSol);
-                        //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
+                        psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                         flip = ls.FindBestFlipMove(flip, currentSol);
 
                         var mincost = double.MaxValue;
-                        mincost = FindMinMoveCost(sm, rm, top, flip);//, psm);
+                        mincost = FindMinMoveCost(sm, rm, top, flip, psm);
 
                         int openRoutesTemp = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
                         var minCostChange = mincost - openRoutesTemp * 10000 - currentSol.Cost;
-                        
+
                         if (mincost == sm.TotalCost)
                         {
                             ls.ApplySwapMove(sm, currentSol);
@@ -218,13 +219,14 @@ namespace VrdpoProject
                         else if (mincost == flip.TotalCost)
                         {
                             ls.ApplyFlipMove(flip, currentSol);
-                          //  flip_count++;
+                            flip_count++;
                         }
-                        //else if (mincost == psm.TotalCost)
-                        //{
-                        //    ls.ApplyPrioritySwapMove(psm, currentSol);
-                        //    psw_count++;
-                        //}
+                        else if (mincost == psm.TotalCost)
+                        {
+                            ls.ApplyPrioritySwapMove(psm, currentSol);
+                            psw_count++;
+                            Console.WriteLine("Priority swap cost contribution: " + psm.MoveCost);
+                        }
                         ulong hashCode = currentSol.getSolutionOptionsHashCode();
                         if (frequencyMap.ContainsKey(hashCode))
                         {
@@ -349,8 +351,8 @@ namespace VrdpoProject
 
                 Console.WriteLine("///////////////////////");
                 Console.WriteLine(localBest.Cost + " " + bestSol.Cost);
-                //Console.WriteLine(flip_count);
-                //Console.WriteLine(psw_count);
+                Console.WriteLine("Flip Count " + flip_count);
+                Console.WriteLine("Priority Swap Count " + psw_count);
             }
             CalculateServiceLevel(bestSol);
             return bestSol;

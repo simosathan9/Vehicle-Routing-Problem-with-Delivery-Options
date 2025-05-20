@@ -892,16 +892,17 @@ namespace VrdpoProject
                 for (int i = 0; i < rt.SequenceOfCustomers.Count; i++)
                 {
                     Customer customer = rt.SequenceOfCustomers[i];
-                    Option option = rt.SequenceOfOptions[i];
-
-                    // If the customer is not already in the dictionary, add them
-                    if (!optionsPerCustomer.ContainsKey(customer.Id))
+                    foreach (Option option in customer.Options)
                     {
-                        optionsPerCustomer[customer.Id] = new List<Option>();
-                    }
+                        // If the customer is not already in the dictionary, add them
+                        if (!optionsPerCustomer.ContainsKey(customer.Id))
+                        {
+                            optionsPerCustomer[customer.Id] = new List<Option>();
+                        }
 
-                    // Add the current option to the customer's option list
-                    optionsPerCustomer[customer.Id].Add(option);
+                        // Add the current option to the customer's option list
+                        optionsPerCustomer[customer.Id].Add(option);
+                    }
                 }
             }
             Option b1, b2;
@@ -914,7 +915,7 @@ namespace VrdpoProject
                     if (customerB1.Id == 1000) {continue;} //Probably unnecessary because there are no options corresponding to the warehouse but add it to be safe
                     if (optionsPerCustomer[customerB1.Id].Count <= 1) {continue;} // Avoid creating a list for customers with only one available option
                     List<Option> notServedOptionsCustomerB1 = optionsPerCustomer[customerB1.Id]; //Create a list with the remaining options of customer B1
-                    notServedOptionsCustomerB1.Remove(b1); // remove the option that is currently served from the not served options list
+                    notServedOptionsCustomerB1.RemoveAll(x => x.Id == b1.Id);
                     foreach (Option notServedOptionB1 in notServedOptionsCustomerB1) { //Start searching to find a match for each not served option of customer B1
                         if (notServedOptionB1.Location.Type == 1 && notServedOptionB1.Location.Cap >= notServedOptionB1.Location.MaxCap) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
                         // Otherwise start searching for match either in the same or other route
@@ -927,7 +928,7 @@ namespace VrdpoProject
                                 if (customerB2.Id == 1000) {continue;} //Probably unnecessary because there are no options corresponding to the warehouse but add it to be safe
                                 if (optionsPerCustomer[customerB2.Id].Count <= 1) {continue;} // Avoid creating a list for customers with only one available option
                                 List<Option> notServedOptionsCustomerB2 = optionsPerCustomer[customerB2.Id]; //Create a list with the remaining options of customer B2
-                                notServedOptionsCustomerB2.Remove(b2); // remove the option that is currently served from the not served options list
+                                notServedOptionsCustomerB2.RemoveAll(x => x.Id == b2.Id);
                                 foreach (Option notServedOptionB2 in notServedOptionsCustomerB2) {
                                     if (notServedOptionB2.Location.Type == 1 && notServedOptionB2.Location.Cap >= notServedOptionB2.Location.MaxCap) {continue;} //If the location of that option is shared location and there is no available capacity for it continue
                                     if (notServedOptionB1.Location.Id.Equals(notServedOptionB2.Location.Id)) {
