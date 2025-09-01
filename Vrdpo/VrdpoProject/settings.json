@@ -1,0 +1,10 @@
+{
+    "restarts": 15,
+    "repetitions": 15000,
+    "verbal": true,
+    "promisesRestartRatio": 1.5,
+    "multiRestart": false,
+    "schema": "greedy",
+    "type": "int",
+    "randomness":  0.00
+}

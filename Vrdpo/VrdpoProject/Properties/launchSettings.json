@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "VrdpoProject": {
+      "commandName": "Project",
+      "commandLineArgs": "instances/U/25large/U_25large_1.txt"
+    }
+  }
+}
