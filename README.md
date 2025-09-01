@@ -171,16 +171,21 @@ Update that path (or override on the command line) to switch instances without t
 * `log.txt`: append‑only log of best solutions found (instance, cost, route count, timestamp).
 
 ## 6. Configuration (`settings.json`)
-| Field | Meaning | Notes |
-|-------|---------|-------|
-| `restarts` | Number of independent multi‑start restarts | Used if `multiRestart=true` |
-| `repetitions` | Max local search iterations per restart | Early stop if no improvement window exceeded |
-| `verbal` | Verbose console output | `true` for debugging |
-| `promisesRestartRatio` | Frequency (scaled by |O|) to reinitialize promises matrix | Float multiplier |
-| `multiRestart` | Enable multi‑start phase | Otherwise single constructive LS run |
-| `schema` | Currently `greedy` (future: adaptive / randomized) | Controls operator selection strategy |
-| `type` | `int` or `double` distance/time scaling | Influences rounding in matrices |
-| `randomness` | Reserved for stochastic selection weights | Not heavily used yet |
+Runtime behaviour is controlled via this JSON file placed alongside the executable. Current keys and intent (with representative defaults from the repository) are below.
+
+| Field | Description | Typical Effect / Guidance | Default* |
+|-------|-------------|---------------------------|----------|
+| `restarts` | Number of independent construction + local search restarts (only if `multiRestart=true`). | Increase for diversification on harder / larger instances. | 15 |
+| `repetitions` | Maximum local search iterations per restart. | Higher values deepen intensification; time grows roughly linearly. | 15000 |
+| `verbal` | Toggle verbose console logging. | Set `false` for batch experiments to reduce I/O overhead. | true |
+| `promisesRestartRatio` | Multiple determining how often the promise (edge memory) matrix is re‑initialized: trigger after `|Options| * ratio` iterations. | Larger value = longer memory (more aggressive pruning), smaller = more flexibility. | 1.5 |
+| `multiRestart` | Enable multi‑restart strategy. | Use `true` for robustness; `false` for quick single run. | false |
+| `schema` | Move selection scheme. Currently only `greedy` implemented (future: adaptive, randomized variants). | Controls how the best move among operators is chosen. | "greedy" |
+| `type` | Distance/time metric mode: `int` (rounded/scaled) or `double` (raw Euclidean). | Use `int` for speed, `double` for precision / final polishing. | "int" |
+
+*Defaults shown are those in the committed `settings.json` at the time of writing.
+
+After changing `settings.json`, simply re‑run the executable; no rebuild is required unless you modified source code.
 
 ## 7. Instance Format (Abstract)
 While full specification resides in the manuscript, the parser (`InstanceReader`) expects a structured plain text file containing:
