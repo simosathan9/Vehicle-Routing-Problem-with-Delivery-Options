@@ -6,7 +6,7 @@
 </div>
 
 ## 1. Overview
-This repository contains a research‑grade C# implementation of a (mat)heuristic solver for the Vehicle Routing Problem with Delivery Options (VRPDO). The VRPDO extends the classical Vehicle Routing Problem with Time Windows (VRPTW) by allowing each customer to specify *multiple alternative delivery options* (e.g., home, workplace, parcel locker / pickup point) each with its own location, time window, service duration and priority (preference) level. The solver assigns exactly one option per customer and builds capacity‑feasible, time‑feasible vehicle routes that satisfy *service level constraints* on customer preferences while minimizing (lexicographically) the number of active routes and then total travel cost.
+This repository contains a research‑grade C# implementation of a metaheuristic solver for the Vehicle Routing Problem with Delivery Options (VRPDO). The VRPDO extends the classical Vehicle Routing Problem with Time Windows (VRPTW) by allowing each customer to specify *multiple alternative delivery options* (e.g., home, workplace, parcel locker / pickup point) each with its own location, time window, service duration and priority (preference) level. The solver assigns exactly one option per customer and builds capacity‑feasible, time‑feasible vehicle routes that satisfy *service level constraints* on customer preferences while minimizing (lexicographically) the number of active routes and then total travel cost.
 
 The codebase implements:
 * A constructive multi‑option selection and insertion procedure biased toward feasibility and high service levels.

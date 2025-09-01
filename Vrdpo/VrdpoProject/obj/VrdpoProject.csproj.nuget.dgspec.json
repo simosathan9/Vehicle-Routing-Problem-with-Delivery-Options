@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/simosathanasiadis/Documents/VRPDO/Vrdpo/VrdpoProject/VrdpoProject.csproj": {}
+    "/Users/simosathanasiadis/Desktop/Vehicle-Routing-Problem-with-Delivery-Options/Vrdpo/VrdpoProject/VrdpoProject.csproj": {}
   },
   "projects": {
-    "/Users/simosathanasiadis/Documents/VRPDO/Vrdpo/VrdpoProject/VrdpoProject.csproj": {
+    "/Users/simosathanasiadis/Desktop/Vehicle-Routing-Problem-with-Delivery-Options/Vrdpo/VrdpoProject/VrdpoProject.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/simosathanasiadis/Documents/VRPDO/Vrdpo/VrdpoProject/VrdpoProject.csproj",
+        "projectUniqueName": "/Users/simosathanasiadis/Desktop/Vehicle-Routing-Problem-with-Delivery-Options/Vrdpo/VrdpoProject/VrdpoProject.csproj",
         "projectName": "VrdpoProject",
-        "projectPath": "/Users/simosathanasiadis/Documents/VRPDO/Vrdpo/VrdpoProject/VrdpoProject.csproj",
+        "projectPath": "/Users/simosathanasiadis/Desktop/Vehicle-Routing-Problem-with-Delivery-Options/Vrdpo/VrdpoProject/VrdpoProject.csproj",
         "packagesPath": "/Users/simosathanasiadis/.nuget/packages/",
-        "outputPath": "/Users/simosathanasiadis/Documents/VRPDO/Vrdpo/VrdpoProject/obj/",
+        "outputPath": "/Users/simosathanasiadis/Desktop/Vehicle-Routing-Problem-with-Delivery-Options/Vrdpo/VrdpoProject/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/simosathanasiadis/.nuget/NuGet/NuGet.Config"
