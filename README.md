@@ -218,31 +218,13 @@ Potential enhancements:
 4. Parse generated reports and aggregate KPIs: cost, route count, `SL0`, `SL1`.
 5. (Optional) Compare against reference best‑known solutions from literature (cited in manuscript) for validation.
 
-## 11. Code Quality & Design Notes
-* Deep copy mechanisms in `Solution.DeepCopy` ensure isolation of candidate states across moves / restarts.
-* Time window feasibility uses earliest completion (ECT) / latest allowable (LAT) forward/backward passes after hypothetical insertions (`RespectsTimeWindow2`).
-* The *promise matrix* is a sparse memory comparable conceptually to edge-based tabu tenure but deterministic and cost‑threshold driven.
-* Quadratic capacity slack fosters consolidation without explicit penalty tuning (acts similar to ejection chain biasing).
-
-## 12. Citation
-If you use this code or ideas, please cite the associated manuscript (preprint forthcoming). Placeholder BibTeX entry:
-```bibtex
-@article{Author2025VRPDO,
-	title   = {A Local Search Matheuristic for the Vehicle Routing Problem with Delivery Options},
-	author  = {First Author and Second Author and Third Author},
-	journal = {European Journal of Operational Research},
-	year    = {2025},
-	note    = {Under review}
-}
-```
-
-## 13. License
+## 11. License
 Distributed under the terms of the repository `LICENSE` (see file). Ensure compatibility if integrating into closed-source systems.
 
-## 14. Disclaimer
+## 12. Disclaimer
 This is research software: correctness and performance have been validated on internal benchmarks but no warranty is provided. Review and adapt before production deployment.
 
-## 15. Contact
+## 13. Contact
 For questions regarding algorithms, instances, or experimental reproduction, open an issue or submit a pull request.
 
 ---
