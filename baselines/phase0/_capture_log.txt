@@ -1,0 +1,2 @@
+Instances/U/25medium/U_25medium_1.txt -> /c/Source/VRPDO/baselines/phase0/U_25medium_1.txt  (77s)
+Instances/U/25large/U_25large_1.txt -> /c/Source/VRPDO/baselines/phase0/U_25large_1.txt  (73s)

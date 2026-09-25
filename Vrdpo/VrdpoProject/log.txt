@@ -1,0 +1,7 @@
+Instances/U/25small/U_25small_1  2188 3 24-Sep-26 7:00:11 PM
+Instances/U/25small/U_25small_1  2188 3 24-Sep-26 7:01:18 PM
+Instances/U/25medium/U_25medium_1  2400 3 24-Sep-26 7:06:42 PM
+Instances/U/25large/U_25large_1  2423 3 24-Sep-26 7:07:56 PM
+Instances/U/25medium/U_25medium_1  2400 3 25-Sep-26 11:01:00 AM
+Instances/U/25large/U_25large_1  2423 3 25-Sep-26 11:02:13 AM
+Instances/U/25small/U_25small_1  2188 3 25-Sep-26 11:14:38 AM

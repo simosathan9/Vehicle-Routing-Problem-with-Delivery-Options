@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VrdpoProject")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+895be20e7f92c8ca31749388495020e536ed2313")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a93878e83be1ce88da8315c30188b5cc602fffbf")]
 [assembly: System.Reflection.AssemblyProductAttribute("VrdpoProject")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VrdpoProject")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
