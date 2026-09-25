@@ -250,7 +250,14 @@ namespace VrdpoProject
                             Console.WriteLine();
                         }
                         currentSol.Routes = currentSol.Routes.Where(rt => rt.SequenceOfLocations.Count != 2).ToList();
-                        Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove, currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList());
+                        // NOTE (perf, Phase 1a): was unconditional (fires on every new local-best found,
+                        // i.e. potentially thousands of times early in a restart) and always built a fresh
+                        // Where/OrderBy/Select/ToList over every option regardless of whether it was ever
+                        // printed. Gated behind settings.verbal, consistent with the identical print below.
+                        if (settings.verbal)
+                        {
+                            Console.WriteLine("{0} {1} {2} {3} {4}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => x.SequenceOfLocations.Count > 2), currentSol.LastMove, currentSol.Options.Where(x => x.IsServed).OrderBy(x => x.Id).Select(x => x.Id).ToList());
+                        }
                     }
                     if (settings.verbal)
                     {

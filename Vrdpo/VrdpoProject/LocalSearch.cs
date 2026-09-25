@@ -14,6 +14,10 @@ namespace VrdpoProject
     {
         public static int power = 2;
         private double smallDouble;
+        // NOTE (perf, Phase 1a): added so ApplyPrioritySwapMove's diagnostic Console.WriteLine block
+        // below can be gated consistently with Solver's existing `settings.verbal` behavior, instead
+        // of printing unconditionally on every accepted priority-swap move regardless of settings.
+        private bool verbal;
         private Route rt1, rt2;
         public LocalSearch()
         {
@@ -26,6 +30,7 @@ namespace VrdpoProject
             {
                 this.smallDouble = 0;
             }
+            this.verbal = settings.verbal;
         }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
         {
@@ -652,6 +657,25 @@ namespace VrdpoProject
                     Customer custC = rt1.SequenceOfCustomers[custInd1 + 1];
                     //Route rt1_copy = new Route(rt1);
                     if (custB.Options.Count() < 2) { continue; }
+                    // NOTE (perf, Phase 1a — REVERTED, do not remove this block): a first attempt deleted
+                    // this as "dead code" because the resulting `rt1_copy` object is never read again
+                    // anywhere in this method or file. That's true of the *return value*, but the call is
+                    // NOT side-effect-free: getTempCopy() -> Customer.Clone(options) contains a real bug
+                    // (Customer.cs: `this.options = options;` mutates the ORIGINAL customer's Options list
+                    // instead of the clone's — should be `clone.options = options;`). So every time this
+                    // block runs for a given custB, it silently replaces custB.Options with a freshly-cloned
+                    // List<Option> (new Option object identities). Downstream in this same method (e.g. the
+                    // `custBServedOption == custB.Options[optInd]` and `custB.Options[optInd] ==
+                    // rt1.SequenceOfOptions[indCust]` checks) compare Options by reference equality (`==`,
+                    // not overridden), so whether this mutation has already happened changes which
+                    // candidates get skipped — i.e. the search trajectory depends on this bug as a hidden
+                    // side channel. Confirmed empirically: deleting this block reproduced a different (but
+                    // equal-cost) route structure on U_25small_1 versus the Phase 0 baseline. Restored
+                    // verbatim, unreached-variable warning and all, to preserve exact published behavior —
+                    // this is a real latent bug in Customer.Clone, but fixing it is a behavior change to be
+                    // decided deliberately by the authors, not something to fix silently in a perf pass
+                    // (same principle as the deliberately-preserved Promises aliasing in Solution's clone
+                    // constructor — see Solution.cs).
                     Route rt1_copy = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
                     rt1_copy.SequenceOfCustomers.RemoveAt(custInd1);
                     rt1_copy.SequenceOfOptions.RemoveAt(custInd1);
@@ -861,6 +885,22 @@ namespace VrdpoProject
                 targetRt.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(targetRt.Capacity - targetRt.Load), 2);
                 }
                 sol.Cost += flip.MoveCost;
+                // NOTE (perf, Phase 1a — REVERTED, do not remove): a first attempt assumed B1/B2 here are
+                // always the same object references held in sol.Options (true in the common case — Route/
+                // Customer sequences normally hold direct references into the single shared Option list
+                // from InstanceReader.BuildModel), and deleted the `sol.Options.Where(x => x.Id ==
+                // B1.Id).ToList()[0].IsServed = ...` re-scan lines below as a redundant no-op. That
+                // assumption does NOT always hold: Customer.Clone(options) (see Customer.cs) has a bug —
+                // `this.options = options;` mutates the ORIGINAL customer's Options list instead of the
+                // clone's — which FindBestFlipMove's getTempCopy call (see the NOTE a few lines above this
+                // method) triggers as a side effect. Once that's happened for a given customer, B2 resolved
+                // via `originRt.SequenceOfCustomers[...].Options[...]` can be a CLONED Option object, not
+                // the one actually stored in sol.Options — inserting that clone into the route and setting
+                // IsServed on it would silently leave the canonical sol.Options entry with the same Id
+                // stuck at IsServed=false. The re-scan below is the (likely unintentional, but load-bearing)
+                // defensive re-sync that keeps sol.Options correct regardless of which identity B1/B2 turned
+                // out to be. Restored verbatim — confirmed necessary the same way as the getTempCopy revert
+                // above: removing it changed the reached route structure on the Phase 0 regression check.
                 B1.IsServed = false;
                 B2.IsServed = true;
                 sol.Options.Where(x => x.Id == B1.Id).ToList()[0].IsServed = false;
@@ -1076,14 +1116,23 @@ namespace VrdpoProject
                 //Option d2 = psm.AltOption2;
                 Option d2 = rt2.SequenceOfCustomers[psm.PositionOfSecondOption].Options.FirstOrDefault(opt => opt.Id == psm.AltOption2.Id);
                 //
-                Console.WriteLine("Customer 1: " + b1.Cust.Id);
-                Console.WriteLine("B1 ID: " + b1.Id + " D1 ID: " + d1.Id);
-                Console.WriteLine("Customer 2: " + b2.Cust.Id);
-                Console.WriteLine("B2 ID: " + b2.Id + " D2 ID: " + d2.Id);
-                Console.WriteLine("-----");
-                Console.WriteLine("Route 1 Before: " + string.Join(",", rt1.SequenceOfOptions.Select(x => x.Id).ToList()));
-                Console.WriteLine("Route 2 Before: " + string.Join(",", rt2.SequenceOfOptions.Select(x => x.Id).ToList()));
-                Console.WriteLine("-----");
+                // NOTE (perf, Phase 1a): this whole diagnostic block used to print unconditionally on
+                // EVERY accepted priority-swap move (10 Console.WriteLine calls, two of them building a
+                // fresh string via Select(...).ToList() over each route's full option sequence), never
+                // gated by settings.verbal unlike Solver's equivalent per-iteration prints. Gated now for
+                // consistency; behavior/output when verbal=true is unchanged, and priority-swap moves are
+                // exercised by the regression baselines (they show up in several accepted-move logs).
+                if (verbal)
+                {
+                    Console.WriteLine("Customer 1: " + b1.Cust.Id);
+                    Console.WriteLine("B1 ID: " + b1.Id + " D1 ID: " + d1.Id);
+                    Console.WriteLine("Customer 2: " + b2.Cust.Id);
+                    Console.WriteLine("B2 ID: " + b2.Id + " D2 ID: " + d2.Id);
+                    Console.WriteLine("-----");
+                    Console.WriteLine("Route 1 Before: " + string.Join(",", rt1.SequenceOfOptions.Select(x => x.Id).ToList()));
+                    Console.WriteLine("Route 2 Before: " + string.Join(",", rt2.SequenceOfOptions.Select(x => x.Id).ToList()));
+                    Console.WriteLine("-----");
+                }
                 //
                 rt1.SequenceOfOptions[psm.PositionOfFirstOption] = d1;
                 rt1.SequenceOfCustomers[psm.PositionOfFirstOption] = d1.Cust;
@@ -1091,10 +1140,13 @@ namespace VrdpoProject
                 rt2.SequenceOfOptions[psm.PositionOfSecondOption] = d2;
                 rt2.SequenceOfCustomers[psm.PositionOfSecondOption] = d2.Cust;
                 rt2.SequenceOfLocations[psm.PositionOfSecondOption] = d2.Location;
-                Console.WriteLine("---------");
-                Console.WriteLine("Route 1 After: " + string.Join(",", rt1.SequenceOfOptions.Select(x => x.Id).ToList()));
-                Console.WriteLine("Route 2 After: " + string.Join(",", rt2.SequenceOfOptions.Select(x => x.Id).ToList()));
-                Console.WriteLine("---------");
+                if (verbal)
+                {
+                    Console.WriteLine("---------");
+                    Console.WriteLine("Route 1 After: " + string.Join(",", rt1.SequenceOfOptions.Select(x => x.Id).ToList()));
+                    Console.WriteLine("Route 2 After: " + string.Join(",", rt2.SequenceOfOptions.Select(x => x.Id).ToList()));
+                    Console.WriteLine("---------");
+                }
                 b1.Location.Cap -= 1;
                 b2.Location.Cap -= 1;
                 d1.Location.Cap += 1;

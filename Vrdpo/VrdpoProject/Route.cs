@@ -10,7 +10,17 @@ namespace VrdpoProject
 {
     public class Route
     {
-        private InstanceReader ir = new();
+        // NOTE (perf, Phase 1a): this was `private InstanceReader ir = new();` — a per-instance field
+        // initializer that ran the InstanceReader() parameterless ctor (string-splits + int-parses off
+        // the shared static `instance` array) on EVERY Route construction, including every clone
+        // (getTempCopy, the copy-ctor), even though `ir` is only ever read in the one constructor below
+        // (for ir.Depot [itself a dead local, see removal below] and ir.NumbOpt). InstanceReader's
+        // parameterless ctor deterministically derives the same cap/numbLoc/numbCus/numbOpt from the
+        // same static, read-only-after-first-load `instance`/`filename` fields every time for a given
+        // process run (one instance file per process) — so sharing a single instance across all Route
+        // objects instead of rebuilding it per object changes nothing about the derived values, it just
+        // stops re-deriving them. No behavior change — see baselines/phase0 regression snapshots.
+        private static readonly InstanceReader ir = new();
         private int id;
         private List<Customer> sequenceOfCustomers = new();
         private List<Location> sequenceOfLocations = new();
@@ -29,7 +39,9 @@ namespace VrdpoProject
 
         public Route(int id, double capacity, Location storage)
         {
-            Location depot = ir.Depot;
+            // NOTE (perf, Phase 1a): `Location depot = ir.Depot;` used to be assigned here and never
+            // read again in this constructor (confirmed via grep — `depot` has no other reference in
+            // this file). Removed as dead code; `ir.NumbOpt` below is the only genuinely used member.
             this.sequenceOfLocations.Add(storage);
             this.sequenceOfLocations.Add(storage);
             this.sequenceOfCustomers.Add(fakeCustomer);
