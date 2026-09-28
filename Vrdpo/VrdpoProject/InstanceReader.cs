@@ -29,6 +29,23 @@ namespace VrdpoProject
         private Dictionary<int, List<Option>> optionsPerCustomer = new Dictionary<int, List<Option>>();
         private Dictionary<int, List<int>> optionsPrioritiesPerCustomer = new Dictionary<int, List<int>>();
 
+        // NOTE (perf, Phase 1b): distance/time matrix cache, shared across every InstanceReader/
+        // Solution built within one process run. Safe because (a) exactly one instance file is ever
+        // loaded per process (InstanceReader.instance/filename are already static/process-global — the
+        // parameterless ctor always re-derives from the same static data), so the matrix's numeric
+        // VALUES are identical every time regardless of which restart is building it; (b) the matrix is
+        // read-only after construction everywhere else in the codebase (confirmed via repo-wide grep —
+        // only Solution.CalculateDistance/CalculateTime read it, via the indexer, never assign into it).
+        // Populated on the first BuildModel() call in the process; every subsequent call reuses the same
+        // array reference instead of re-looping over every location pair. This is deliberately NOT the
+        // same caching strategy as the mutable per-restart object graph (Locations/Customers/Options) —
+        // those keep being rebuilt fresh every restart below, unchanged, because Location.Cap and
+        // Option.IsServed genuinely are mutated during search and must reset each restart (confirmed via
+        // grep: Location.Cap is written in LocalSearch.cs's move-application methods and Solver.cs's
+        // insertion code) — only the immutable, coordinates-derived matrix is cached.
+        private static double[,] cachedDistanceMatrix;
+        private static double[,] cachedTimeMatrix;
+
 
         public InstanceReader()
         {
@@ -105,46 +122,64 @@ namespace VrdpoProject
                 //allCustomers[Int32.Parse(temp2[2])].Options = (List<Option>)allCustomers[Int32.Parse(temp2[2])].Options.Append(opt);
             }
 
-            int rows = allLocations.Count;
-            distanceMatrix = new double[rows,rows];
-            timeMatrix = new double[rows, rows];
-
-            for (int i = 0; i < rows; i++)
+            // NOTE (perf, Phase 1b): matrix build is cached across restarts within a process — see the
+            // cachedDistanceMatrix/cachedTimeMatrix fields for why this is safe. First call in the
+            // process computes it exactly as before (same loop, same arithmetic, same settings read —
+            // just hoisted out of the inner loop since settings.json never changes mid-run); every
+            // subsequent call just reuses the cached arrays.
+            if (cachedDistanceMatrix != null)
             {
-                for(int j = i; j < rows; j++)
-                {
-                    distanceMatrix[i,j] = 0;
-                    timeMatrix[i,j] = 0;
-                }
+                distanceMatrix = cachedDistanceMatrix;
+                timeMatrix = cachedTimeMatrix;
             }
-
-            Location a;
-            Location b;
-            double dist;
-            for (int i = 0; i < rows; i++)
+            else
             {
-                for (int j = i; j < rows; j++)
+                int rows = allLocations.Count;
+                distanceMatrix = new double[rows, rows];
+                timeMatrix = new double[rows, rows];
+
+                for (int i = 0; i < rows; i++)
                 {
-                    a = allLocations[i];
-                    b = allLocations[j];
-                    dist =  Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
-
-                    string jsonContent = File.ReadAllText("settings.json");
-                    var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
-                    if (settings.type == "int")
+                    for (int j = i; j < rows; j++)
                     {
-                        //timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                        //distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                        timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                        distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
-                    } else if (settings.type == "double") {
-
-                        //timeMatrix[i, j - i] = Math.Round(dist, 3);
-                        //distanceMatrix[i, j - i] = Math.Round(dist, 3);
-                        timeMatrix[i, j - i] = dist;
-                        distanceMatrix[i, j - i] = dist;
+                        distanceMatrix[i, j] = 0;
+                        timeMatrix[i, j] = 0;
                     }
                 }
+
+                // Hoisted out of the (i, j) loop below: settings.json was previously re-read and
+                // re-deserialized once PER MATRIX CELL (i.e. ~rows²/2 times) purely to learn a constant
+                // that never changes during a run. Reading it once here produces the exact same
+                // `settings.type` value for every cell, since the file isn't touched mid-run.
+                string jsonContent = File.ReadAllText("settings.json");
+                var settings = JsonSerializer.Deserialize<Settings>(jsonContent);
+
+                Location a;
+                Location b;
+                double dist;
+                for (int i = 0; i < rows; i++)
+                {
+                    for (int j = i; j < rows; j++)
+                    {
+                        a = allLocations[i];
+                        b = allLocations[j];
+                        dist = Math.Sqrt(Math.Pow(a.Xx - b.Xx, 2) + Math.Pow(a.Yy - b.Yy, 2));
+
+                        if (settings.type == "int")
+                        {
+                            timeMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                            distanceMatrix[i, j - i] = (int)(Math.Ceiling(10 * dist));
+                        }
+                        else if (settings.type == "double")
+                        {
+                            timeMatrix[i, j - i] = dist;
+                            distanceMatrix[i, j - i] = dist;
+                        }
+                    }
+                }
+
+                cachedDistanceMatrix = distanceMatrix;
+                cachedTimeMatrix = timeMatrix;
             }
             //Update all data structures
             foreach(Option opt in options)

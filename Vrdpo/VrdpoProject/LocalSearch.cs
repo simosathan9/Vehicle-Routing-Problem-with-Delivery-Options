@@ -34,6 +34,19 @@ namespace VrdpoProject
         }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
         {
+            // NOTE (perf/correctness, Phase 4 prep): every other operator in this class
+            // (FindBestSwapMove, FindBestTwoOptMove, FindBestFlipMove, FindBestPrioritySwapMove)
+            // declares its own local `Route rt1, rt2;` that shadows the class-level `rt1`/`rt2`
+            // fields declared near the top of LocalSearch. This method was the one exception — it
+            // read/wrote the shared INSTANCE FIELDS directly. Harmless today because only one
+            // restart ever calls into a given `LocalSearch` instance at a time (this class is a
+            // single Solver-instance-shared object across all restarts), but it would silently
+            // corrupt results if two restarts ever called this method concurrently on the same
+            // `ls` instance (Phase 4 parallel-restarts work). Added the same local shadowing
+            // declaration every sibling method already has — this is a no-op for the current
+            // single-threaded execution (each call still gets its own fresh local, same values,
+            // same order) and is required before any parallelization of the restart loop.
+            Route rt1, rt2;
             int openRoutes;
             for (int originRouteIndex = 0; originRouteIndex < sol.Routes.Count; originRouteIndex++)
             {
@@ -226,6 +239,18 @@ namespace VrdpoProject
 
         public Swap FindBestSwapMove(Swap sm, Solution sol)
         {
+            // NOTE (perf, Phase 2): `sol.Options.Select(x => x.Location).ToHashSet().ToList()` used to
+            // be recomputed fresh (3 allocations: Select's enumerator state, the HashSet, the List) on
+            // every single same-route candidate, purely to hand `getTempCopy` a "distinct locations in
+            // this solution" list. That value is invariant for the whole call: FindBestSwapMove never
+            // mutates `sol` (only Apply* methods do, called later by the caller), and critically
+            // `Solution.Options` (a Solution-level field) is never touched by the reference-mutation bug
+            // in Customer.Clone (that bug mutates `Customer.Options`, a *different* field on a *different*
+            // class — confirmed via grep, no shared backing field). Computed once here instead. Does NOT
+            // touch getTempCopy's cloning internals or the Customer.Clone bug at all — same clone
+            // behavior, same call count, same arguments' contents, just computed once instead of per
+            // candidate.
+            var distinctLocationsInSolution = sol.Options.Select(x => x.Location).ToHashSet().ToList();
             Route rt1, rt2;
             int openRoutes;
             int startOfSecondOptionIndex;
@@ -265,7 +290,7 @@ namespace VrdpoProject
 
                             if (rt1 == rt2)
                             {
-                                Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
+                                Route rtTemp = rt1.getTempCopy(rt1, distinctLocationsInSolution);
                                 rtTemp.SequenceOfOptions[firstOptionIndex] = b2;
                                 rtTemp.SequenceOfCustomers[firstOptionIndex] = b2.Cust;
                                 rtTemp.SequenceOfLocations[firstOptionIndex] = b2.Location;
@@ -404,6 +429,8 @@ namespace VrdpoProject
         }
 
         public TwoOpt FindBestTwoOptMove(TwoOpt top, Solution sol) {
+            // NOTE (perf, Phase 2): see the identical hoist + rationale in FindBestSwapMove.
+            var distinctLocationsInSolution = sol.Options.Select(x => x.Location).ToHashSet().ToList();
             int openRoutes;
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++) {
                 Route rt1 = sol.Routes[rtInd1];
@@ -426,10 +453,14 @@ namespace VrdpoProject
                             Option K = rt2.SequenceOfOptions[optInd2];
                             Option L = rt2.SequenceOfOptions[optInd2 + 1];
 
-                            var tw1 = sol.RespectsTimeWindow(rt1, optInd1,
-                                            rt2.SequenceOfLocations.GetRange(optInd2 + 1, rt2.SequenceOfLocations.Count - (optInd2 + 1)));
-                            var tw2 = sol.RespectsTimeWindow(rt2, optInd2,
-                                            rt1.SequenceOfLocations.GetRange(optInd1 + 1, rt1.SequenceOfLocations.Count - (optInd1 + 1)));
+                            // NOTE (perf, Phase 2): switched to the Route+index overload of
+                            // RespectsTimeWindow — avoids both this call's own .GetRange() allocation
+                            // and the method's internal List composition. Same composed sequence as
+                            // before: rt1's prefix through optInd1, then rt2's suffix from optInd2+1
+                            // (and the mirror for tw2) — see the overload's own comment for the index
+                            // derivation.
+                            var tw1 = sol.RespectsTimeWindow(rt1, optInd1, rt2, optInd2);
+                            var tw2 = sol.RespectsTimeWindow(rt2, optInd2, rt1, optInd1);
 
                             bool respectsTw1 = tw1.Item1;
                             bool respectsTw2 = tw2.Item1;
@@ -444,7 +475,7 @@ namespace VrdpoProject
                                 //respectsTw2 = tw2.Item1;
                                 //if (!respectsTw1 || !respectsTw2) { continue; }
 
-                                Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
+                                Route rtTemp = rt1.getTempCopy(rt1, distinctLocationsInSolution);
                                 int frombase = optInd1 + 1;
                                 int fromend = optInd2 + 1;
                                 List<Option> reversedSegment = Enumerable.Reverse(rtTemp.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
@@ -646,6 +677,13 @@ namespace VrdpoProject
         public Flip FindBestFlipMove(Flip flip, Solution sol, bool cond = false)
         {
             int openRoutes;
+            // NOTE (perf, Phase 2): reads the incrementally-maintained counters directly (no scan at
+            // all) instead of the once-per-call ScanServiceLevelCounts this was originally hoisted to
+            // — safe under the same conditions Solver.CalculateServiceLevelFast documents: this whole
+            // method runs within the multiRestart=false path, where Solution.SeedServiceLevelCounts is
+            // called once per restart and every accepted Flip/PrioritySwap move keeps the counts
+            // current via AdjustServiceLevelCounts.
+            int baseP0 = sol.Po0Count, baseP1 = sol.Po1Count, baseP2 = sol.Po2Count;
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++)
             {
                 Route rt1 = sol.Routes[rtInd1];
@@ -730,7 +768,7 @@ namespace VrdpoProject
                                 
                                 if (!tw.Item1) { continue; }
 
-                                var newServiceLevel = CalculateTempServiceLevel(sol, rt1.SequenceOfOptions[custInd1].Prio, custB.Options[optInd].Prio);
+                                var newServiceLevel = CalculateTempServiceLevel(baseP0, baseP1, baseP2, rt1.SequenceOfOptions[custInd1].Prio, custB.Options[optInd].Prio);
                                 if (newServiceLevel[0] < 0.8 || newServiceLevel[1] < 0.9)
                                 {
                                     if (rt1.SequenceOfOptions[custInd1].Prio < custB.Options[optInd].Prio)
@@ -885,6 +923,12 @@ namespace VrdpoProject
                 targetRt.RouteUtilizationMetric = Math.Pow(Convert.ToDouble(targetRt.Capacity - targetRt.Load), 2);
                 }
                 sol.Cost += flip.MoveCost;
+                // NOTE (perf, Phase 2): Flip is one of only two movers that change which option
+                // represents a customer (the other is PrioritySwap) — see Solution.AdjustServiceLevelCounts's
+                // own comment. B1.Prio/B2.Prio are read correctly here regardless of the Customer.Clone
+                // reference-identity bug described below, since Option.Clone() preserves Prio via
+                // MemberwiseClone (cloning never changes a priority value, only object identity).
+                sol.AdjustServiceLevelCounts(B1.Prio, B2.Prio);
                 // NOTE (perf, Phase 1a — REVERTED, do not remove): a first attempt assumed B1/B2 here are
                 // always the same object references held in sol.Options (true in the common case — Route/
                 // Customer sequences normally hold direct references into the single shared Option list
@@ -925,6 +969,8 @@ namespace VrdpoProject
 
         public PrioritySwap FindBestPrioritySwapMove(PrioritySwap psm, Solution sol)
         {
+            // NOTE (perf, Phase 2): see the identical hoist + rationale in FindBestSwapMove.
+            var distinctLocationsInSolution = sol.Options.Select(x => x.Location).ToHashSet().ToList();
             Dictionary<int, List<Option>> optionsPerCustomer = new Dictionary<int, List<Option>>();
             foreach (Route rt in sol.Routes)
             {
@@ -990,17 +1036,20 @@ namespace VrdpoProject
                                         var tw1 = sol.RespectsTimeWindow2(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location);
                                         if (!tw1.Item1) {continue;} // If the insertion of the first option leads to TW violation continue.
                                         // If no TW window violation then insert the new option in the temp route and check for the second option
-                                        Route rtTemp = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
-                                        List<int> sequenceOfOptionsIDrtTemp1 = rtTemp.SequenceOfOptions.Select(x => x.Id).ToList(); // Create this because rtTemp.SequenceOfOptions contains cloned objects that are not the same with rt1.SequenceOfOptions
-                                        int indexB1 = sequenceOfOptionsIDrtTemp1.IndexOf(b1.Id);
-                                        List<int> sequenceOfLocationsIDrtTemp1 = rtTemp.SequenceOfLocations.Select(x => x.Id).ToList(); // Create this because rtTemp.SequenceOfLocations contains cloned objects that are not the same with rt1.SequenceOfLocations
-                                        int indexB1Location = sequenceOfLocationsIDrtTemp1.IndexOf(b1.Location.Id);
+                                        Route rtTemp = rt1.getTempCopy(rt1, distinctLocationsInSolution);
+                                        // NOTE (perf, Phase 2): four `list.Select(x => x.Id).ToList()` + `.IndexOf(...)`
+                                        // pairs used to live here (each materializing a fresh List<int> just to
+                                        // search it once). Confirmed via grep that `indexB1`, `indexB1Location`, and
+                                        // `indexB2Location` (and their backing lists) were computed and never read
+                                        // again anywhere in this file — genuinely dead, and safe to delete outright
+                                        // unlike the Flip/getTempCopy case earlier in this file: this Select just reads
+                                        // the `.Id` int property, no Clone() call hides inside it, so there's no
+                                        // side-effect-through-a-bug risk here. Only `indexB2` (used immediately below)
+                                        // was live; replaced its list-then-IndexOf with FindIndex, which searches the
+                                        // existing List<Option> in place — same result, zero allocation.
                                         rtTemp.SequenceOfOptions[rt1.SequenceOfOptions.IndexOf(b1)] = notServedOptionB1;
                                         rtTemp.SequenceOfLocations[rt1.SequenceOfOptions.IndexOf(b1)] = notServedOptionB1.Location;
-                                        List<int> sequenceOfOptionsIDrtTemp2 = rtTemp.SequenceOfOptions.Select(x => x.Id).ToList(); // Create this because rtTemp.SequenceOfOptions contains cloned objects that are not the same with rt1.SequenceOfOptions
-                                        int indexB2 = sequenceOfOptionsIDrtTemp2.IndexOf(b2.Id);
-                                        List<int> sequenceOfLocationsIDrtTemp2 = rtTemp.SequenceOfLocations.Select(x => x.Id).ToList();
-                                        int indexB2Location = sequenceOfLocationsIDrtTemp2.IndexOf(b2.Location.Id);
+                                        int indexB2 = rtTemp.SequenceOfOptions.FindIndex(x => x.Id == b2.Id);
                                         var tw2 = sol.RespectsTimeWindow2(rtTemp, indexB2, notServedOptionB2.Location);
                                         if (!tw2.Item1) {continue;} // If the insertion of the second option leads to TW violation continue.
                                     }
@@ -1151,6 +1200,11 @@ namespace VrdpoProject
                 b2.Location.Cap -= 1;
                 d1.Location.Cap += 1;
                 d2.Location.Cap += 1;
+                // NOTE (perf, Phase 2): PrioritySwap is a double option-priority change — b1 leaves
+                // (replaced by d1), and separately b2 leaves (replaced by d2) — see
+                // Solution.AdjustServiceLevelCounts's own comment for why this call site is safe.
+                sol.AdjustServiceLevelCounts(b1.Prio, d1.Prio);
+                sol.AdjustServiceLevelCounts(b2.Prio, d2.Prio);
                 b1.IsServed = false;
                 b2.IsServed = false;
                 d1.IsServed = true;
@@ -1226,12 +1280,14 @@ namespace VrdpoProject
             rt.Cost = tc;
         }
 
-        double[] CalculateTempServiceLevel(Solution sol, int leavingPriority, int enteringPriority, bool verbal = false)
+        // NOTE (perf, Phase 2): extracted verbatim from CalculateTempServiceLevel's original body so
+        // FindBestFlipMove can compute this ONCE per call instead of once per candidate (see below) —
+        // no behavior change, this is the exact same loop that used to run inline.
+        (int po0Sum, int po1Sum, int po2Sum) ScanServiceLevelCounts(Solution sol)
         {
             int po0Sum = 0;
             int po1Sum = 0;
             int po2Sum = 0;
-            double sum = 0;
             int po = -1;
 
             for (int r = 0; r < sol.Routes.Count; r++)
@@ -1253,6 +1309,19 @@ namespace VrdpoProject
                     }
                 }
             }
+            return (po0Sum, po1Sum, po2Sum);
+        }
+
+        // NOTE (perf, Phase 2): applies the exact same leaving/entering ±1 delta and sl0/sl1 division as
+        // the original CalculateTempServiceLevel, but takes the base po0Sum/po1Sum/po2Sum scan as
+        // parameters instead of recomputing it. Confirmed safe to hoist the scan out of a caller's loop
+        // ONLY where `sol.Routes[*].SequenceOfOptions[*].Prio` is provably unchanged for the caller's
+        // entire loop — FindBestFlipMove is a pure candidate-evaluation function (never mutates sol;
+        // the only route reassignment in it, `sol.Routes[rtInd1] = rt1;`, is a same-object no-op), so
+        // its base scan result is invariant across the whole call. Do NOT reuse this overload from a
+        // caller that applies moves (mutates route contents) between calls without re-scanning.
+        double[] CalculateTempServiceLevel(int po0Sum, int po1Sum, int po2Sum, int leavingPriority, int enteringPriority, bool verbal = false)
+        {
             switch (leavingPriority)
             {
                 case 0:
@@ -1277,7 +1346,7 @@ namespace VrdpoProject
                     po2Sum++;
                     break;
             }
-            sum = po0Sum + po1Sum + po2Sum;
+            double sum = po0Sum + po1Sum + po2Sum;
             var sl0 = po0Sum / sum;
             var sl1 = (po0Sum + po1Sum) / sum;
             if (verbal) {
@@ -1286,6 +1355,12 @@ namespace VrdpoProject
             }
 
             return new double[] {sl0, sl1};
+        }
+
+        double[] CalculateTempServiceLevel(Solution sol, int leavingPriority, int enteringPriority, bool verbal = false)
+        {
+            var (po0Sum, po1Sum, po2Sum) = ScanServiceLevelCounts(sol);
+            return CalculateTempServiceLevel(po0Sum, po1Sum, po2Sum, leavingPriority, enteringPriority, verbal);
         }
 
         bool PromiseIsBroken(int a, int b, double newCost, Solution sol)
