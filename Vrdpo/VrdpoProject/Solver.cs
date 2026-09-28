@@ -18,7 +18,8 @@ namespace VrdpoProject
         string instance;
         private CustomerInsertionAllPositions bestInsertion = new();
         Solution globalBestSol = new Solution();
-        Dictionary<ulong, int> overallFrequencyMap = new();
+        // NOTE (perf, Phase 2): removed `Dictionary<ulong, int> overallFrequencyMap = new();` — see the
+        // removal of its population code in the main iteration loop for why (write-only, confirmed dead).
         LocalSearch ls = new();
         Random rnd2 = new Random(42);
         TimeSpan globalBestTime = TimeSpan.Zero;
@@ -108,7 +109,8 @@ namespace VrdpoProject
                 Random rnd5 = new(restart);
                 Random rnd6 = new(restart);
                 Random rnd7 = new(restart);
-                Dictionary<ulong, int> frequencyMap = new();
+                // NOTE (perf, Phase 2): removed `Dictionary<ulong, int> frequencyMap = new();` — same
+                // reasoning as overallFrequencyMap above (write-only, confirmed dead).
                 int reinitCount = -1;
                 int c = 0;
                 int lastImprovement = 0;
@@ -141,6 +143,11 @@ namespace VrdpoProject
                     }
                     RemoveEmptyRoutes(currentSol);
                     timesFailedFindFeasible = 0;
+                    // NOTE (perf, Phase 2): establishes the baseline for CalculateServiceLevelFast /
+                    // AdjustServiceLevelCounts (see their own comments) — must run once here, after this
+                    // restart's routes are finalized, before the repetitions loop below starts reading
+                    // the counts.
+                    currentSol.SeedServiceLevelCounts();
                 }
 
                 restartCounter++;
@@ -217,23 +224,17 @@ namespace VrdpoProject
                                 Console.WriteLine("Priority swap cost contribution: " + psm.MoveCost);
                             }
                         }
-                        ulong hashCode = currentSol.getSolutionOptionsHashCode();
-                        if (frequencyMap.ContainsKey(hashCode))
-                        {
-                            frequencyMap[hashCode]++;
-                        }
-                        else
-                        {
-                            frequencyMap.Add(hashCode, 1);
-                        }
-                        if (overallFrequencyMap.ContainsKey(hashCode))
-                        {
-                            overallFrequencyMap[hashCode]++;
-                        }
-                        else
-                        {
-                            overallFrequencyMap.Add(hashCode, 1);
-                        }
+                        // NOTE (perf, Phase 2): this used to compute `currentSol.getSolutionOptionsHashCode()`
+                        // (allocates a fresh bool[] and does a full O(total options) scan) every single
+                        // iteration, purely to key two Dictionary updates into `frequencyMap` and
+                        // `overallFrequencyMap`. Confirmed via exhaustive grep across Solver.cs and
+                        // LocalSearch.cs that BOTH dictionaries are write-only — every reference is either
+                        // a write (ContainsKey/indexer/Add) or the one read site, `PrintFrequencyMap`,
+                        // which is only ever called from a commented-out line (`//PrintFrequencyMap(...)`)
+                        // — abandoned diagnostic instrumentation with zero influence on search behavior.
+                        // Removed entirely: the hash computation, both dictionary updates, and (see the
+                        // field/local declarations) the dictionaries themselves. No behavior change —
+                        // nothing consumed these values.
                         RemoveEmptyRoutes(currentSol);
                         currentSol.SolutionUtilizationMetric = currentSol.CalculateUtilizationMetric();
                     }
@@ -243,7 +244,12 @@ namespace VrdpoProject
                         Console.WriteLine("Infeasible Solution!!!");
                     }
 
-                    var serviceLevel = CalculateServiceLevel(currentSol, false);
+                    // NOTE (perf, Phase 2): switched from the full-rescan CalculateServiceLevel to the
+                    // incrementally-maintained CalculateServiceLevelFast — see its own comment for why
+                    // this call site specifically is safe (SeedServiceLevelCounts is called once below,
+                    // right after MinimumInsertions succeeds for this restart, and every accepted
+                    // Flip/PrioritySwap move calls AdjustServiceLevelCounts).
+                    var serviceLevel = CalculateServiceLevelFast(currentSol);
                     int openRoutes = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
                     if (currentSol.Cost + openRoutes * 10000 < localBest.Cost + localBest.Routes.Count * 10000 + smallDouble && currentSol.Cost < 100000 && serviceLevel[0] >= 0.8 && serviceLevel[1] >= 0.9) {
                         currentSol.Repetition = i;
@@ -945,6 +951,23 @@ namespace VrdpoProject
             }
             return modelIsFeasible;
         }
+
+        // NOTE (perf, Phase 2): reads the incrementally-maintained counters (Solution.Po0Count etc.)
+        // instead of rescanning every route/option — used ONLY at the one hot call site
+        // (LocalSearch's main iteration loop, `multiRestart=false` path) where SeedServiceLevelCounts
+        // is called once after construction and AdjustServiceLevelCounts is called at every accepted
+        // Flip/PrioritySwap move (the only movers that change which option represents a customer —
+        // confirmed by reading every Apply* method; Relocation/Swap/TwoOpt never do). The original
+        // full-scan `CalculateServiceLevel(Solution, bool)` below is left completely unchanged and is
+        // still what every other call site uses (including the multiRestart=true path in
+        // ConstructFeasibleSolutions, which this fast path's seeding does not cover and which is not
+        // exercised by any regression baseline) — so nothing else can silently regress.
+        public double[] CalculateServiceLevelFast(Solution sol)
+        {
+            double sum = sol.Po0Count + sol.Po1Count + sol.Po2Count;
+            return new double[] { sol.Po0Count / sum, (sol.Po0Count + sol.Po1Count) / sum };
+        }
+
         public double[] CalculateServiceLevel(Solution sol, bool verbal = true)
         {
             int po0Sum = 0;

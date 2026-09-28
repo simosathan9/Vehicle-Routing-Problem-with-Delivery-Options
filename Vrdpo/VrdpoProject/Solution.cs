@@ -33,6 +33,13 @@ namespace VrdpoProject
         private double ratioCombinedMoveCost;
         private int lowerBoundRoutes;
         private List<bool> solutionOptionsList = new List<bool>();
+        // NOTE (perf, Phase 2): incrementally-maintained service-level counters — see
+        // SeedServiceLevelCounts/AdjustServiceLevelCounts below. Plain ints, so they value-copy
+        // automatically through the cloning constructor below (the opposite situation from
+        // `Promises`, which is deliberately aliased — don't confuse the two).
+        private int po0Count;
+        private int po1Count;
+        private int po2Count;
 
         public Solution()
         {
@@ -62,13 +69,17 @@ namespace VrdpoProject
 
         public Solution(double duration, double cost, List<Route> routes, double[,] distanceMatrix,
             double[,] timeMatrix, int cap, Location depot, List<Option> options, double[,] promises, List<Customer> customers, Dictionary<int, List<Option>> optionsPerCustomer,
-            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition, double solutionUtilizationMetric, double ratioCombinedMoveCost, int lowerBoundRoutes)
+            Dictionary<int, List<int>> optionsPrioritiesPerCustomer, int repetition, double solutionUtilizationMetric, double ratioCombinedMoveCost, int lowerBoundRoutes,
+            int po0Count, int po1Count, int po2Count)
         {
             this.Duration = duration;
             this.Cost = cost;
             this.RatioCombinedMoveCost = ratioCombinedMoveCost;
             this.SolutionUtilizationMetric = solutionUtilizationMetric;
             this.LowerBoundRoutes = lowerBoundRoutes;
+            this.po0Count = po0Count;
+            this.po1Count = po1Count;
+            this.po2Count = po2Count;
             List<Location> clonedLocations = new List<Location>();
             List<Option> clonedOptions = new List<Option>();
             List<Customer> clonedCustomers = new List<Customer>();
@@ -133,9 +144,60 @@ namespace VrdpoProject
             Solution deepCopySol = new Solution(sol.Duration, sol.Cost, sol.Routes,
                 sol.DistanceMatrix, sol.TimeMatrix, sol.Cap, sol.Depot, sol.Options,
                 sol.Promises, sol.Customers, sol.optionsPerCustomer,
-                sol.optionsPrioritiesPerCustomer, sol.Repetition, sol.SolutionUtilizationMetric, sol.RatioCombinedMoveCost, sol.LowerBoundRoutes);
+                sol.optionsPrioritiesPerCustomer, sol.Repetition, sol.SolutionUtilizationMetric, sol.RatioCombinedMoveCost, sol.LowerBoundRoutes,
+                sol.po0Count, sol.po1Count, sol.po2Count);
             return deepCopySol;
         }
+
+        // NOTE (perf, Phase 2): full O(routes×options) scan — same shape as the old
+        // CalculateTempServiceLevel/CalculateServiceLevel scans. Call exactly once to establish the
+        // correct baseline (right after a solution's routes are first built, e.g. after
+        // MinimumInsertions succeeds each restart); every move that changes which priority an option
+        // is served at must call AdjustServiceLevelCounts with the exact leaving/entering priorities
+        // instead of re-seeding. Relocation/Swap/TwoOpt never change which option represents a
+        // customer (they only reposition/reorder existing stops), so they don't need to call either
+        // method — only Flip and PrioritySwap do (confirmed by reading every Apply* method).
+        public void SeedServiceLevelCounts()
+        {
+            po0Count = 0;
+            po1Count = 0;
+            po2Count = 0;
+            for (int r = 0; r < routes.Count; r++)
+            {
+                for (int c = 1; c < routes[r].SequenceOfOptions.Count - 1; c++)
+                {
+                    switch (routes[r].SequenceOfOptions[c].Prio)
+                    {
+                        case 0: po0Count++; break;
+                        case 1: po1Count++; break;
+                        case 2: po2Count++; break;
+                    }
+                }
+            }
+        }
+
+        // NOTE (perf, Phase 2): applies the same ±1 delta CalculateTempServiceLevel's original body
+        // used to compute inline. Call at the exact point an accepted move commits an option-priority
+        // change (i.e. where IsServed flags flip) — see ApplyFlipMove and ApplyPrioritySwapMove.
+        public void AdjustServiceLevelCounts(int leavingPriority, int enteringPriority)
+        {
+            switch (leavingPriority)
+            {
+                case 0: po0Count--; break;
+                case 1: po1Count--; break;
+                case 2: po2Count--; break;
+            }
+            switch (enteringPriority)
+            {
+                case 0: po0Count++; break;
+                case 1: po1Count++; break;
+                case 2: po2Count++; break;
+            }
+        }
+
+        public int Po0Count { get => po0Count; }
+        public int Po1Count { get => po1Count; }
+        public int Po2Count { get => po2Count; }
 
         public ulong getSolutionOptionsHashCode()
         {
@@ -554,7 +616,77 @@ namespace VrdpoProject
         //    );
         //}
 
-        public Tuple<bool, double[], double[]> RespectsTimeWindow(Route rt, int loc, List<Location> locations)
+        // NOTE (perf, Phase 2): added so FindBestTwoOptMove can avoid BOTH the caller-side
+        // `otherRt.SequenceOfLocations.GetRange(...)` allocation AND this method's own
+        // `List<Location> seq = new(rt.SequenceOfLocations.Take(loc+1)); seq.AddRange(locations);`
+        // composition — 2 List allocations per candidate eliminated. LocAt(i) returns exactly what
+        // `seq[i]` would have been: rt's prefix through `loc`, then otherRt's suffix starting at
+        // `otherLoc+1` (the exact range the old call sites passed in). Same loop structure, order,
+        // early-exit conditions, and array sizes as the List-based overload below — a pure
+        // indirection change. The original List-based overload is left completely untouched (no
+        // other callers found, but kept as-is rather than removed, same conservative approach as
+        // CalculateTempServiceLevel's preserved wrapper).
+        // NOTE (perf, Phase 2): return type changed from `Tuple<bool,double[],double[]>` (a class —
+        // one heap allocation per call, on top of the two double[] arrays) to the ValueTuple
+        // `(bool,double[],double[])` (a struct — no wrapper allocation at all). Confirmed safe by
+        // checking every consumer of this and the two sibling tuple-returning methods (grep across
+        // LocalSearch.cs/Solver.cs/Solution.cs): every single one reads `.Item1`/`.Item2`/`.Item3`,
+        // which ValueTuple supports identically to Tuple — none stores the tuple itself, compares it,
+        // or relies on reference identity/boxing.
+        public (bool, double[], double[]) RespectsTimeWindow(Route rt, int loc, Route otherRt, int otherLoc)
+        {
+            var seq1 = rt.SequenceOfLocations;
+            var seq2 = otherRt.SequenceOfLocations;
+            int n = (loc + 1) + (seq2.Count - (otherLoc + 1));
+            Location LocAt(int i) => i <= loc ? seq1[i] : seq2[otherLoc + 1 + (i - loc - 1)];
+
+            double[] ect = new double[n];
+            double[] lat = new double[n];
+
+            ect[0] = LocAt(0).DeliveryServiceTime;
+            for (int i = 1; i < n; i++)
+            {
+                Location cur = LocAt(i);
+                Location prev = LocAt(i - 1);
+                double t = ect[i - 1] + CalculateTime(cur, prev);
+                if (cur.Id != prev.Id)
+                    t += cur.ServiceTime;
+
+                if (cur.Ready > t)
+                    t = cur.Ready;
+
+                t += cur.DeliveryServiceTime;
+                ect[i] = t;
+
+                if (t > cur.Due || t < ect[i - 1])
+                    return (false, ect, lat); // early exit
+            }
+
+            lat[n - 1] = LocAt(n - 1).Due;
+            for (int j = n - 2; j >= 0; j--)
+            {
+                Location cur = LocAt(j);
+                Location next = LocAt(j + 1);
+                double l = lat[j + 1] - next.DeliveryServiceTime;
+                if (cur.Id != next.Id)
+                    l -= next.ServiceTime;
+
+                l -= CalculateTime(next, cur);
+                lat[j] = Math.Min(cur.Due, l);
+
+                if (lat[j] < ect[j])
+                    return (false, ect, lat); // infeasible
+            }
+
+            if (ect[n - 1] > 7200)
+                return (false, ect, lat);
+
+            return (true, ect, lat);
+        }
+
+        // NOTE (perf, Phase 2): return type changed to ValueTuple — see the sibling overload's
+        // comment just above for the full rationale (every consumer only reads .Item1/.Item2/.Item3).
+        public (bool, double[], double[]) RespectsTimeWindow(Route rt, int loc, List<Location> locations)
         {
             // Compose new location sequence
             List<Location> seq = new(rt.SequenceOfLocations.Take(loc + 1));
@@ -579,7 +711,7 @@ namespace VrdpoProject
                 ect[i] = t;
 
                 if (t > seq[i].Due || t < ect[i - 1])
-                    return Tuple.Create(false, ect, lat); // early exit
+                    return (false, ect, lat); // early exit
             }
 
             // Backward pass
@@ -594,13 +726,13 @@ namespace VrdpoProject
                 lat[j] = Math.Min(seq[j].Due, l);
 
                 if (lat[j] < ect[j])
-                    return Tuple.Create(false, ect, lat); // infeasible
+                    return (false, ect, lat); // infeasible
             }
 
             if (ect[n - 1] > 7200)
-                return Tuple.Create(false, ect, lat);
+                return (false, ect, lat);
 
-            return Tuple.Create(true, ect, lat);
+            return (true, ect, lat);
         }
 
         //public void UpdateTimes(Route rt)
@@ -725,13 +857,24 @@ namespace VrdpoProject
         }
 
 
-        public Tuple<bool, double[], double[]> RespectsTimeWindow2(Route rt, int loc, Location location)
+        // NOTE (perf, Phase 2): return type changed to ValueTuple — see RespectsTimeWindow's comment
+        // for the full rationale. This method is the most heavily-used of the three (9 call sites
+        // across all 5 operators), so removing the Tuple wrapper allocation here has the widest reach.
+        public (bool, double[], double[]) RespectsTimeWindow2(Route rt, int loc, Location location)
         {
-            // 1) Build a new list of locations by inserting 'location' at index `loc + 1`
-            var newLocations = new List<Location>(rt.SequenceOfLocations);
-            newLocations.Insert(loc + 1, location);
-
-            int n = newLocations.Count;
+            // NOTE (perf, Phase 2): previously built `new List<Location>(rt.SequenceOfLocations)` then
+            // `.Insert(loc + 1, location)` — an O(route length) allocation + copy + shift, done on
+            // EVERY candidate-move feasibility check across all 5 operators (9 call sites). LocAt(i)
+            // below returns EXACTLY what `newLocations[i]` would have returned after that Insert — same
+            // conditional structure, same objects at the same logical positions — without materializing
+            // the list. Loop structure, computation order, and the returned array sizes/contents are
+            // otherwise byte-for-byte unchanged: this is a pure indirection change, not an algorithmic
+            // one (no early-exit added, no prefix/suffix reuse from rt's cached Ect/Lat arrays — that is
+            // a larger, separately-scoped change given how many callers read Item2/Item3 differently;
+            // this pass only removes the allocation).
+            var sequence = rt.SequenceOfLocations;
+            int n = sequence.Count + 1;
+            Location LocAt(int i) => i <= loc ? sequence[i] : (i == loc + 1 ? location : sequence[i - 1]);
 
             // Arrays to hold the earliest completion times (ECT) and latest times (LAT)
             double[] ects = new double[n];
@@ -739,30 +882,32 @@ namespace VrdpoProject
 
             // === Forward Pass (Earliest Completion Times) ===
             // 2) ECT of first location: only its DeliveryServiceTime
-            ects[0] = newLocations[0].DeliveryServiceTime;
+            ects[0] = LocAt(0).DeliveryServiceTime;
 
             // 3) Calculate ECT for each subsequent location
             for (int i = 1; i < n; i++)
             {
+                Location cur = LocAt(i);
+                Location prev = LocAt(i - 1);
                 double currentTime = ects[i - 1];
 
                 // Add travel time from previous to current
-                currentTime += CalculateTime(newLocations[i], newLocations[i - 1]);
+                currentTime += CalculateTime(cur, prev);
 
                 // If IDs differ, then add the current location's ServiceTime
-                if (newLocations[i].Id != newLocations[i - 1].Id)
+                if (cur.Id != prev.Id)
                 {
-                    currentTime += newLocations[i].ServiceTime;
+                    currentTime += cur.ServiceTime;
                 }
 
                 // If we arrive too early, push forward to the ready time
-                if (newLocations[i].Ready > currentTime)
+                if (cur.Ready > currentTime)
                 {
-                    currentTime = newLocations[i].Ready;
+                    currentTime = cur.Ready;
                 }
 
                 // Finally, add the delivery service time of the current location
-                currentTime += newLocations[i].DeliveryServiceTime;
+                currentTime += cur.DeliveryServiceTime;
 
                 // Store in the ECT array
                 ects[i] = currentTime;
@@ -770,26 +915,28 @@ namespace VrdpoProject
 
             // === Backward Pass (Latest Start Times) ===
             // 4) LAT of the last location: its Due time
-            lats[n - 1] = newLocations[n - 1].Due;
+            lats[n - 1] = LocAt(n - 1).Due;
 
             for (int j = n - 2; j >= 0; j--)
             {
+                Location cur = LocAt(j);
+                Location next = LocAt(j + 1);
                 double latestFinishTimeNext = lats[j + 1];
 
                 // Subtract next location's DeliveryServiceTime
-                latestFinishTimeNext -= newLocations[j + 1].DeliveryServiceTime;
+                latestFinishTimeNext -= next.DeliveryServiceTime;
 
                 // If IDs differ, subtract the next location's ServiceTime
-                if (newLocations[j].Id != newLocations[j + 1].Id)
+                if (cur.Id != next.Id)
                 {
-                    latestFinishTimeNext -= newLocations[j + 1].ServiceTime;
+                    latestFinishTimeNext -= next.ServiceTime;
                 }
 
                 // Subtract travel time from current to next
-                latestFinishTimeNext -= CalculateTime(newLocations[j + 1], newLocations[j]);
+                latestFinishTimeNext -= CalculateTime(next, cur);
 
                 // Clamp to the current location's Due
-                lats[j] = Math.Min(newLocations[j].Due, latestFinishTimeNext);
+                lats[j] = Math.Min(cur.Due, latestFinishTimeNext);
             }
 
             // 5) Check feasibility: ECT[i] <= LAT[i] for all i
@@ -803,7 +950,7 @@ namespace VrdpoProject
                 }
             }
 
-            return new Tuple<bool, double[], double[]>(feasible, ects, lats);
+            return (feasible, ects, lats);
         }
 
 
@@ -974,6 +1121,15 @@ namespace VrdpoProject
         public bool CheckEverything(Solution sol)
         {
             bool feasible;
+            // NOTE (perf, Phase 2): `sol.Customers.Where(x => x.IsRouted).ToList().Count !=
+            // sol.Customers.Count` used to live INSIDE the per-route loop below, re-evaluated (and
+            // reallocating a fresh List every time via Where+ToList) once per route even though it
+            // checks a solution-wide invariant that doesn't depend on which route is currently being
+            // examined. Hoisted to run once, and simplified to `Count(predicate)` (an enumerate-and-count,
+            // no intermediate list) — same boolean result, no behavior change: this check and the
+            // per-route feasibility checks below are independent AND-ed conditions, so evaluation order
+            // doesn't affect the final true/false CheckEverything returns for any input.
+            bool allCustomersRouted = sol.Customers.Count(x => x.IsRouted) == sol.Customers.Count;
             Dictionary<int, int> timesVisited = new Dictionary<int, int>();
             foreach (Route route in sol.Routes)
             {
@@ -995,7 +1151,7 @@ namespace VrdpoProject
                         return false;
                     }
                 }
-                if (sol.Customers.Where(x => x.IsRouted).ToList().Count != sol.Customers.Count)
+                if (!allCustomersRouted)
                 {
                     return false;
                 }
@@ -1142,23 +1298,26 @@ namespace VrdpoProject
             bool depotFeasibility = true;
             bool costFeasibility = true;
             double cost = 0;
+            // NOTE (perf, Phase 2): `CalculateTimes(rt)` used to be called INSIDE this loop, once per
+            // stop — an O(route length) full recomputation repeated once per iteration, making this
+            // whole method O(route length²) instead of O(route length). The call takes only `rt` and
+            // never reads the loop variables (`i`/`currentOpt`/`nextOpt`), so its result is provably the
+            // same on every iteration; hoisted to run exactly once. `CalculateTimes` is a pure read of
+            // `rt` (no mutation — confirmed) so this changes nothing observable about the computed
+            // feasibility result; the only difference is that an infeasible route now prints its
+            // diagnostic message once instead of up to (route length − 1) times, which the regression
+            // harness (report-file diff) doesn't compare against anyway — see CheckEverything's
+            // similarly-hoisted check just below for the same reasoning.
+            bool tw = CalculateTimes(rt);
+            if (!tw)
+            {
+                Console.WriteLine("Time Window Feasibility Error");
+                timeWindowFeasibility = false;
+            }
             for (int i = 0; i < rt.SequenceOfOptions.Count - 1; i++)
             {
                 Option currentOpt = rt.SequenceOfOptions[i];
                 Option nextOpt = rt.SequenceOfOptions[i + 1];
-                bool tw = CalculateTimes(rt);
-                /*
-                if (rt.SequenceOfEct[i + 1] > rt.SequenceOfLat[i + 1])
-                {
-                    Console.WriteLine("Time Window Feasibility Error");
-                    timeWindowFeasibility = false;
-                }
-                */
-                if (!tw)
-                {
-                    Console.WriteLine("Time Window Feasibility Error");
-                    timeWindowFeasibility = false;
-                }
                 if (currentOpt.Location.Type == 0)
                 {
                     if (i + 1 != rt.SequenceOfLocations.Count - 1 && i != 0)

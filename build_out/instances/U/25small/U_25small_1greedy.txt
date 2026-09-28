@@ -1,7 +1,7 @@
 Feasible
 Restart 1, Repetition 155 
 
-Total time: 00:00:49.2209669, Restart time: 00:00:02.4461414 
+Total time: 00:01:05.3072500, Restart time: 00:00:03.8227674 
 
 Total cost: 2188
 

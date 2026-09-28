@@ -1,0 +1,14 @@
+Feasible
+Restart 0, Repetition 0 
+
+Total time: 00:03:37.8923349, Restart time: 00:00:00 
+
+Total cost: 1000000000
+
+Number of Routes: 0
+Priority 1: NaN
+
+Priority 2: NaN
+
+
+

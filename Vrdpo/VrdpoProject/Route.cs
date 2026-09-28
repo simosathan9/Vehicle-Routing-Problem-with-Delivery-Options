@@ -65,14 +65,26 @@ namespace VrdpoProject
         public Route() { }
         public Route getTempCopy(Route rt_copy, List<Location> locs)
         {
+            // NOTE (perf, Phase 2): `locs.FirstOrDefault(...)` below used to do a linear scan through
+            // `locs` (all distinct locations in the whole solution) for EVERY option being cloned, and
+            // AGAIN for every option of every customer being cloned — i.e. O(route length × options ×
+            // |locs|) total, dominated by the |locs| factor for larger instances. Building one lookup
+            // dictionary here (O(|locs|), once per call) and indexing it (O(1) per lookup) instead
+            // removes that multiplicative factor entirely, while keeping this method's signature
+            // (and every one of its 4 call sites, including FindBestFlipMove's — left completely
+            // untouched) exactly as it was. Same result for a given Location.Id either way: `locs` is
+            // built from `sol.Options.Select(x => x.Location).ToHashSet()`, i.e. deduplicated by
+            // reference, and Location IDs are unique per physical location in this data model, so
+            // GetValueOrDefault(id) resolves to the exact same object FirstOrDefault would have found.
+            var locsById = locs.ToDictionary(l => l.Id);
             var route = new Route()
             {
                 id = rt_copy.id,
                 capacity = rt_copy.capacity,
                 sequenceOfLocations = rt_copy.sequenceOfLocations.Select(x => (Location)x.Clone()).ToList(),
                 sequenceOfCustomers = rt_copy.sequenceOfCustomers
-            .Select(x => (Customer)x.Clone((List<Option>)x.Options.Select(y => y.Clone(locs.FirstOrDefault(z => y.Location.Id == z.Id))).ToList())).ToList(),
-                sequenceOfOptions = rt_copy.sequenceOfOptions.Select(x => (Option)x.Clone(locs.FirstOrDefault(y => y.Id == x.Location.Id))).ToList(),
+            .Select(x => (Customer)x.Clone((List<Option>)x.Options.Select(y => y.Clone(locsById.GetValueOrDefault(y.Location.Id))).ToList())).ToList(),
+                sequenceOfOptions = rt_copy.sequenceOfOptions.Select(x => (Option)x.Clone(locsById.GetValueOrDefault(x.Location.Id))).ToList(),
                 load = rt_copy.load,
                 duration = rt_copy.duration,
                 fixedCost = rt_copy.fixedCost,

@@ -1,7 +1,7 @@
 Feasible
 Restart 8, Repetition 1805 
 
-Total time: 00:01:16.4889523, Restart time: 00:00:05.7420824 
+Total time: 00:00:57.5957127, Restart time: 00:00:04.0580953 
 
 Total cost: 2400
 
