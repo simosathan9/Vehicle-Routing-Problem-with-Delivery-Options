@@ -46,6 +46,51 @@ namespace VrdpoProject
         private static double[,] cachedDistanceMatrix;
         private static double[,] cachedTimeMatrix;
 
+        // NOTE (perf, Phase 5): BuildModel used to re-run ~1,900 Regex.Split + Int32.Parse calls on the same unchanging
+        // instance text for EVERY construction attempt (about 120 attempts per 3 restarts on a 400-customer instance).
+        // The integer tokens are now parsed once per loaded instance file (keyed on the `instance` array itself, so a
+        // different file can never reuse them) with the same splits and parses, and each attempt builds its fresh,
+        // mutable Customer/Location/Option objects from them — same values, same order.
+        private static string[] parsedRowsSource;
+        private static int[][] parsedCustomerRows;
+        private static int[][] parsedLocationRows;
+        private static int[][] parsedOptionRows;
+
+        private void EnsureParsedRows()
+        {
+            if (ReferenceEquals(parsedRowsSource, instance) && parsedCustomerRows != null)
+            {
+                return;
+            }
+            var customerRows = new int[numbCus][];
+            for (var i = 6; i < 6 + numbCus; i++)
+            {
+                var temp2 = Regex.Split(instance[i], @"\t*\s");
+                customerRows[i - 6] = new[] { Int32.Parse(temp2[0]), Int32.Parse(temp2[1]) };
+            }
+            var locationRows = new int[numbLoc - 1][];
+            for (var j = 9 + numbCus; j < 8 + numbCus + numbLoc; j++)
+            {
+                string[] temp2 = Regex.Split(instance[j], @"\t+");
+                locationRows[j - (9 + numbCus)] = new[] { Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]), Int32.Parse(temp2[3]),
+                    Int32.Parse(temp2[4]), Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), Int32.Parse(temp2[7]) };
+            }
+            var optionRows = new int[numbOpt][];
+            for (var m = numbCus + numbLoc + 9; m < numbCus + numbLoc + numbOpt + 9; m++)
+            {
+                string[] temp2 = Regex.Split(instance[m], @"\t+");
+                optionRows[m - (numbCus + numbLoc + 9)] = new[] { Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]),
+                    Int32.Parse(temp2[3]), Int32.Parse(temp2[4]), Int32.Parse(temp2[5]) };
+            }
+            // a different instance text invalidates the matrix cache as well
+            cachedDistanceMatrix = null;
+            cachedTimeMatrix = null;
+            parsedCustomerRows = customerRows;
+            parsedLocationRows = locationRows;
+            parsedOptionRows = optionRows;
+            parsedRowsSource = instance;
+        }
+
 
         public InstanceReader()
         {
@@ -80,21 +125,21 @@ namespace VrdpoProject
             depot = new Location(Int32.Parse(temp1[0]), Int32.Parse(temp1[1]), Int32.Parse(temp1[2]),
                 Int32.Parse(temp1[3]), 10*Int32.Parse(temp1[4]), 10*Int32.Parse(temp1[5]), Int32.Parse(temp1[6]), Int32.Parse(temp1[7]), 0);
             allLocations.Add(depot);
+            EnsureParsedRows();
 
-            for (var i = 6; i < 6 + numbCus; i++)
+            for (var i = 0; i < parsedCustomerRows.Length; i++)
             {
-               var temp2 = Regex.Split(instance[i], @"\t*\s");
-               Customer customer = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), false);
-               Location location = new(Int32.Parse(temp2[0]) + 1, 0, 0, 0, 0, 0, 0, 0, 0);
+               var row = parsedCustomerRows[i];
+               Customer customer = new(row[0], row[1], false);
                allCustomers.Add(customer);
             }
 
-            for (var j = 9 + numbCus; j < 8 + numbCus + numbLoc; j++)
+            for (var j = 0; j < parsedLocationRows.Length; j++)
             {
-                string[] temp2 = Regex.Split(instance[j], @"\t+");
-                var type = Int32.Parse(temp2[6]);
-                Location loc = new(Int32.Parse(temp2[0]), Int32.Parse(temp2[1]), Int32.Parse(temp2[2]),
-                   Int32.Parse(temp2[3]), 10*Int32.Parse(temp2[4]), 10*Int32.Parse(temp2[5]), Int32.Parse(temp2[6]), 10*Int32.Parse(temp2[7]), type==1?20:50,0);
+                var row = parsedLocationRows[j];
+                var type = row[6];
+                Location loc = new(row[0], row[1], row[2],
+                   row[3], 10*row[4], 10*row[5], row[6], 10*row[7], type==1?20:50,0);
                 //if (loc.Type == 1)
                 //{
                 //    loc.Due += 20;
@@ -106,18 +151,18 @@ namespace VrdpoProject
                 allLocations.Add(loc);
             }
             
-            for (var m = numbCus + numbLoc + 9; m < numbCus + numbLoc + numbOpt + 9; m++)
+            for (var m = 0; m < parsedOptionRows.Length; m++)
             {
-                string[] temp2 = Regex.Split(instance[m], @"\t+");
-                Option opt = new(Int32.Parse(temp2[0]), allLocations[Int32.Parse(temp2[1])], allCustomers[Int32.Parse(temp2[2])], Int32.Parse(temp2[3]),
-                    Int32.Parse(temp2[4]), Int32.Parse(temp2[5]), allLocations[Int32.Parse(temp2[1])].Ready, allLocations[Int32.Parse(temp2[1])].Due);
+                var row = parsedOptionRows[m];
+                Option opt = new(row[0], allLocations[row[1]], allCustomers[row[2]], row[3],
+                    row[4], row[5], allLocations[row[1]].Ready, allLocations[row[1]].Due);
                 options.Add(opt);
-                if (allCustomers[Int32.Parse(temp2[2])].Options.Count == 0)
+                if (allCustomers[row[2]].Options.Count == 0)
                 {
-                    allCustomers[Int32.Parse(temp2[2])].Options = new List<Option>() { opt };
+                    allCustomers[row[2]].Options = new List<Option>() { opt };
                 } else
                 {
-                    allCustomers[Int32.Parse(temp2[2])].Options.Add(opt);
+                    allCustomers[row[2]].Options.Add(opt);
                 }
                 //allCustomers[Int32.Parse(temp2[2])].Options = (List<Option>)allCustomers[Int32.Parse(temp2[2])].Options.Append(opt);
             }
