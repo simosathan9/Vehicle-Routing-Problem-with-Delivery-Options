@@ -119,8 +119,12 @@ namespace VrdpoProject
                 TwoOpt top = new();
                 Flip flip = new();
                 PrioritySwap psm = new();
-                Solution localBest = new();
-                localBest.Cost = double.MaxValue;
+                // NOTE (perf, Phase 5): `localBest = new()` used to run here, before construction — but roughly 40 of
+                // every 41 construction attempts on a 400-customer instance fail and `continue` without ever touching
+                // it, and a Solution constructor has no side effect other than building its own object graph (no random
+                // numbers are drawn, nothing global changes). It is now created right after construction succeeds,
+                // below, with the same initial state.
+                Solution localBest = null;
                 currentSol = new();
                 int psw_count = 0;
                 int flip_count = 0;
@@ -150,6 +154,8 @@ namespace VrdpoProject
                     currentSol.SeedServiceLevelCounts();
                 }
 
+                localBest = new();
+                localBest.Cost = double.MaxValue;
                 restartCounter++;
                 Console.WriteLine("Restart: " + restartCounter);
                 for (int i = 0; i < settings.repetitions; i++)
@@ -763,47 +769,86 @@ namespace VrdpoProject
             {
                 selectedOptions = sol.Options; // maybe deep copy
             }
+            // NOTE (perf, Phase 5): same search as before with the work that does not depend on the candidate hoisted
+            // out of the loops (each hoisted value is the very same expression on the same operands; the class-level
+            // scratch fields timeAdded/timeRemoved/costAdded/costRemoved/trialCost/trialTime/A/B are only ever read inside
+            // the two Identify* methods, right after being assigned, so they need not be assigned for every candidate):
+            //  * removed-arc distance d(A,B) per route position: computed once per call, not once per option;
+            //  * `Type == 2 | Cap < MaxCap` depends on the option only: when false, no candidate of that option is recorded;
+            //  * d(A,L) + d(L,B): the distance lookup is symmetric, so d(L, B_j) is d(A_{j+1}, L) and is reused;
+            //  * timeAdded / timeRemoved / trialTime are only used when a candidate is recorded;
+            //  * the "third best cost so far" test is cached and refreshed after each recording (the only moment
+            //    topThree or bestInsertion — which is topThree's first element — can change).
+            var routesList = sol.Routes;
+            var stepCost = new double[routesList.Count][];
+            for (int r = 0; r < routesList.Count; r++)
+            {
+                var locsOfRoute = routesList[r].SequenceOfLocations;
+                var sc = new double[Math.Max(locsOfRoute.Count - 1, 0)];
+                for (int k = 0; k < sc.Length; k++)
+                {
+                    sc[k] = sol.CalculateDistance(locsOfRoute[k], locsOfRoute[k + 1]);
+                }
+                stepCost[r] = sc;
+            }
+            double lastCost = topThree.Last().Cost;
+            int topThreeCount = topThree.Count;
             for (int i = 0; i < selectedOptions.Count; i++)
             {
                 candidateOpt = selectedOptions[i];
                 if (candidateOpt.Cust.IsRouted == false & candidateOpt.IsServed == false)
                 {
-                    foreach (Route rt in sol.Routes)
+                    Location candLoc = candidateOpt.Location;
+                    if (!(candLoc.Type == 2 | candLoc.Cap < candLoc.MaxCap))
                     {
+                        continue;
+                    }
+                    for (int r = 0; r < routesList.Count; r++)
+                    {
+                        Route rt = routesList[r];
                         if (rt.Load + candidateOpt.Cust.Dem <= rt.Capacity)
                         {
-                            for (int j = 0; j < rt.SequenceOfLocations.Count - 1; j++)
+                            var locsOfRt = rt.SequenceOfLocations;
+                            if (locsOfRt.Count < 2) { continue; }
+                            double[] stepCostOfRt = stepCost[r];
+                            double dToPrev = sol.CalculateDistance(locsOfRt[0], candLoc);
+                            for (int j = 0; j < locsOfRt.Count - 1; j++)
                             {
-                                A = rt.SequenceOfLocations[j];
-                                B = rt.SequenceOfLocations[j + 1];
-                                timeAdded = sol.CalculateTime(A, candidateOpt.Location) + sol.CalculateTime(candidateOpt.Location, B);
-                                timeRemoved = sol.CalculateTime(A, B);
-                                costAdded = sol.CalculateDistance(A, candidateOpt.Location) + sol.CalculateDistance(candidateOpt.Location, B);
-                                costRemoved = sol.CalculateDistance(A, B);
-                                trialCost = costAdded - costRemoved;
-                                trialTime = timeAdded - timeRemoved + candidateOpt.Location.ServiceTime;
-                                var t = sol.RespectsTimeWindow2(rt, j, candidateOpt.Location);
-
-                                if (t.Item1)
+                                double dToNext = sol.CalculateDistance(candLoc, locsOfRt[j + 1]);
+                                double trialCostHere = (dToPrev + dToNext) - stepCostOfRt[j];
+                                dToPrev = dToNext;
+                                // NOTE (perf, Phase 5): the time-window feasibility check used to run FIRST, for every
+                                // (option, route, position) candidate, through the array-returning RespectsTimeWindow2 (two
+                                // fresh double[] per call). It is a pure function and only matters for the few candidates
+                                // that also pass the cost test, so it now runs after it and allocation-free; the arrays
+                                // (needed only for bestInsertion.Ect/Lat) are computed when a candidate is actually
+                                // recorded. Which candidates get recorded, in which order, and every write to
+                                // bestInsertion / topThree are exactly as before.
+                                if (trialCostHere <= lastCost || topThreeCount < 3)//3
                                 {
-                                    if (trialCost <= topThree.Last().Cost || topThree.Count < 3)//3
+                                    if (sol.RespectsTimeWindow2Feasible(rt, j, candLoc))
                                     {
-                                        if (candidateOpt.Location.Type == 2 | candidateOpt.Location.Cap < candidateOpt.Location.MaxCap)
-                                        {
-                                            bestInsertion.Option = candidateOpt;
-                                            bestInsertion.Customer = candidateOpt.Cust;
-                                            bestInsertion.Location = candidateOpt.Location;
-                                            bestInsertion.Route = rt;
-                                            bestInsertion.InsertionPosition = j + 1;
-                                            bestInsertion.Duration = trialTime;
-                                            bestInsertion.Cost = trialCost;
-                                            bestInsertion.Ect = t.Item2[j + 1];
-                                            bestInsertion.Lat = t.Item3[j + 1];
-                                            CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
-                                            topThree.Add(custTemp);
-                                            topThree = topThree.OrderBy(o=>o.Cost).ToList();
-                                            topThree = topThree.Take(3).ToList(); //3
-                                        }
+                                        var t = sol.RespectsTimeWindow2(rt, j, candLoc);
+                                        Location locA = locsOfRt[j];
+                                        Location locB = locsOfRt[j + 1];
+                                        double timeAddedHere = sol.CalculateTime(locA, candLoc) + sol.CalculateTime(candLoc, locB);
+                                        double timeRemovedHere = sol.CalculateTime(locA, locB);
+                                        double trialTimeHere = timeAddedHere - timeRemovedHere + candLoc.ServiceTime;
+                                        bestInsertion.Option = candidateOpt;
+                                        bestInsertion.Customer = candidateOpt.Cust;
+                                        bestInsertion.Location = candidateOpt.Location;
+                                        bestInsertion.Route = rt;
+                                        bestInsertion.InsertionPosition = j + 1;
+                                        bestInsertion.Duration = trialTimeHere;
+                                        bestInsertion.Cost = trialCostHere;
+                                        bestInsertion.Ect = t.Item2[j + 1];
+                                        bestInsertion.Lat = t.Item3[j + 1];
+                                        CustomerInsertionAllPositions custTemp = new CustomerInsertionAllPositions(bestInsertion);
+                                        topThree.Add(custTemp);
+                                        topThree = topThree.OrderBy(o=>o.Cost).ToList();
+                                        topThree = topThree.Take(3).ToList(); //3
+                                        lastCost = topThree.Last().Cost;
+                                        topThreeCount = topThree.Count;
                                     }
                                 }
                             }
