@@ -1039,6 +1039,117 @@ namespace VrdpoProject
             return true;
         }
 
+        // NOTE (perf, Phase 4): Id -> Location lookup used by Route.ReplaceCustomerOptionsWithClones, built from "the
+        // distinct Location objects of this solution's options". Every Find* call used to rebuild it from scratch
+        // (a LINQ Select, a HashSet, a List and the array — four times per iteration). It cannot change while this
+        // Solution lives: an existing Option's Location is never reassigned (Option.Clone sets it only on the NEW
+        // clone) and Solution.Options is only assigned in the constructors. The cache is still validated against the
+        // Options list reference and its Count, so it is rebuilt if either ever differs.
+        private Location[] locationLookupCache;
+        private List<Option> locationLookupSource;
+        private int locationLookupSourceCount;
+
+        public Location[] GetLocationLookup()
+        {
+            var opts = Options;
+            if (locationLookupCache == null || !ReferenceEquals(locationLookupSource, opts) || locationLookupSourceCount != opts.Count)
+            {
+                locationLookupCache = Route.BuildLocationLookup(opts.Select(x => x.Location).ToHashSet().ToList());
+                locationLookupSource = opts;
+                locationLookupSourceCount = opts.Count;
+            }
+            return locationLookupCache;
+        }
+
+        // NOTE (perf, Phase 4): memo for RespectsTimeWindow2Feasible. That function is a pure function of (the route's
+        // location sequence, the insertion position, the inserted location), and every input reduces to location Ids:
+        // a Location's Ready/Due/ServiceTime/DeliveryServiceTime are set once in its constructor and never written
+        // again anywhere in the code base, so two Location objects with the same Id carry the same values, and the
+        // travel times come from a matrix indexed by Id. A route's sequence only changes when a move is APPLIED
+        // (once per iteration, touching one or two routes), but every Find* call re-asks the same
+        // (route, position, location) questions for all the untouched routes. The memo is keyed by route SLOT
+        // (index in Routes) and validated by content: BeginTimeWindowMemo() compares each slot's current location-Id
+        // sequence with the one its cached answers were computed for and drops that slot's answers if it differs, so
+        // no assumption is made about where or how routes get modified. Answers are computed by the very same
+        // TimeWindow2FeasibleCore, so a cache hit returns exactly what a fresh computation would.
+        private int[][] twMemoIds;
+        private sbyte[][][] twMemoRows;   // [slot][position][locationId]: 0 = unknown, 1 = feasible, 2 = infeasible
+
+        public void BeginTimeWindowMemo()
+        {
+            int n = Routes.Count;
+            if (twMemoIds == null || twMemoIds.Length < n)
+            {
+                var ids = new int[n][];
+                var rows = new sbyte[n][][];
+                if (twMemoIds != null)
+                {
+                    Array.Copy(twMemoIds, ids, twMemoIds.Length);
+                    Array.Copy(twMemoRows, rows, twMemoRows.Length);
+                }
+                twMemoIds = ids;
+                twMemoRows = rows;
+            }
+            for (int r = 0; r < n; r++)
+            {
+                var seq = Routes[r].SequenceOfLocations;
+                int[] stored = twMemoIds[r];
+                bool same = stored != null && stored.Length == seq.Count;
+                if (same)
+                {
+                    for (int i = 0; i < stored.Length; i++)
+                    {
+                        if (stored[i] != seq[i].Id) { same = false; break; }
+                    }
+                }
+                if (same) { continue; }
+                if (stored == null || stored.Length != seq.Count)
+                {
+                    stored = new int[seq.Count];
+                    twMemoIds[r] = stored;
+                    twMemoRows[r] = null;   // the row table is sized by the route length
+                }
+                for (int i = 0; i < stored.Length; i++) { stored[i] = seq[i].Id; }
+                var slotRows = twMemoRows[r];
+                if (slotRows != null)
+                {
+                    for (int i = 0; i < slotRows.Length; i++)
+                    {
+                        if (slotRows[i] != null) { Array.Clear(slotRows[i], 0, slotRows[i].Length); }
+                    }
+                }
+            }
+        }
+
+        // Same answer as RespectsTimeWindow2Feasible(rt, loc, location) for `rt` = Routes[slot]; call
+        // BeginTimeWindowMemo() at the start of the Find* call that uses it.
+        public bool RespectsTimeWindow2FeasibleMemo(int slot, Route rt, int loc, Location location)
+        {
+            int id = location.Id;
+            int idRange = TimeMatrix.GetLength(0);
+            if (id < 0 || id >= idRange)
+            {
+                return TimeWindow2FeasibleCore(rt.SequenceOfLocations, loc, location, -1, null);
+            }
+            var slotRows = twMemoRows[slot];
+            if (slotRows == null)
+            {
+                slotRows = new sbyte[rt.SequenceOfLocations.Count][];
+                twMemoRows[slot] = slotRows;
+            }
+            var row = slotRows[loc];
+            if (row == null)
+            {
+                row = new sbyte[idRange];
+                slotRows[loc] = row;
+            }
+            sbyte v = row[id];
+            if (v != 0) { return v == 1; }
+            bool result = TimeWindow2FeasibleCore(rt.SequenceOfLocations, loc, location, -1, null);
+            row[id] = (sbyte)(result ? 1 : 2);
+            return result;
+        }
+
         // Bool-only sibling of RespectsTimeWindow(Route, int, Route, int) — TwoOpt. Verbatim arithmetic and
         // the same three exit conditions as the original; only the two result arrays are gone (TwoOpt
         // recomputes them via the array-returning version if and only if the candidate is recorded as the
