@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -951,6 +951,148 @@ namespace VrdpoProject
             }
 
             return (feasible, ects, lats);
+        }
+
+        // NOTE (perf, Phase 3): bool-only, allocation-free siblings of the array-returning time-window
+        // checks above/below. Every LocalSearch caller of RespectsTimeWindow2 reads ONLY `.Item1` (the
+        // arrays are consumed solely by TwoOpt's best-move bookkeeping and by Solver's construction
+        // phase, both of which keep using the array-returning versions), yet each call allocated two
+        // fresh double[] per candidate. These variants run the exact same arithmetic in the exact same
+        // order into reusable per-Solution scratch buffers, so the boolean is bit-for-bit identical;
+        // they also stop at the first violated `ects[i] > lats[i]` instead of finishing the scan (the
+        // original's result is "false iff ANY i violates", so checking i as it is produced is equivalent,
+        // and the checks have no side effects). Scratch buffers are only live during a single call and
+        // never escape, so reuse is safe (single-threaded by design, per project decision).
+        private double[] twScratchEct;
+        private double[] twScratchLat;
+
+        private void EnsureTwScratch(int n)
+        {
+            if (twScratchEct == null || twScratchEct.Length < n)
+            {
+                int size = Math.Max(n, 64);
+                twScratchEct = new double[size];
+                twScratchLat = new double[size];
+            }
+        }
+
+        public bool RespectsTimeWindow2Feasible(Route rt, int loc, Location location)
+        {
+            return TimeWindow2FeasibleCore(rt.SequenceOfLocations, loc, location, -1, null);
+        }
+
+        // Same as RespectsTimeWindow2Feasible, but evaluated on `rt`'s sequence with position `replaceAt`
+        // swapped for `replacement` (used by FindBestSwapMove's same-route branch, which previously built a
+        // full temp route via getTempCopy just to overwrite one location in it).
+        public bool RespectsTimeWindow2FeasibleWithReplacement(Route rt, int loc, Location location, int replaceAt, Location replacement)
+        {
+            return TimeWindow2FeasibleCore(rt.SequenceOfLocations, loc, location, replaceAt, replacement);
+        }
+
+        private bool TimeWindow2FeasibleCore(List<Location> sequence, int loc, Location location, int replaceAt, Location replacement)
+        {
+            int n = sequence.Count + 1;
+            // replaceAt == -1 means "no replacement": Base(k) is then exactly sequence[k], and LocAt(i) is exactly
+            // what RespectsTimeWindow2's own LocAt returns.
+            Location Base(int k) => k == replaceAt ? replacement : sequence[k];
+            Location LocAt(int i) => i <= loc ? Base(i) : (i == loc + 1 ? location : Base(i - 1));
+            EnsureTwScratch(n);
+            double[] ects = twScratchEct;
+            double[] lats = twScratchLat;
+
+            ects[0] = LocAt(0).DeliveryServiceTime;
+            for (int i = 1; i < n; i++)
+            {
+                Location cur = LocAt(i);
+                Location prev = LocAt(i - 1);
+                double currentTime = ects[i - 1];
+                currentTime += CalculateTime(cur, prev);
+                if (cur.Id != prev.Id)
+                {
+                    currentTime += cur.ServiceTime;
+                }
+                if (cur.Ready > currentTime)
+                {
+                    currentTime = cur.Ready;
+                }
+                currentTime += cur.DeliveryServiceTime;
+                ects[i] = currentTime;
+            }
+
+            lats[n - 1] = LocAt(n - 1).Due;
+            if (ects[n - 1] > lats[n - 1]) { return false; }
+
+            for (int j = n - 2; j >= 0; j--)
+            {
+                Location cur = LocAt(j);
+                Location next = LocAt(j + 1);
+                double latestFinishTimeNext = lats[j + 1];
+                latestFinishTimeNext -= next.DeliveryServiceTime;
+                if (cur.Id != next.Id)
+                {
+                    latestFinishTimeNext -= next.ServiceTime;
+                }
+                latestFinishTimeNext -= CalculateTime(next, cur);
+                lats[j] = Math.Min(cur.Due, latestFinishTimeNext);
+                if (ects[j] > lats[j]) { return false; }
+            }
+            return true;
+        }
+
+        // Bool-only sibling of RespectsTimeWindow(Route, int, Route, int) — TwoOpt. Verbatim arithmetic and
+        // the same three exit conditions as the original; only the two result arrays are gone (TwoOpt
+        // recomputes them via the array-returning version if and only if the candidate is recorded as the
+        // new best move, which is when they are actually consumed).
+        public bool RespectsTimeWindowFeasible(Route rt, int loc, Route otherRt, int otherLoc)
+        {
+            var seq1 = rt.SequenceOfLocations;
+            var seq2 = otherRt.SequenceOfLocations;
+            int n = (loc + 1) + (seq2.Count - (otherLoc + 1));
+            Location LocAt(int i) => i <= loc ? seq1[i] : seq2[otherLoc + 1 + (i - loc - 1)];
+
+            EnsureTwScratch(n);
+            double[] ect = twScratchEct;
+            double[] lat = twScratchLat;
+
+            ect[0] = LocAt(0).DeliveryServiceTime;
+            for (int i = 1; i < n; i++)
+            {
+                Location cur = LocAt(i);
+                Location prev = LocAt(i - 1);
+                double t = ect[i - 1] + CalculateTime(cur, prev);
+                if (cur.Id != prev.Id)
+                    t += cur.ServiceTime;
+
+                if (cur.Ready > t)
+                    t = cur.Ready;
+
+                t += cur.DeliveryServiceTime;
+                ect[i] = t;
+
+                if (t > cur.Due || t < ect[i - 1])
+                    return false;
+            }
+
+            lat[n - 1] = LocAt(n - 1).Due;
+            for (int j = n - 2; j >= 0; j--)
+            {
+                Location cur = LocAt(j);
+                Location next = LocAt(j + 1);
+                double l = lat[j + 1] - next.DeliveryServiceTime;
+                if (cur.Id != next.Id)
+                    l -= next.ServiceTime;
+
+                l -= CalculateTime(next, cur);
+                lat[j] = Math.Min(cur.Due, l);
+
+                if (lat[j] < ect[j])
+                    return false;
+            }
+
+            if (ect[n - 1] > 7200)
+                return false;
+
+            return true;
         }
 
 

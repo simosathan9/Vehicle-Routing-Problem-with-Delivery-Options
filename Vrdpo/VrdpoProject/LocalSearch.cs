@@ -66,10 +66,9 @@ namespace VrdpoProject
                                 continue;
                             }
 
-                            var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex,
-                                            rt1.SequenceOfLocations[originOptionIndex]);
-
-                            if (!tw.Item1) { continue; };
+                            // NOTE (perf, Phase 3): bool-only, allocation-free variant — only `.Item1` was ever read.
+                            if (!sol.RespectsTimeWindow2Feasible(rt2, targetOptionIndex,
+                                            rt1.SequenceOfLocations[originOptionIndex])) { continue; };
 
                             Option A = rt1.SequenceOfOptions[originOptionIndex - 1];
                             Option B = rt1.SequenceOfOptions[originOptionIndex];
@@ -251,6 +250,8 @@ namespace VrdpoProject
             // behavior, same call count, same arguments' contents, just computed once instead of per
             // candidate.
             var distinctLocationsInSolution = sol.Options.Select(x => x.Location).ToHashSet().ToList();
+            // NOTE (perf, Phase 3): built once per call (was a ToDictionary inside every getTempCopy call).
+            var locationLookup = Route.BuildLocationLookup(distinctLocationsInSolution);
             Route rt1, rt2;
             int openRoutes;
             int startOfSecondOptionIndex;
@@ -283,19 +284,24 @@ namespace VrdpoProject
                             double costChangeSecondRoute = 0;
                             double ratio = 1;
 
-                            var tw1 = sol.RespectsTimeWindow2(rt1, firstOptionIndex, b2.Location);
-                            var tw2 = sol.RespectsTimeWindow2(rt2, secondOptionIndex, b1.Location);  
-
-                            if (!tw1.Item1 || !tw2.Item1) { continue; }
+                            // NOTE (perf, Phase 3): bool-only variants (only `.Item1` was ever read); the second is
+                            // skipped when the first already fails, which is safe — the checks are pure.
+                            if (!sol.RespectsTimeWindow2Feasible(rt1, firstOptionIndex, b2.Location)
+                                || !sol.RespectsTimeWindow2Feasible(rt2, secondOptionIndex, b1.Location)) { continue; }
 
                             if (rt1 == rt2)
                             {
-                                Route rtTemp = rt1.getTempCopy(rt1, distinctLocationsInSolution);
-                                rtTemp.SequenceOfOptions[firstOptionIndex] = b2;
-                                rtTemp.SequenceOfCustomers[firstOptionIndex] = b2.Cust;
-                                rtTemp.SequenceOfLocations[firstOptionIndex] = b2.Location;
-                                tw2 = sol.RespectsTimeWindow2(rtTemp, secondOptionIndex, b1.Location);
-                                if (!tw2.Item1)
+                                // NOTE (perf, Phase 3): this used to be `Route rtTemp = rt1.getTempCopy(...)`, then
+                                // overwrite rtTemp's options/customers/locations at firstOptionIndex with b2's, then
+                                // RespectsTimeWindow2(rtTemp, secondOptionIndex, b1.Location). rtTemp was never used
+                                // for anything else, so: (1) ReplaceCustomerOptionsWithClones performs getTempCopy's
+                                // one lasting effect (the Customer.Clone option-list replacement the search trajectory
+                                // depends on — see its comment) exactly as before, and (2) the time-window check runs
+                                // directly on rt1's locations with firstOptionIndex swapped for b2.Location, which is
+                                // the sequence rtTemp held (its Location clones differ from rt1's only by object
+                                // identity; the check reads only value fields).
+                                rt1.ReplaceCustomerOptionsWithClones(locationLookup);
+                                if (!sol.RespectsTimeWindow2FeasibleWithReplacement(rt1, secondOptionIndex, b1.Location, firstOptionIndex, b2.Location))
                                 {
                                     continue;
                                 }
@@ -431,6 +437,8 @@ namespace VrdpoProject
         public TwoOpt FindBestTwoOptMove(TwoOpt top, Solution sol) {
             // NOTE (perf, Phase 2): see the identical hoist + rationale in FindBestSwapMove.
             var distinctLocationsInSolution = sol.Options.Select(x => x.Location).ToHashSet().ToList();
+            // NOTE (perf, Phase 3): see FindBestSwapMove.
+            var locationLookup = Route.BuildLocationLookup(distinctLocationsInSolution);
             int openRoutes;
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++) {
                 Route rt1 = sol.Routes[rtInd1];
@@ -459,13 +467,12 @@ namespace VrdpoProject
                             // before: rt1's prefix through optInd1, then rt2's suffix from optInd2+1
                             // (and the mirror for tw2) — see the overload's own comment for the index
                             // derivation.
-                            var tw1 = sol.RespectsTimeWindow(rt1, optInd1, rt2, optInd2);
-                            var tw2 = sol.RespectsTimeWindow(rt2, optInd2, rt1, optInd1);
-
-                            bool respectsTw1 = tw1.Item1;
-                            bool respectsTw2 = tw2.Item1;
-                            
-                            if (!respectsTw1 || !respectsTw2) { continue; }
+                            // NOTE (perf, Phase 3): feasibility only, no arrays allocated here. The Ect/Lat arrays
+                            // are consumed solely when this candidate is recorded as the new best move (below),
+                            // where they are recomputed with the array-returning overload — same pure function
+                            // of the same unchanged inputs, so identical contents.
+                            if (!sol.RespectsTimeWindowFeasible(rt1, optInd1, rt2, optInd2)
+                                || !sol.RespectsTimeWindowFeasible(rt2, optInd2, rt1, optInd1)) { continue; }
 
                             if (rt1 == rt2) {
                                 if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
@@ -475,32 +482,23 @@ namespace VrdpoProject
                                 //respectsTw2 = tw2.Item1;
                                 //if (!respectsTw1 || !respectsTw2) { continue; }
 
-                                Route rtTemp = rt1.getTempCopy(rt1, distinctLocationsInSolution);
-                                int frombase = optInd1 + 1;
-                                int fromend = optInd2 + 1;
-                                List<Option> reversedSegment = Enumerable.Reverse(rtTemp.SequenceOfOptions.GetRange(frombase, fromend - frombase)).ToList();
-                                List<Location> reversedLocations = Enumerable.Reverse(rtTemp.SequenceOfLocations.GetRange(frombase, fromend - frombase)).ToList();
-                                List<Customer> reversedCustomers = Enumerable.Reverse(rtTemp.SequenceOfCustomers.GetRange(frombase, fromend - frombase)).ToList();
-                                rtTemp.SequenceOfOptions.RemoveRange(frombase, fromend - frombase);
-                                rtTemp.SequenceOfOptions.InsertRange(frombase, reversedSegment);
-                                rtTemp.SequenceOfLocations.RemoveRange(frombase, fromend - frombase);
-                                rtTemp.SequenceOfLocations.InsertRange(frombase, reversedLocations);
-                                rtTemp.SequenceOfCustomers.RemoveRange(frombase, fromend - frombase);
-                                rtTemp.SequenceOfCustomers.InsertRange(frombase, reversedCustomers);
-                                rtTemp.SequenceOfEct = new List<double>(rt1.SequenceOfEct);
-                                rtTemp.SequenceOfLat = new List<double>(rt1.SequenceOfLat);
-                                // Update rtTemp times and check if it respects time windows
-                                // Parse the sequence of options and update the list of ect and lat
-                                for (int i = 0; i < rtTemp.SequenceOfOptions.Count - 1; i++)
+                                // NOTE (perf, Phase 3): this used to build a temp route via getTempCopy, reverse the
+                                // segment [optInd1+1, optInd2] in its option/location/customer lists, overwrite its
+                                // Ect/Lat lists with each option's Due/Ready for positions 0..Count-2, and then run
+                                // CheckTimeWindowsFeasibility (which tests Ect[i+1] > Lat[i+1] for i in 0..Count-2,
+                                // i.e. positions 1..Count-1). Nothing else ever read that temp route, so:
+                                //  (1) ReplaceCustomerOptionsWithClones performs getTempCopy's one lasting effect (the
+                                //      Customer.Clone option-list replacement; see its comment) exactly as before;
+                                //  (2) the check is evaluated directly. Positions 1..Count-2 hold the SAME set of
+                                //      options before and after the reversal (the reversed segment lies entirely inside
+                                //      [1, Count-2] because optInd1 >= 0 and optInd2 <= Count-2), so "some option there
+                                //      has Due > Ready" doesn't depend on the ordering; position Count-1 kept the
+                                //      copied rt1.SequenceOfEct/Lat value (the loop only wrote 0..Count-2). Cloned
+                                //      options carry identical Due/Ready. See SameRouteTwoOptTimeCheckFails.
+                                rt1.ReplaceCustomerOptionsWithClones(locationLookup);
+                                if (SameRouteTwoOptTimeCheckFails(rt1))
                                 {
-                                    rtTemp.SequenceOfEct[i] = rtTemp.SequenceOfOptions[i].Due;
-                                    rtTemp.SequenceOfLat[i] = rtTemp.SequenceOfOptions[i].Ready;
-                                }
-
-                                
-                                if (!rtTemp.CheckTimeWindowsFeasibility()) 
-                                { 
-                                    continue; 
+                                    continue;
                                 }
 
                                 costAdded = sol.CalculateDistance(A.Location, K.Location) + sol.CalculateDistance(B.Location, L.Location);
@@ -553,6 +551,10 @@ namespace VrdpoProject
                                 top.PositionOfSecondRoute = rtInd2;
                                 top.PositionOfFirstOption = optInd1;
                                 top.PositionOfSecondOption = optInd2;
+                                // Arrays are only needed now that this candidate is being recorded: recompute them
+                                // (see the NOTE at the feasibility check above). Fresh arrays, as before.
+                                var tw1 = sol.RespectsTimeWindow(rt1, optInd1, rt2, optInd2);
+                                var tw2 = sol.RespectsTimeWindow(rt2, optInd2, rt1, optInd1);
                                 top.Ect1 = tw1.Item2;
                                 top.Ect2 = tw2.Item2;
                                 top.Lat1 = tw1.Item3;
@@ -564,6 +566,21 @@ namespace VrdpoProject
                 }
             }
             return top;
+        }
+
+        // Direct evaluation of the same-route 2-opt time check that FindBestTwoOptMove used to get by building
+        // and reversing a temp route: true iff any option at positions 1..Count-2 has Due > Ready, or the
+        // route's last Ect entry exceeds its last Lat entry. See the NOTE at the call site for why this is
+        // equivalent for every (optInd1, optInd2) pair.
+        private static bool SameRouteTwoOptTimeCheckFails(Route rt)
+        {
+            var opts = rt.SequenceOfOptions;
+            int last = opts.Count - 1;
+            for (int j = 1; j < last; j++)
+            {
+                if (opts[j].Due > opts[j].Ready) { return true; }
+            }
+            return rt.SequenceOfEct[last] > rt.SequenceOfLat[last];
         }
 
         public bool CapacityIsViolated(Route rt1, int optionInd1, Route rt2, int optionInd2) {
@@ -684,6 +701,10 @@ namespace VrdpoProject
             // called once per restart and every accepted Flip/PrioritySwap move keeps the counts
             // current via AdjustServiceLevelCounts.
             int baseP0 = sol.Po0Count, baseP1 = sol.Po1Count, baseP2 = sol.Po2Count;
+            // NOTE (perf, Phase 3): built once per call — was `sol.Options.Select(x => x.Location).ToHashSet().ToList()`
+            // plus a ToDictionary inside getTempCopy, once per customer with >= 2 options. FindBestFlipMove never
+            // mutates sol, and Solution.Options is never touched by the Customer.Clone bug, so the mapping is identical.
+            var flipLocationLookup = Route.BuildLocationLookup(sol.Options.Select(x => x.Location).ToHashSet().ToList());
             for (int rtInd1 = 0; rtInd1 < sol.Routes.Count; rtInd1++)
             {
                 Route rt1 = sol.Routes[rtInd1];
@@ -714,14 +735,13 @@ namespace VrdpoProject
                     // decided deliberately by the authors, not something to fix silently in a perf pass
                     // (same principle as the deliberately-preserved Promises aliasing in Solution's clone
                     // constructor — see Solution.cs).
-                    Route rt1_copy = rt1.getTempCopy(rt1, sol.Options.Select(x => x.Location).ToHashSet().ToList());
-                    rt1_copy.SequenceOfCustomers.RemoveAt(custInd1);
-                    rt1_copy.SequenceOfOptions.RemoveAt(custInd1);
-                    rt1_copy.SequenceOfLocations.RemoveAt(custInd1);
-                    rt1_copy.SequenceOfEct.RemoveAt(custInd1);
-                    rt1_copy.SequenceOfLat.RemoveAt(custInd1);
-                    sol.UpdateTimes(rt1_copy);
-                    rt1_copy.Load = rt1_copy.Load - custB.Dem;
+                    // NOTE (perf, Phase 3): this line and the mutations that followed it (RemoveAt x5 on the temp
+                    // route's lists, sol.UpdateTimes(rt1_copy), rt1_copy.Load adjustment) only ever touched the
+                    // throwaway copy — confirmed by grep, `rt1_copy` has no reader anywhere, and UpdateTimes
+                    // writes only to the route it is given. The ONE thing that mattered (see the NOTE above) is
+                    // getTempCopy's Customer.Clone side effect, which ReplaceCustomerOptionsWithClones performs
+                    // identically for every customer on rt1, without building the discarded route.
+                    rt1.ReplaceCustomerOptionsWithClones(flipLocationLookup);
 
                     for (int optInd = 0; optInd < custB.Options.Count; optInd++)
                     {
@@ -764,9 +784,8 @@ namespace VrdpoProject
                             for (int targetOptionIndex = targetRouteIndex; targetOptionIndex < rt2.SequenceOfOptions.Count - 1; targetOptionIndex++) //-1
                             {
 
-                                var tw = sol.RespectsTimeWindow2(rt2, targetOptionIndex, custB.Options[optInd].Location);
-                                
-                                if (!tw.Item1) { continue; }
+                                // NOTE (perf, Phase 3): bool-only variant — only `.Item1` was ever read.
+                                if (!sol.RespectsTimeWindow2Feasible(rt2, targetOptionIndex, custB.Options[optInd].Location)) { continue; }
 
                                 var newServiceLevel = CalculateTempServiceLevel(baseP0, baseP1, baseP2, rt1.SequenceOfOptions[custInd1].Prio, custB.Options[optInd].Prio);
                                 if (newServiceLevel[0] < 0.8 || newServiceLevel[1] < 0.9)
@@ -1028,13 +1047,12 @@ namespace VrdpoProject
                                     if (rt2.Load - b2.Cust.Dem + notServedOptionB2.Cust.Dem > rt2.Capacity) {continue;} // If the capacity of the route will be violated from the insertion continue
                                     // Check if the time windows are respected for the insertion of the new options in different routes
                                     if (rt1 != rt2) {
-                                        var tw1 = sol.RespectsTimeWindow2(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location);
-                                        var tw2 = sol.RespectsTimeWindow2(rt2, rt2.SequenceOfOptions.IndexOf(b2), notServedOptionB2.Location);
-                                        if (!tw1.Item1 || !tw2.Item1) {continue;}
+                                        // NOTE (perf, Phase 3): bool-only variants — only `.Item1` was ever read.
+                                        if (!sol.RespectsTimeWindow2Feasible(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location)
+                                            || !sol.RespectsTimeWindow2Feasible(rt2, rt2.SequenceOfOptions.IndexOf(b2), notServedOptionB2.Location)) {continue;}
                                     }
                                     else {
-                                        var tw1 = sol.RespectsTimeWindow2(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location);
-                                        if (!tw1.Item1) {continue;} // If the insertion of the first option leads to TW violation continue.
+                                        if (!sol.RespectsTimeWindow2Feasible(rt1, rt1.SequenceOfOptions.IndexOf(b1), notServedOptionB1.Location)) {continue;} // If the insertion of the first option leads to TW violation continue.
                                         // If no TW window violation then insert the new option in the temp route and check for the second option
                                         Route rtTemp = rt1.getTempCopy(rt1, distinctLocationsInSolution);
                                         // NOTE (perf, Phase 2): four `list.Select(x => x.Id).ToList()` + `.IndexOf(...)`
