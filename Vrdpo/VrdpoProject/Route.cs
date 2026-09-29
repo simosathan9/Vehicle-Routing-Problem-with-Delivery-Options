@@ -97,6 +97,48 @@ namespace VrdpoProject
             return route;
     }
 
+        // NOTE (perf, Phase 3): array form of getTempCopy's `locs.ToDictionary(l => l.Id)` so callers can
+        // build the lookup ONCE per Find* call instead of once per candidate. Location IDs are dense
+        // matrix indices in this model (DistanceMatrix/TimeMatrix are indexed by Id), so an array is a
+        // valid, cheaper stand-in; an out-of-range Id yields null exactly like GetValueOrDefault did.
+        public static Location[] BuildLocationLookup(List<Location> locs)
+        {
+            int max = 0;
+            for (int i = 0; i < locs.Count; i++) { if (locs[i].Id > max) { max = locs[i].Id; } }
+            var lookup = new Location[max + 1];
+            for (int i = 0; i < locs.Count; i++) { lookup[locs[i].Id] = locs[i]; }
+            return lookup;
+        }
+
+        // NOTE (perf, Phase 3): performs ONLY the observable part of getTempCopy(this, locs) and skips
+        // building the throwaway Route. getTempCopy's one lasting effect is through Customer.Clone(options),
+        // whose `this.options = options;` (a real bug — see Customer.cs / LocalSearch.FindBestFlipMove) replaces
+        // the Options list of every customer on this route with a freshly cloned list (new Option identities,
+        // Location re-resolved by Id, IsServed snapshotted). The search trajectory depends on those
+        // identities (reference-equality checks in FindBestFlipMove/ApplyFlipMove/ApplyPrioritySwapMove), so
+        // this must keep happening exactly as before: same customers, same order (the depot's fake customer
+        // appears twice and is re-cloned twice, as before), a fresh clone list every call. Everything else
+        // getTempCopy built — cloned Locations, cloned Options for the route sequence, cloned Customers,
+        // the Ect/Lat copies, the Route itself — was unreachable garbage for the callers that use this
+        // instead, so it is simply not built. Deliberately does NOT fix the bug.
+        public void ReplaceCustomerOptionsWithClones(Location[] locationLookup)
+        {
+            var customers = sequenceOfCustomers;
+            for (int c = 0; c < customers.Count; c++)
+            {
+                Customer x = customers[c];
+                var src = x.Options;
+                var cloned = new List<Option>(src.Count);
+                for (int k = 0; k < src.Count; k++)
+                {
+                    Option y = src[k];
+                    int id = y.Location.Id;
+                    cloned.Add(y.Clone((uint)id < (uint)locationLookup.Length ? locationLookup[id] : null));
+                }
+                x.Options = cloned;
+            }
+        }
+
         public Route(Route original)
         {
             this.Id = original.Id;
