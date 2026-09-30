@@ -960,8 +960,14 @@ namespace VrdpoProject
                                 Option F = rt2.SequenceOfOptions[targetOptionIndex];
                                 Option G = rt2.SequenceOfOptions[targetOptionIndex + 1];
 
+                                // `openRoutes` accumulates across the target positions of this route (see the NOTE where it is reset),
+                                // and originally only positions that passed the time-window check reached this decrement. So when
+                                // moving B1 empties rt1 the check must stay eager here; every other candidate defers it.
+                                bool twChecked = false;
                                 if (emptiesRt1)
                                 {
+                                    if (!sol.RespectsTimeWindow2FeasibleMemo(rtInd2, rt2, targetOptionIndex, B2.Location)) { continue; }
+                                    twChecked = true;
                                     openRoutes--;
                                 }
 
@@ -976,7 +982,7 @@ namespace VrdpoProject
                                 if (sol.RatioCombinedMoveCost + openRoutes * 10000 < flip.TotalCost + smallDouble) // & rtInd2 != 0)
                                 {
                                     // Deferred time-window check (see the NOTE above).
-                                    if (!sol.RespectsTimeWindow2FeasibleMemo(rtInd2, rt2, targetOptionIndex, B2.Location)) { continue; }
+                                    if (!twChecked && !sol.RespectsTimeWindow2FeasibleMemo(rtInd2, rt2, targetOptionIndex, B2.Location)) { continue; }
                                     if (PromiseIsBroken(F.Id, B2.Id, moveCost + sol.Cost + smallDouble, sol))
                                     {
                                         continue;
