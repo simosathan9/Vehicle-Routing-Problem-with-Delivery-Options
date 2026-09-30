@@ -182,6 +182,7 @@ Runtime behaviour is controlled via this JSON file placed alongside the executab
 | `multiRestart` | Enable multi‑restart strategy. | Use `true` for robustness; `false` for quick single run. | false |
 | `schema` | Move selection scheme. Currently only `greedy` implemented (future: adaptive, randomized variants). | Controls how the best move among operators is chosen. | "greedy" |
 | `type` | Distance/time metric mode: `int` (rounded/scaled) or `double` (raw Euclidean). | Use `int` for speed, `double` for precision / final polishing. | "int" |
+| `noImprovementLimit` | Optional. Iterations without a new best solution after which a restart stops (`<= 0` or absent disables the rule). | With the rule off every restart runs the full `repetitions`. A value such as 2000 is about 5x faster with a slightly worse mean gap. Until the first acceptable solution is found the count runs from iteration 0, so large instances (e.g. 400 customers) may need a larger value or none. | 0 (off) |
 
 *Defaults shown are those in the committed `settings.json` at the time of writing.
 
