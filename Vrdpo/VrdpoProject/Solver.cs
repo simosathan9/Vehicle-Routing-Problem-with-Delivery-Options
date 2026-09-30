@@ -90,6 +90,9 @@ namespace VrdpoProject
             Solution bestSol = new();
             bestSol.Cost = Math.Pow(10, 9);
             int numberOfRestarts = settings.restarts;
+            // The restart stop rule used to be the hard-coded constant 2000; it is now read from settings.json
+            // (`noImprovementLimit`, default 2000 when the key is absent, <= 0 disables the rule).
+            int noImprovementLimit = settings.noImprovementLimit > 0 ? settings.noImprovementLimit : int.MaxValue;
             Solution currentSol;
             int timesFailedFindFeasible = 0;
             var restartTimer = new Stopwatch();
@@ -160,7 +163,7 @@ namespace VrdpoProject
                 Console.WriteLine("Restart: " + restartCounter);
                 for (int i = 0; i < settings.repetitions; i++)
                 {
-                    if (i - lastImprovement > 2000)
+                    if (i - lastImprovement > noImprovementLimit)
                     {
                         break;
                     }
