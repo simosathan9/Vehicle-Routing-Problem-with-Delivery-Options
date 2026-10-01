@@ -42,5 +42,8 @@ namespace VrdpoProject
         // The same-route 2-opt time check rejected every candidate, so that move never did anything; with this on, the reversed route is
         // tested for time-window feasibility and the move can be applied.
         public bool fixSameRouteTwoOpt { get; set; } = true;
+        // Relocation never used route 0 as a target (`targetRouteIndex == 0` was skipped), so no stop could be moved into the first route. With
+        // this on, route 0 is a target like any other. Off by default: the effect on the results is within noise.
+        public bool relocateIntoFirstRoute { get; set; } = false;
     }
 }

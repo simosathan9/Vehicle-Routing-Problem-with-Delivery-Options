@@ -19,6 +19,7 @@ namespace VrdpoProject
         // of printing unconditionally on every accepted priority-swap move regardless of settings.
         private bool verbal;
         private bool fixSameRouteTwoOpt;
+        private bool relocateIntoFirstRoute;
         private Route rt1, rt2;
         public LocalSearch()
         {
@@ -33,6 +34,7 @@ namespace VrdpoProject
             }
             this.verbal = settings.verbal;
             this.fixSameRouteTwoOpt = settings.fixSameRouteTwoOpt;
+            this.relocateIntoFirstRoute = settings.relocateIntoFirstRoute;
             Customer.FixCloneBug = settings.fixCloneSideEffect;
         }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
@@ -59,11 +61,11 @@ namespace VrdpoProject
                 {
                     rt2 = sol.Routes[targetRouteIndex];
 
-                    // NOTE (perf, Phase 4): the improving test below contains `targetRouteIndex != 0`, so no candidate
-                    // targeting route 0 can ever be recorded. Everything else done for such a candidate was pure
-                    // (the only write, `sol.RatioCombinedMoveCost`, is a scratch value that is assigned and then read on the
-                    // very next comparison), so the whole route is skipped.
-                    if (targetRouteIndex == 0) { continue; }
+                    // NOTE (perf, Phase 4): unless relocateIntoFirstRoute is on, the improving test below contains
+                    // `targetRouteIndex != 0`, so no candidate targeting route 0 can ever be recorded. Everything else done for such
+                    // a candidate was pure (the only write, `sol.RatioCombinedMoveCost`, is a scratch value that is assigned and then
+                    // read on the very next comparison), so the whole route is skipped.
+                    if (targetRouteIndex == 0 && !relocateIntoFirstRoute) { continue; }
 
                     for (int originOptionIndex = 1; originOptionIndex < rt1.SequenceOfOptions.Count - 1; originOptionIndex++)
                     {
@@ -142,7 +144,7 @@ namespace VrdpoProject
                             //{
                             //    continue;
                             //}
-                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < rm.TotalCost + smallDouble & targetRouteIndex != 0 & moveCost != 0) // + bpnus
+                            if (sol.RatioCombinedMoveCost + openRoutes * 10000 < rm.TotalCost + smallDouble & (targetRouteIndex != 0 || relocateIntoFirstRoute) & moveCost != 0) // + bpnus
                             {
                                 // Console.WriteLine("Total cost : " + rm.TotalCost + " Open Routes : " + openRoutes);
                                 // Deferred time-window check (see the NOTE near the top of this loop body).
