@@ -123,6 +123,7 @@ namespace VrdpoProject
         // instead, so it is simply not built. Deliberately does NOT fix the bug.
         public void ReplaceCustomerOptionsWithClones(Location[] locationLookup)
         {
+            if (Customer.FixCloneBug) { return; } // the side effect reproduced here is the bug that setting fixes
             var customers = sequenceOfCustomers;
             for (int c = 0; c < customers.Count; c++)
             {

@@ -1039,6 +1039,32 @@ namespace VrdpoProject
             return true;
         }
 
+        // Forward-pass time-window feasibility of an arbitrary location sequence (depot ... depot), with exactly the arithmetic of
+        // CalculateTimes (travel from the matrix, service time when the location changes, wait for Ready, then the delivery time,
+        // completion must not exceed Due) but without its console output.
+        public bool SequenceFeasible(List<Location> seq)
+        {
+            double totalTime = 0;
+            for (int i = 1; i < seq.Count; i++)
+            {
+                totalTime += CalculateTime(seq[i], seq[i - 1]);
+                if (seq[i - 1].Id != seq[i].Id)
+                {
+                    totalTime += seq[i].ServiceTime;
+                }
+                if (seq[i].Ready > totalTime)
+                {
+                    totalTime = seq[i].Ready;
+                }
+                totalTime += seq[i].DeliveryServiceTime;
+                if (!(totalTime <= seq[i].Due))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         // NOTE (perf, Phase 4): Id -> Location lookup used by Route.ReplaceCustomerOptionsWithClones, built from "the
         // distinct Location objects of this solution's options". Every Find* call used to rebuild it from scratch
         // (a LINQ Select, a HashSet, a List and the array — four times per iteration). It cannot change while this

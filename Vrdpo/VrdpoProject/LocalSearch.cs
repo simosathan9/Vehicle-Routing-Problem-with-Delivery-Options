@@ -18,6 +18,7 @@ namespace VrdpoProject
         // below can be gated consistently with Solver's existing `settings.verbal` behavior, instead
         // of printing unconditionally on every accepted priority-swap move regardless of settings.
         private bool verbal;
+        private bool fixSameRouteTwoOpt;
         private Route rt1, rt2;
         public LocalSearch()
         {
@@ -31,6 +32,8 @@ namespace VrdpoProject
                 this.smallDouble = 0;
             }
             this.verbal = settings.verbal;
+            this.fixSameRouteTwoOpt = settings.fixSameRouteTwoOpt;
+            Customer.FixCloneBug = settings.fixCloneSideEffect;
         }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
         {
@@ -566,7 +569,17 @@ namespace VrdpoProject
                             // so only the final fresh-clone state is observable — see FindBestSwapMove).
                             bool twDone = false;
 
-                            if (rt1 == rt2) {
+                            if (rt1 == rt2 && fixSameRouteTwoOpt) {
+                                // The check in the branch below rejects EVERY same-route candidate, so same-route 2-opt never moved
+                                // anything. Here the real feasibility of the reversed route is tested when (and only when) the
+                                // candidate would be recorded - see the improving branch.
+                                if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
+                                twDone = true;
+                                costAdded = sol.CalculateDistance(A.Location, K.Location) + sol.CalculateDistance(B.Location, L.Location);
+                                costRemoved = sol.CalculateDistance(A.Location, B.Location) + sol.CalculateDistance(K.Location, L.Location);
+                                moveCost = costAdded - costRemoved;
+                                sol.RatioCombinedMoveCost = moveCost;
+                            } else if (rt1 == rt2) {
                                 if (optInd1 == 0 & optInd2 == rt1.SequenceOfOptions.Count - 2) { continue; }
 
                                 if (!routeTainted[rtInd1])
@@ -636,6 +649,7 @@ namespace VrdpoProject
                                 if (!twDone
                                     && (!sol.RespectsTimeWindowFeasible(rt1, optInd1, rt2, optInd2)
                                         || !sol.RespectsTimeWindowFeasible(rt2, optInd2, rt1, optInd1))) { continue; }
+                                if (rt1 == rt2 && fixSameRouteTwoOpt && !SameRouteReversalFeasible(sol, rt1, optInd1, optInd2)) { continue; }
 
                                 if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
@@ -694,6 +708,17 @@ namespace VrdpoProject
                 return x * x;
             }
             return Math.Pow(x, power);
+        }
+
+        // Is the route still time-window feasible after reversing the segment (optInd1+1 .. optInd2)?
+        private bool SameRouteReversalFeasible(Solution sol, Route rt, int optInd1, int optInd2)
+        {
+            var seq = rt.SequenceOfLocations;
+            var list = new List<Location>(seq.Count);
+            for (int i = 0; i <= optInd1; i++) { list.Add(seq[i]); }
+            for (int i = optInd2; i > optInd1; i--) { list.Add(seq[i]); }
+            for (int i = optInd2 + 1; i < seq.Count; i++) { list.Add(seq[i]); }
+            return sol.SequenceFeasible(list);
         }
 
         public bool CapacityIsViolated(Route rt1, int optionInd1, Route rt2, int optionInd2) {

@@ -20,9 +20,17 @@ namespace VrdpoProject
             this.isRouted = isRouted;
             options = new List<Option>();
         }
+        // settings.fixCloneSideEffect. false = the original behaviour: Clone re-points THIS customer's Options at the new list.
+        public static bool FixCloneBug;
+
         public Customer Clone(List<Option> options)
         {
             var clone = (Customer)this.MemberwiseClone();
+            if (FixCloneBug)
+            {
+                clone.options = options;
+                return clone;
+            }
             this.options = options;
             return clone;
         }

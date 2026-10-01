@@ -32,5 +32,13 @@ namespace VrdpoProject
         // delivery duration (5 minutes single, 2 minutes shared) to the due date to the same effect. The solver compares the COMPLETION time with
         // the due date, which is tighter by that duration at every stop; true adds it back to the due dates.
         public bool windowBindsServiceStart { get; set; } = false;
+
+        // Corrections to the search. Both are off by default, which reproduces the published behaviour run for run.
+        // Customer.Clone re-pointed the ORIGINAL customer's Options at the clone's list instead of the clone's own. With PrioritySwap off (the
+        // case in this configuration) this has no visible effect on the result.
+        public bool fixCloneSideEffect { get; set; } = false;
+        // The same-route 2-opt time check rejected every candidate, so that move never did anything; with this on, the reversed route is
+        // tested for time-window feasibility and the move can be applied.
+        public bool fixSameRouteTwoOpt { get; set; } = false;
     }
 }
