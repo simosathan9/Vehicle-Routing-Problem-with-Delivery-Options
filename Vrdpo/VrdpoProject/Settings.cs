@@ -24,8 +24,8 @@ namespace VrdpoProject
         // larger value to get a solution.
         public int noImprovementLimit { get; set; } = 0;
 
-        // The four settings below are ON by default: they are the model of Tilk et al., Dumez et al. and Yang et al. plus two corrections to the
-        // search. Set all four to false to reproduce the results of the published tables run for run.
+        // The first two settings below are the model of Tilk et al., Dumez et al. and Yang et al.; the other four correct the search. All six are ON by
+        // default. Set all six to false to reproduce the results of the published tables run for run.
         // "double" mode only: travel TIME = 10 * Euclidean distance, the same model as "int" mode without its per-arc rounding.
         // Windows and service times are stored x10, so false - travel time = raw distance - makes travel 10 times too fast
         // and solves a relaxed problem whose solutions often violate the real time windows.
@@ -43,11 +43,11 @@ namespace VrdpoProject
         // tested for time-window feasibility and the move can be applied.
         public bool fixSameRouteTwoOpt { get; set; } = true;
         // Relocation never used route 0 as a target (`targetRouteIndex == 0` was skipped), so no stop could be moved into the first route. With
-        // this on, route 0 is a target like any other. Off by default: the effect on the results is within noise.
-        public bool relocateIntoFirstRoute { get; set; } = false;
+        // this on, route 0 is a target like any other. The effect on the results is within noise.
+        public bool relocateIntoFirstRoute { get; set; } = true;
         // Same-route relocation: the time windows were checked on the route that still contains the moved stop (so the stop was counted twice and
         // some valid moves were rejected), and the utilisation ratio subtracted that route's metric twice. With this on the route that results from
-        // the move is checked and the ratio is 1. Off by default: the effect on the results is within noise.
-        public bool exactRelocationFeasibility { get; set; } = false;
+        // the move is checked and the ratio is 1. The effect on the results is within noise.
+        public bool exactRelocationFeasibility { get; set; } = true;
     }
 }
