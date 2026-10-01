@@ -23,5 +23,14 @@ namespace VrdpoProject
         // measured from iteration 0, so a large instance whose service level is still climbing at iteration 2000 needs a
         // larger value to get a solution.
         public int noImprovementLimit { get; set; } = 0;
+
+        // "double" mode only: travel TIME = 10 * Euclidean distance, the same model as "int" mode without its per-arc rounding.
+        // Windows and service times are stored x10, so the default (false) - travel time = raw distance - makes travel 10 times too fast
+        // and solves a relaxed problem whose solutions often violate the real time windows.
+        public bool consistentTravelTime { get; set; } = false;
+        // The time window of a location limits when service STARTS in the Dumez et al. model (constraint 11), and the instance Readme adds the
+        // delivery duration (5 minutes single, 2 minutes shared) to the due date to the same effect. The solver compares the COMPLETION time with
+        // the due date, which is tighter by that duration at every stop; true adds it back to the due dates.
+        public bool windowBindsServiceStart { get; set; } = false;
     }
 }

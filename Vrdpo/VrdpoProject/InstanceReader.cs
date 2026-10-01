@@ -120,6 +120,16 @@ namespace VrdpoProject
         internal List<Option> Options { get => options; set => options = value; }
         internal int NumbOpt { get => numbOpt; set => numbOpt = value; }
 
+        private static bool? cachedWindowBindsServiceStart;
+        private static bool WindowBindsServiceStart()
+        {
+            if (cachedWindowBindsServiceStart == null)
+            {
+                cachedWindowBindsServiceStart = JsonSerializer.Deserialize<Settings>(File.ReadAllText("settings.json")).windowBindsServiceStart;
+            }
+            return cachedWindowBindsServiceStart.Value;
+        }
+
         public void BuildModel()
         {
             depot = new Location(Int32.Parse(temp1[0]), Int32.Parse(temp1[1]), Int32.Parse(temp1[2]),
@@ -148,6 +158,10 @@ namespace VrdpoProject
                 //{
                 //    loc.Due += 50;
                 //}
+                if (WindowBindsServiceStart())
+                {
+                    loc.Due += loc.DeliveryServiceTime;
+                }
                 allLocations.Add(loc);
             }
             
@@ -217,7 +231,7 @@ namespace VrdpoProject
                         }
                         else if (settings.type == "double")
                         {
-                            timeMatrix[i, j - i] = dist;
+                            timeMatrix[i, j - i] = settings.consistentTravelTime ? 10 * dist : dist;
                             distanceMatrix[i, j - i] = dist;
                         }
                     }
