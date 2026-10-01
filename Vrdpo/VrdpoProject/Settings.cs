@@ -24,21 +24,23 @@ namespace VrdpoProject
         // larger value to get a solution.
         public int noImprovementLimit { get; set; } = 0;
 
+        // The four settings below are ON by default: they are the model of Tilk et al., Dumez et al. and Yang et al. plus two corrections to the
+        // search. Set all four to false to reproduce the results of the published tables run for run.
         // "double" mode only: travel TIME = 10 * Euclidean distance, the same model as "int" mode without its per-arc rounding.
-        // Windows and service times are stored x10, so the default (false) - travel time = raw distance - makes travel 10 times too fast
+        // Windows and service times are stored x10, so false - travel time = raw distance - makes travel 10 times too fast
         // and solves a relaxed problem whose solutions often violate the real time windows.
-        public bool consistentTravelTime { get; set; } = false;
+        public bool consistentTravelTime { get; set; } = true;
         // The time window of a location limits when service STARTS in the Dumez et al. model (constraint 11), and the instance Readme adds the
-        // delivery duration (5 minutes single, 2 minutes shared) to the due date to the same effect. The solver compares the COMPLETION time with
-        // the due date, which is tighter by that duration at every stop; true adds it back to the due dates.
-        public bool windowBindsServiceStart { get; set; } = false;
+        // delivery duration (5 minutes single, 2 minutes shared) to the due date to the same effect. With false the solver compares the COMPLETION
+        // time with the due date, which is tighter by that duration at every stop; true adds it back to the due dates.
+        public bool windowBindsServiceStart { get; set; } = true;
 
-        // Corrections to the search. Both are off by default, which reproduces the published behaviour run for run.
+        // Corrections to the search.
         // Customer.Clone re-pointed the ORIGINAL customer's Options at the clone's list instead of the clone's own. With PrioritySwap off (the
         // case in this configuration) this has no visible effect on the result.
-        public bool fixCloneSideEffect { get; set; } = false;
+        public bool fixCloneSideEffect { get; set; } = true;
         // The same-route 2-opt time check rejected every candidate, so that move never did anything; with this on, the reversed route is
         // tested for time-window feasibility and the move can be applied.
-        public bool fixSameRouteTwoOpt { get; set; } = false;
+        public bool fixSameRouteTwoOpt { get; set; } = true;
     }
 }
