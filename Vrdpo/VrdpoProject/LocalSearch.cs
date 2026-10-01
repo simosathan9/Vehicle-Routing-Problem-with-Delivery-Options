@@ -20,6 +20,7 @@ namespace VrdpoProject
         private bool verbal;
         private bool fixSameRouteTwoOpt;
         private bool relocateIntoFirstRoute;
+        private bool exactRelocationFeasibility;
         private Route rt1, rt2;
         public LocalSearch()
         {
@@ -35,6 +36,7 @@ namespace VrdpoProject
             this.verbal = settings.verbal;
             this.fixSameRouteTwoOpt = settings.fixSameRouteTwoOpt;
             this.relocateIntoFirstRoute = settings.relocateIntoFirstRoute;
+            this.exactRelocationFeasibility = settings.exactRelocationFeasibility;
             Customer.FixCloneBug = settings.fixCloneSideEffect;
         }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
@@ -100,7 +102,7 @@ namespace VrdpoProject
                         var newUtilizationMetricRoute2 = Math.Pow(Convert.ToDouble(rt2.Capacity - (rt2.Load + B.Cust.Dem)), power);
                         var newSolUtilizationMetric = sol.SolutionUtilizationMetric - rt1.RouteUtilizationMetric - rt2.RouteUtilizationMetric + newUtilizationMetricRoute1 + newUtilizationMetricRoute2;
                         var ratio = (sol.SolutionUtilizationMetric + 1) / (newSolUtilizationMetric + 1);
-                        if (sol.Routes.Count == sol.LowerBoundRoutes)
+                        if (sol.Routes.Count == sol.LowerBoundRoutes || (exactRelocationFeasibility && rt1 == rt2))
                         {
                             ratio = 1;
                         }
@@ -148,7 +150,11 @@ namespace VrdpoProject
                             {
                                 // Console.WriteLine("Total cost : " + rm.TotalCost + " Open Routes : " + openRoutes);
                                 // Deferred time-window check (see the NOTE near the top of this loop body).
-                                if (!sol.RespectsTimeWindow2FeasibleMemo(targetRouteIndex, rt2, targetOptionIndex,
+                                if (exactRelocationFeasibility && rt1 == rt2)
+                                {
+                                    if (!SameRouteRelocateFeasible(sol, rt1, originOptionIndex, targetOptionIndex)) { continue; }
+                                }
+                                else if (!sol.RespectsTimeWindow2FeasibleMemo(targetRouteIndex, rt2, targetOptionIndex,
                                                 rt1.SequenceOfLocations[originOptionIndex])) { continue; }
                                 if (PromiseIsBroken(F.Id,B.Id, moveCost + sol.Cost + smallDouble, sol))
                                 {
@@ -1672,6 +1678,20 @@ namespace VrdpoProject
         {
             var (po0Sum, po1Sum, po2Sum) = ScanServiceLevelCounts(sol);
             return CalculateTempServiceLevel(po0Sum, po1Sum, po2Sum, leavingPriority, enteringPriority, verbal);
+        }
+
+        // Time-window feasibility of moving the stop at `originIdx` behind the stop at `targetIdx` inside one route.
+        private bool SameRouteRelocateFeasible(Solution sol, Route rt, int originIdx, int targetIdx)
+        {
+            var locs = rt.SequenceOfLocations;
+            var list = new List<Location>(locs.Count);
+            for (int i = 0; i < locs.Count; i++)
+            {
+                if (i == originIdx) { continue; }
+                list.Add(locs[i]);
+                if (i == targetIdx) { list.Add(locs[originIdx]); }
+            }
+            return sol.SequenceFeasible(list);
         }
 
         bool PromiseIsBroken(int a, int b, double newCost, Solution sol)

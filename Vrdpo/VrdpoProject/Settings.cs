@@ -45,5 +45,9 @@ namespace VrdpoProject
         // Relocation never used route 0 as a target (`targetRouteIndex == 0` was skipped), so no stop could be moved into the first route. With
         // this on, route 0 is a target like any other. Off by default: the effect on the results is within noise.
         public bool relocateIntoFirstRoute { get; set; } = false;
+        // Same-route relocation: the time windows were checked on the route that still contains the moved stop (so the stop was counted twice and
+        // some valid moves were rejected), and the utilisation ratio subtracted that route's metric twice. With this on the route that results from
+        // the move is checked and the ratio is 1. Off by default: the effect on the results is within noise.
+        public bool exactRelocationFeasibility { get; set; } = false;
     }
 }
