@@ -49,5 +49,10 @@ namespace VrdpoProject
         // some valid moves were rejected), and the utilisation ratio subtracted that route's metric twice. With this on the route that results from
         // the move is checked and the ratio is 1. The effect on the results is within noise.
         public bool exactRelocationFeasibility { get; set; } = true;
+
+        // Exchange move. A flip to a lower priority option is blocked when it would take the share of priority-0 customers below 80% (or of priority 0 and 1
+        // below 90%), and every solution sits on that boundary. The exchange flips one customer to a worse and another to a better option together, each
+        // stop re-inserted at its best position. Each iteration the exchangeCandidates cheapest pairs (by estimate) are evaluated exactly. 0 = off.
+        public int exchangeCandidates { get; set; } = 0;
     }
 }

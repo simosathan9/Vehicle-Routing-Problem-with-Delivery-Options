@@ -122,6 +122,8 @@ namespace VrdpoProject
                 TwoOpt top = new();
                 Flip flip = new();
                 PrioritySwap psm = new();
+                bool useExchange = settings.exchangeCandidates > 0;
+                ExchangeMove exch = new();
                 // NOTE (perf, Phase 5): `localBest = new()` used to run here, before construction — but roughly 40 of
                 // every 41 construction attempts on a 400-customer instance fail and `continue` without ever touching
                 // it, and a Solution constructor has no side effect other than building its own object graph (no random
@@ -174,6 +176,7 @@ namespace VrdpoProject
                     top.ReinitializeVariables();
                     flip.ReinitializeVariables();
                     //psm.ReinitializeVariables();
+                    if (useExchange) { exch.ReinitializeVariables(); }
 
                     if (reinitCount == currentSol.Options.Count * settings.promisesRestartRatio)
                     {
@@ -198,9 +201,11 @@ namespace VrdpoProject
                         top = ls.FindBestTwoOptMove(top, currentSol);
                         //psm = ls.FindBestPrioritySwapMove(psm, currentSol);
                         flip = ls.FindBestFlipMove(flip, currentSol);
+                        if (useExchange) { exch = ls.FindBestExchangeMove(exch, currentSol); }
 
                         var mincost = double.MaxValue;
                         mincost = FindMinMoveCost(sm, rm, top, flip);//, psm);
+                        if (useExchange) { mincost = Math.Min(mincost, exch.TotalCost); }
 
                         int openRoutesTemp = currentSol.Routes.Count(x => x.SequenceOfLocations.Count > 2);
                         var minCostChange = mincost - openRoutesTemp * 10000 - currentSol.Cost;
@@ -221,6 +226,10 @@ namespace VrdpoProject
                         {
                             ls.ApplyFlipMove(flip, currentSol);
                             flip_count++;
+                        }
+                        else if (useExchange && mincost == exch.TotalCost)
+                        {
+                            ls.ApplyExchangeMove(exch, currentSol);
                         }
                         //else if (mincost == psm.TotalCost)
                         //{
