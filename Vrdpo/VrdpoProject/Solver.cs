@@ -124,6 +124,7 @@ namespace VrdpoProject
                 PrioritySwap psm = new();
                 bool useExchange = settings.exchangeCandidates > 0;
                 ExchangeMove exch = new();
+                int routeEliminationEvery = settings.routeEliminationEvery;
                 // NOTE (perf, Phase 5): `localBest = new()` used to run here, before construction — but roughly 40 of
                 // every 41 construction attempts on a 400-customer instance fail and `continue` without ever touching
                 // it, and a Solution constructor has no side effect other than building its own object graph (no random
@@ -163,6 +164,12 @@ namespace VrdpoProject
                 localBest.Cost = double.MaxValue;
                 restartCounter++;
                 Console.WriteLine("Restart: " + restartCounter);
+                // Route elimination is attempted only on a solution that already meets the service level: at the reduced fleet the
+                // routes are nearly full, so very few flips stay feasible and a service level that is still below the thresholds
+                // could not be reached afterwards. The first attempt therefore happens in the iteration loop below, once the
+                // search has reached the thresholds (construction is service-level blind), and then every routeEliminationEvery
+                // iterations; every success is repeated at once while it keeps succeeding.
+                bool eliminationTriedAtFeasibility = false;
                 for (int i = 0; i < settings.repetitions; i++)
                 {
                     if (i - lastImprovement > noImprovementLimit)
@@ -182,6 +189,21 @@ namespace VrdpoProject
                     {
                         currentSol.InitPromises();
                         reinitCount = 0;
+                    }
+
+                    if (routeEliminationEvery > 0 && (i % routeEliminationEvery == 0 || !eliminationTriedAtFeasibility))
+                    {
+                        var slNow = CalculateServiceLevelFast(currentSol);
+                        if (slNow[0] >= 0.8 && slNow[1] >= 0.9)
+                        {
+                            eliminationTriedAtFeasibility = true;
+                            string eliminationInfo;
+                            while (ls.TryEliminateRoute(currentSol, out eliminationInfo))
+                            {
+                                if (settings.verbal) { Console.WriteLine("ROUTE_ELIMINATED iteration " + i + ": " + eliminationInfo); }
+                            }
+                            if (settings.verbal) { Console.WriteLine("ROUTE_ELIMINATION_FAILED iteration " + i + ": " + eliminationInfo); }
+                        }
                     }
 
                     Double schemaRandom = rnd6.NextDouble();

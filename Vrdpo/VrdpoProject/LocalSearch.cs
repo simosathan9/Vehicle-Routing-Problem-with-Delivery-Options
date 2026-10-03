@@ -10,7 +10,7 @@ using System.Text.Json;
 namespace VrdpoProject
 {
 
-    public class LocalSearch
+    public partial class LocalSearch
     {
         public static int power = 2;
         private double smallDouble;
@@ -22,6 +22,7 @@ namespace VrdpoProject
         private bool relocateIntoFirstRoute;
         private bool exactRelocationFeasibility;
         private int exchangeCandidates;
+        private bool fixSameRouteFlipCapacity;
         private Route rt1, rt2;
         public LocalSearch()
         {
@@ -39,6 +40,7 @@ namespace VrdpoProject
             this.relocateIntoFirstRoute = settings.relocateIntoFirstRoute;
             this.exactRelocationFeasibility = settings.exactRelocationFeasibility;
             this.exchangeCandidates = settings.exchangeCandidates;
+            this.fixSameRouteFlipCapacity = settings.fixSameRouteFlipCapacity;
             Customer.FixCloneBug = settings.fixCloneSideEffect;
         }
         public Relocation FindBestRelocationMove(Relocation rm, Solution sol)
@@ -974,7 +976,7 @@ namespace VrdpoProject
                                 targetRouteIndex = custInd1 + 1;
                             }
 
-                            if (rt2.Load + custB.Dem > rt2.Capacity)
+                            if (rt2.Load + custB.Dem > rt2.Capacity && !(fixSameRouteFlipCapacity && rt2 == rt1))
                             {
                                 continue;
                             }

@@ -54,5 +54,19 @@ namespace VrdpoProject
         // below 90%), and every solution sits on that boundary. The exchange flips one customer to a worse and another to a better option together, each
         // stop re-inserted at its best position. Each iteration the exchangeCandidates cheapest pairs (by estimate) are evaluated exactly. 0 = off, 20 by default.
         public int exchangeCandidates { get; set; } = 20;
+
+        // Route elimination. The other moves never change the number of routes in practice (relocating a route out stop by stop
+        // needs every intermediate worsening step to win an iteration on its own), so the fleet is whatever construction produced.
+        // This move takes the smallest route apart, re-inserts its customers with ANY of their options, ejects a stop (with option
+        // freedom) when a customer fits nowhere, and restores the service level with up-flips at the end; it is applied only when
+        // the whole chain succeeds. Attempted once after construction and then every routeEliminationEvery iterations while the
+        // fleet is above the demand lower bound. 0 = off (results identical to before), 1000 by default.
+        public int routeEliminationEvery { get; set; } = 1000;
+
+        // Same-route flip: the capacity test added the customer's own demand to the load of the route that already contains it, so
+        // a nearly full route refused to change the option of one of its own customers. At the fleet the route elimination reaches
+        // (well under 1% of capacity to spare) that blocked every option change, so the service level could not be adjusted any
+        // more. With this on the test is skipped when origin and target route are the same, as in the relocation move.
+        public bool fixSameRouteFlipCapacity { get; set; } = true;
     }
 }
