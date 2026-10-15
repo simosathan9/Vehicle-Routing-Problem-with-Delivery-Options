@@ -19,11 +19,7 @@ namespace VrdpoProject
             string dir = Path.Combine(run.ResultsDir, run.Tag);
             Directory.CreateDirectory(dir);
 
-            string settingsCopy = Path.Combine(dir, "settings.json");
-            if (!File.Exists(settingsCopy))
-            {
-                File.WriteAllText(settingsCopy, settings.ToJson());
-            }
+            WriteSettingsCopy(Path.Combine(dir, "settings.json"), settings.ToJson());
 
             bool feasible = sol.CheckEverything();
             int routes = sol.Routes.Count(r => r.SequenceOfLocations.Count > 2);
@@ -61,15 +57,7 @@ namespace VrdpoProject
             Directory.CreateDirectory(Path.GetDirectoryName(reportPath));
             File.WriteAllText(reportPath, report.ToString());
 
-            string csvPath = Path.Combine(dir, "runs.csv");
-            bool newCsv = !File.Exists(csvPath);
-            using (var csv = new StreamWriter(csvPath, append: true))
-            {
-                if (newCsv)
-                {
-                    csv.WriteLine(CsvHeader);
-                }
-                csv.WriteLine(string.Join(",",
+            string csvLine = string.Join(",",
                     DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", inv),
                     instance.RelativeName,
                     feasible ? "1" : "0",
@@ -85,9 +73,65 @@ namespace VrdpoProject
                     settings.Repetitions.ToString(inv),
                     settings.ExchangeCandidates.ToString(inv),
                     settings.NoImprovementLimit.ToString(inv),
-                    settings.Type));
-            }
+                    settings.Type);
+            AppendCsvLine(Path.Combine(dir, "runs.csv"), csvLine);
             return reportPath;
+        }
+
+        // Several solves of one experiment may run concurrently (one process per instance), so the
+        // shared files are written under an exclusive lock, retried while another process holds it.
+        private static readonly Random Jitter = new();
+
+        private static FileStream OpenExclusive(string path)
+        {
+            var deadline = DateTime.UtcNow + TimeSpan.FromMinutes(2);
+            while (true)
+            {
+                try
+                {
+                    return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                }
+                catch (IOException) when (DateTime.UtcNow < deadline)
+                {
+                    Thread.Sleep(Jitter.Next(20, 120));
+                }
+            }
+        }
+
+        // One line per solve; the header is written by whoever creates the file.
+        private static void AppendCsvLine(string path, string line)
+        {
+            using FileStream fs = OpenExclusive(path);
+            using var w = new StreamWriter(fs);
+            if (fs.Length == 0)
+            {
+                w.WriteLine(CsvHeader);
+            }
+            else
+            {
+                fs.Seek(0, SeekOrigin.End);
+            }
+            w.WriteLine(line);
+        }
+
+        // Written once per experiment; a concurrent writer of the same content is harmless, a reader
+        // never sees a partial file because the final step is a rename.
+        private static void WriteSettingsCopy(string path, string json)
+        {
+            if (File.Exists(path))
+            {
+                return;
+            }
+            string tmp = path + "." + Environment.ProcessId + ".tmp";
+            File.WriteAllText(tmp, json);
+            try
+            {
+                File.Move(tmp, path, overwrite: false);
+            }
+            catch (IOException)
+            {
+                File.Delete(tmp); // another process won the race
+            }
         }
     }
 }

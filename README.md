@@ -133,6 +133,7 @@ Vrdpo/
       RunOptions.cs            Command line
       ResultsWriter.cs         results/<tag>/... outputs
     Moves/                     Move records: Relocation, Swap, TwoOpt, Flip, ExchangeMove, Insertion
+    scripts/run-batch.sh       Concurrent batch over many instances under one tag
     Search/
       Solver.cs                Restart loop, move selection, acceptance, console reporting
       Construction.cs          Randomized cheapest insertion
@@ -183,6 +184,13 @@ results/
     U/50/U_50_1.txt        full solution: summary and per-route listing (location, option, customer)
 ```
 The console shows the progress per restart and, with `verbal: true`, one line per iteration (`iteration cost restartBestCost restartBestRoutes`). Numbers use a dot as decimal separator on every machine.
+
+Solves of the same tag can run concurrently (one process per instance): `runs.csv` and the settings copy are written under a file lock, and every instance has its own report file. `scripts/run-batch.sh` does this for a whole set:
+```bash
+scripts/run-batch.sh exchange20 8 Instances/U/50/*.txt Instances/V/50/*.txt
+scripts/run-batch.sh exchange0  8 Instances/U/50/*.txt -- --set exchangeCandidates=0
+```
+It runs 8 solves at a time with `verbal=false`, keeps each solve's console in `results/<tag>/logs/<instance>.log`, and prints which instances finished or failed. Use a distinct tag per experiment: re-running a tag appends to its `runs.csv`.
 
 ## 6. Configuration (`settings.json`)
 | Key | Description | Default |
