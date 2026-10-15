@@ -1,0 +1,5 @@
+# Tuning subset of the paper: one instance name per line (e.g. U_50_3, V_25medium_7).
+# '#' starts a comment. run-exp1.ps1 finds each file in the run folder, in VRPDO_instances\VRPDO_instances\<set>\<size>\
+# or in Instances\<set>\<size>\, and uses type=int for the Tilk et al. instances (small/medium/large), double otherwise.
+#
+# TODO: fill in the instances used for tuning in the paper.
