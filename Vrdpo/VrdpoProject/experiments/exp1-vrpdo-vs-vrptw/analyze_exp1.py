@@ -152,6 +152,7 @@ def main():
         print("only in one setup (skipped):", ", ".join(missing))
 
     summary, after, profiles, gaps = [], [], [], {s: [] for s in SETUPS}
+    best_gaps = {s: [] for s in SETUPS}
     for name in names:
         ref, _ = reference_cost(data["VRPDO"][name])
         fig, ax = plt.subplots(figsize=(8, 4.5))
@@ -161,6 +162,7 @@ def main():
             summary.append(summary_rows(name, setup, df))
             gap = 100 * (per_iteration(df, "cost") - ref) / ref
             gaps[setup].append(gap.mean(axis=1).rename(name))
+            best_gaps[setup].append((100 * (per_iteration(df, "best_cost").ffill() - ref) / ref).mean(axis=1).rename(name))
             band_plot(ax, gap, setup, COLORS[setup])
             best_gap = 100 * (per_iteration(df, "best_cost").ffill() - ref) / ref
             ax.plot(best_gap.index, best_gap.mean(axis=1), color=COLORS[setup], linewidth=1, linestyle="--", label=f"{setup} restart best (mean)")
@@ -189,9 +191,11 @@ def main():
     # Mean trajectory over instances
     fig, ax = plt.subplots(figsize=(8, 4.5))
     for setup in SETUPS:
-        m = pd.concat(gaps[setup], axis=1)
+        m = pd.concat(gaps[setup], axis=1).sort_index()
         ax.fill_between(m.index, m.quantile(0.1, axis=1), m.quantile(0.9, axis=1), color=COLORS[setup], alpha=0.18, linewidth=0)
-        ax.plot(m.index, m.mean(axis=1), color=COLORS[setup], label=f"{setup} (mean over {m.shape[1]} instances, band 10-90%)")
+        ax.plot(m.index, m.mean(axis=1), color=COLORS[setup], linewidth=0.8, label=f"{setup} current (mean over {m.shape[1]} instances, band 10-90%)")
+        bm = pd.concat(best_gaps[setup], axis=1).sort_index()
+        ax.plot(bm.index, bm.mean(axis=1), color=COLORS[setup], linewidth=2, linestyle="--", label=f"{setup} restart best (mean)")
     ax.axhline(0, color="grey", linewidth=0.8)
     ax.set(title="Trajectory over all instances", xlabel="iteration", ylabel="gap to best VRPDO solution (%)")
     ax.legend()
