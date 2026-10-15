@@ -185,12 +185,12 @@ results/
 ```
 The console shows the progress per restart and, with `verbal: true`, one line per iteration (`iteration cost restartBestCost restartBestRoutes`). Numbers use a dot as decimal separator on every machine.
 
-Solves of the same tag can run concurrently (one process per instance): `runs.csv` and the settings copy are written under a file lock, and every instance has its own report file. `scripts/run-batch.sh` does this for a whole set:
+Solves of the same tag can run concurrently (one process per instance): `runs.csv` and the settings copy are written under a file lock, and every instance has its own report file. `scripts/run-batch.sh` runs a whole set as one experiment:
 ```bash
-scripts/run-batch.sh exchange20 8 Instances/U/50/*.txt Instances/V/50/*.txt
-scripts/run-batch.sh exchange0  8 Instances/U/50/*.txt -- --set exchangeCandidates=0
+scripts/run-batch.sh Instances/U/50/*.txt Instances/V/50/*.txt
+scripts/run-batch.sh --tag exchange0 --jobs 8 Instances/U/50/*.txt -- --set exchangeCandidates=0
 ```
-It runs 8 solves at a time with `verbal=false`, keeps each solve's console in `results/<tag>/logs/<instance>.log`, and prints which instances finished or failed. Use a distinct tag per experiment: re-running a tag appends to its `runs.csv`.
+The tag defaults to the current date and time and the number of concurrent solves to the CPU count. The script forces `verbal=false`, writes `results/<tag>/batch.txt` (commit, options, instance list, start and end time), keeps each solve's console in `results/<tag>/logs/<instance>.log`, and prints which instances finished or failed. Re-running with the same `--tag` appends to that experiment's `runs.csv`.
 
 ## 6. Configuration (`settings.json`)
 | Key | Description | Default |
