@@ -22,16 +22,18 @@ Both setups run with `traceIterations=true` and `countMoves=true`, on the tuning
 * **Routing moves.** Relocation, swap and 2-opt. Setup 2 turns off the flip, the exchange and the flip kick
   (the flip applied alone after 500 iterations without improvement).
 * **Move counts** (per iteration, per operator; `Search/MoveStats.cs`):
-  * *evaluated*: candidates whose cost the scan computed (capacity-feasible ones). The exchange counts the
-    pairs it evaluates exactly, at most `exchangeCandidates` per iteration.
-  * *improving*: evaluated candidates that improve the solution lexicographically (fewer used vehicles, or
-    the same and less distance) and are feasible (capacity, time windows, locker capacity, service levels).
+  * *evaluated*: all candidate moves of the neighbourhood, feasible or not. The exchange counts the pairs it
+    evaluates exactly, at most `exchangeCandidates` per iteration.
+  * *feasible*: evaluated candidates that satisfy every constraint (vehicle capacity, time windows, locker
+    capacity, service levels), **whatever their cost**. This is the size of the feasible neighbourhood.
+  * *improving*: feasible candidates that improve the solution lexicographically (fewer used vehicles, or
+    the same and less distance).
   * *admissible*: improving candidates that the promise memory does not forbid.
 
   The scans normally check feasibility only for candidates cheaper than the best one found so far
-  ("cost-first" pruning). For the counters that pruning is removed: every improving candidate is checked.
-  The applied move is unchanged; with `countMoves` on, a run follows exactly the same trajectory as without
-  (checked on 4 instances, both metrics). Counting adds about 10% run time.
+  ("cost-first" pruning). For the counters that pruning is removed: every candidate is checked for
+  feasibility, whatever its cost. The applied move is unchanged; with `countMoves` on, a run follows exactly
+  the same trajectory as without (checked on 4 instances, both metrics). Counting roughly doubles the run time.
 * **Used vehicles** are the non-empty routes. The scans' own route penalty counts the spare empty route as
   open, so to the search a 2-opt that moves a whole tail into the empty route looks like it saves a route,
   while it actually uses one more. The counters use the real change.
@@ -71,18 +73,19 @@ python analyze_exp1.py --vrpdo results/exp1_..._vrpdo --vrptw results/exp1_..._v
 
 | Output | Content |
 |---|---|
-| `summary.md` | Mean improving / admissible / evaluated moves per iteration and share of iterations at a local optimum, per setup; improving routing moves around option changes |
+| `summary.md` | Mean evaluated / feasible / improving / admissible moves per iteration and share of iterations at a local optimum, per setup; improving routing moves around option changes |
 | `summary_improving.csv` | The same per instance and setup |
 | `after_option_moves.csv` | VRPDO: improving routing moves in the k iterations after a flip / exchange / kick flip, before it, and in all other iterations |
 | `plots/trajectory_<instance>.png` | Gap (%) of the current solution to the best VRPDO solution, per iteration: mean over restarts, band = min..max over restarts (the variance); dashed = restart best |
 | `plots/trajectory_all.png` | Mean gap (%) over all instances, band = 10..90% over instances |
 | `plots/improving_<instance>.png` | Improving moves per iteration (rolling mean), mean and band over restarts |
+| `plots/feasible_<instance>.png` | Feasible moves per iteration whatever their cost (rolling mean), mean and band over restarts |
 | `plots/after_option_moves.png` | Improving routing moves at offsets -k..k around an option change |
 
 ## Trace columns
 
 `restart, iteration, move, move_cost, cost, routes, best_cost, best_routes, sl0, sl1`, then
-`eval_<op>, imp_<op>, adm_<op>` for op in swap, relocate, twoopt, flip, exchange, and
-`eval_total, imp_total, adm_total`. `move` is the applied move (`swap`, `relocate`, `twoopt`, `flip`,
+`eval_<op>, feas_<op>, imp_<op>, adm_<op>` for op in swap, relocate, twoopt, flip, exchange, and
+`eval_total, feas_total, imp_total, adm_total`. `move` is the applied move (`swap`, `relocate`, `twoopt`, `flip`,
 `exchange`, `kick_flip` or `none`). The counts describe the neighbourhood of the solution *before* the move
 of the row; they are empty on `kick_flip` rows (no scan is made there).

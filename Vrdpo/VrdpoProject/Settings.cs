@@ -56,9 +56,9 @@ namespace VrdpoProject
         [JsonPropertyName("traceIterations")]
         public bool TraceIterations { get; set; } = false;
 
-        // Counts, per operator and iteration, the candidate moves evaluated and the improving ones, without the
-        // cost-first pruning of the scans (every improving candidate is checked for feasibility, not only the
-        // ones better than the best found so far). Does not change which move is applied. Needs traceIterations.
+        // Counts, per operator and iteration, the candidate moves evaluated, the feasible ones (whatever their
+        // cost), the improving and the admissible ones, without the cost-first pruning of the scans (every
+        // candidate is checked for feasibility). Does not change which move is applied. Needs traceIterations.
         [JsonPropertyName("countMoves")]
         public bool CountMoves { get; set; } = false;
 

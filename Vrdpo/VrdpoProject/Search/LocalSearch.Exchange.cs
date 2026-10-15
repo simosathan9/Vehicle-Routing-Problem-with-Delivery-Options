@@ -181,7 +181,7 @@ namespace VrdpoProject
                 baseLoads[f.Route] -= f.Cust.Dem;
             }
 
-            bool countedImproving = false, countedAdmissible = false;
+            bool countedFeasible = false, countedImproving = false, countedAdmissible = false;
             for (int order = 0; order < 2; order++)
             {
                 var lists = new List<Option>[R];
@@ -205,10 +205,14 @@ namespace VrdpoProject
                 int nonEmptyAfter = 0;
                 for (int r = 0; r < R; r++) { if (lists[r].Count > 2) { nonEmptyAfter++; } }
                 double totalCost = delta + (R - nonEmptyBefore + nonEmptyAfter) * Solver.RoutePenalty;
-                if (Stats != null && MoveStats.Improves(nonEmptyAfter - nonEmptyBefore, delta) && ExchangeRoutesFeasible(sol, touched, lists))
+                if (Stats != null && ExchangeRoutesFeasible(sol, touched, lists))
                 {
-                    countedImproving = true;
-                    if (!ExchangePromiseBroken(sol, touched, lists, delta)) { countedAdmissible = true; }
+                    countedFeasible = true;
+                    if (MoveStats.Improves(nonEmptyAfter - nonEmptyBefore, delta))
+                    {
+                        countedImproving = true;
+                        if (!ExchangePromiseBroken(sol, touched, lists, delta)) { countedAdmissible = true; }
+                    }
                 }
                 if (!(totalCost < mv.TotalCost + smallDouble)) { continue; }
                 if (ExchangePromiseBroken(sol, touched, lists, delta)) { continue; }
@@ -223,6 +227,7 @@ namespace VrdpoProject
             if (Stats != null)
             {
                 Stats.Evaluated[MoveStats.Exchange]++;
+                if (countedFeasible) { Stats.Feasible[MoveStats.Exchange]++; }
                 if (countedImproving) { Stats.Improving[MoveStats.Exchange]++; }
                 if (countedAdmissible) { Stats.Admissible[MoveStats.Exchange]++; }
             }

@@ -3,9 +3,10 @@
 
 Reads the per-iteration traces of the two setups (settings traceIterations + countMoves) and writes:
 
-  summary_improving.csv      per instance and setup: iterations, mean / median / std of the improving
-                             moves per iteration, share of iterations at a local optimum (no improving
-                             move), mean evaluated moves, final best cost and routes
+  summary_improving.csv      per instance and setup: iterations; mean evaluated and feasible moves per
+                             iteration (all moves, and routing moves only) and the feasible share; mean /
+                             median / std of the improving moves per iteration; share of iterations at a
+                             local optimum (no improving move); final best cost and routes
   after_option_moves.csv     VRPDO only: improving routing moves in the k iterations after a flip /
                              exchange / kick flip, against the k iterations before it and against all
                              other iterations
@@ -14,6 +15,7 @@ Reads the per-iteration traces of the two setups (settings traceIterations + cou
                                     per iteration: mean over restarts, band = min..max over restarts;
                                     dashed = best solution of the restart so far (mean over restarts)
   plots/improving_<inst>.png        improving moves per iteration (rolling mean), mean and band
+  plots/feasible_<inst>.png         feasible moves per iteration, whatever their cost (rolling mean)
   plots/trajectory_all.png          mean gap (%) over all instances, both setups
   plots/after_option_moves.png      improving routing moves around an option change (offset -k..k)
 
@@ -49,6 +51,10 @@ def load_traces(results_dir):
             raise SystemExit(f"{path}: no move counts; run with --set countMoves=true")
         df["imp_routing"] = df[[f"imp_{op}" for op in ROUTING]].sum(axis=1, min_count=1)
         df["adm_routing"] = df[[f"adm_{op}" for op in ROUTING]].sum(axis=1, min_count=1)
+        if "feas_total" not in df.columns:
+            raise SystemExit(f"{path}: no feasible counts; these traces come from a build before the feasible counter")
+        df["feas_routing"] = df[[f"feas_{op}" for op in ROUTING]].sum(axis=1, min_count=1)
+        df["eval_routing"] = df[[f"eval_{op}" for op in ROUTING]].sum(axis=1, min_count=1)
         traces[name] = df
     if not traces:
         raise SystemExit(f"no traces under {results_dir}/traces")
@@ -74,12 +80,16 @@ def summary_rows(name, setup, df):
         "setup": setup,
         "restarts": df["restart"].nunique(),
         "iterations": len(s),
+        "evaluated_mean": s["eval_total"].mean(),
+        "feasible_mean": s["feas_total"].mean(),
+        "feasible_routing_mean": s["feas_routing"].mean(),
+        "feasible_share": (s["feas_total"] / s["eval_total"]).mean(),
+        "feasible_routing_share": (s["feas_routing"] / s["eval_routing"]).mean(),
         "improving_mean": s["imp_total"].mean(),
         "improving_median": s["imp_total"].median(),
         "improving_std": s["imp_total"].std(),
         "improving_routing_mean": s["imp_routing"].mean(),
         "admissible_mean": s["adm_total"].mean(),
-        "evaluated_mean": s["eval_total"].mean(),
         "local_optimum_share": (s["imp_total"] == 0).mean(),
         "option_moves": int(df["move"].isin(OPTION_MOVES).sum()),
         "best_cost": ref,
@@ -157,6 +167,7 @@ def main():
         ref, _ = reference_cost(data["VRPDO"][name])
         fig, ax = plt.subplots(figsize=(8, 4.5))
         fig2, ax2 = plt.subplots(figsize=(8, 4.5))
+        fig3, ax3 = plt.subplots(figsize=(8, 4.5))
         for setup in SETUPS:
             df = data[setup][name]
             summary.append(summary_rows(name, setup, df))
@@ -167,6 +178,7 @@ def main():
             best_gap = 100 * (per_iteration(df, "best_cost").ffill() - ref) / ref
             ax.plot(best_gap.index, best_gap.mean(axis=1), color=COLORS[setup], linewidth=1, linestyle="--", label=f"{setup} restart best (mean)")
             band_plot(ax2, per_iteration(scanned(df), "imp_total"), setup, COLORS[setup], a.smooth)
+            band_plot(ax3, per_iteration(scanned(df), "feas_total"), setup, COLORS[setup], a.smooth)
         ax.set(title=f"{name}: trajectory", xlabel="iteration", ylabel="gap to best VRPDO solution (%)")
         ax.axhline(0, color="grey", linewidth=0.8)
         ax.legend()
@@ -176,8 +188,13 @@ def main():
         ax2.legend()
         fig2.tight_layout()
         fig2.savefig(os.path.join(a.out, "plots", f"improving_{name}.png"), dpi=150)
+        ax3.set(title=f"{name}: feasible moves per iteration (rolling mean {a.smooth})", xlabel="iteration", ylabel="feasible moves")
+        ax3.legend()
+        fig3.tight_layout()
+        fig3.savefig(os.path.join(a.out, "plots", f"feasible_{name}.png"), dpi=150)
         plt.close(fig)
         plt.close(fig2)
+        plt.close(fig3)
 
         s, prof, base = after_option_moves(name, data["VRPDO"][name], a.k)
         after.append(s)
@@ -217,10 +234,11 @@ def main():
     plt.close(fig)
 
     # Markdown summary
-    agg = sm.groupby("setup")[["improving_mean", "improving_routing_mean", "admissible_mean", "evaluated_mean", "local_optimum_share", "best_cost", "best_routes"]].mean()
+    agg = sm.groupby("setup")[["evaluated_mean", "feasible_mean", "feasible_routing_mean", "feasible_share", "improving_mean", "improving_routing_mean",
+                               "admissible_mean", "local_optimum_share", "best_cost", "best_routes"]].mean()
     with open(os.path.join(a.out, "summary.md"), "w") as f:
         f.write(f"# Experiment 1: VRPDO vs VRPTW ({len(names)} instances)\n\n")
-        f.write("## Improving moves per iteration (mean over instances)\n\n")
+        f.write("## Evaluated, feasible and improving moves per iteration (mean over instances)\n\n")
         f.write(agg.to_markdown(floatfmt=".3f") + "\n\n")
         f.write(f"## Improving routing moves around an option change (VRPDO, k = {a.k})\n\n")
         f.write(af.drop(columns="instance").mean().to_frame("mean over instances").to_markdown(floatfmt=".3f") + "\n\n")

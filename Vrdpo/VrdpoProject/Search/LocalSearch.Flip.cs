@@ -5,6 +5,18 @@ namespace VrdpoProject
         // Replaces the served option B1 of a customer (between A and C) by another option B2 of the same
         // customer, inserted behind the stop F (before G) of any route. A flip to a lower priority is
         // allowed only while the service level stays above its thresholds.
+        // Number of insertion positions the flip of the stop at custInd1 of rt1 has over all routes.
+        private static int FlipPositions(Solution sol, Route rt1, int custInd1)
+        {
+            int n = 0;
+            foreach (Route rt2 in sol.Routes)
+            {
+                int first = rt2 == rt1 ? custInd1 + 1 : 0;
+                n += Math.Max(0, rt2.SequenceOfOptions.Count - 1 - first);
+            }
+            return n;
+        }
+
         public Flip FindBestFlipMove(Flip flip, Solution sol)
         {
             int baseP0 = sol.Po0Count, baseP1 = sol.Po1Count, baseP2 = sol.Po2Count;
@@ -43,12 +55,19 @@ namespace VrdpoProject
                         if (custBServedOption == B2) { continue; }
                         if (B2 == B1) { continue; }
                         if (!B2.Allowed) { continue; }
-                        if (B2.Location.MaxCap == B2.Location.Cap) { continue; }
+                        // Shared location full, or the service level would fall below its threshold: every
+                        // insertion position of B2 is an infeasible candidate.
+                        if (B2.Location.MaxCap == B2.Location.Cap)
+                        {
+                            if (Stats != null) { Stats.Evaluated[MoveStats.Flip] += FlipPositions(sol, rt1, custInd1); }
+                            continue;
+                        }
                         var (newSl0, newSl1) = TempServiceLevelPair(baseP0, baseP1, baseP2, B1.Prio, B2.Prio);
                         if (newSl0 < Solver.MinServiceLevel0 || newSl1 < Solver.MinServiceLevel1)
                         {
                             if (B1.Prio < B2.Prio)
                             {
+                                if (Stats != null) { Stats.Evaluated[MoveStats.Flip] += FlipPositions(sol, rt1, custInd1); }
                                 continue;
                             }
                         }
@@ -63,6 +82,7 @@ namespace VrdpoProject
 
                             if (rt2.Load + custB.Dem > rt2.Capacity)
                             {
+                                if (Stats != null) { Stats.Evaluated[MoveStats.Flip] += Math.Max(0, rt2.SequenceOfOptions.Count - 1 - firstTargetIndex); }
                                 continue;
                             }
 
@@ -86,8 +106,9 @@ namespace VrdpoProject
                                         - (costRemovedBase + sol.CalculateDistance(F.Location, G.Location));
                                     Stats.Evaluated[MoveStats.Flip]++;
                                     int usedChange = (emptiesRt1 ? -1 : 0) + (rt2.IsEmpty ? 1 : 0);
-                                    if (MoveStats.Improves(usedChange, countedMoveCost)
-                                        && sol.RespectsTimeWindow2FeasibleMemo(rtInd2, rt2, targetOptionIndex, B2.Location))
+                                    bool feasible = sol.RespectsTimeWindow2FeasibleMemo(rtInd2, rt2, targetOptionIndex, B2.Location);
+                                    if (feasible) { Stats.Feasible[MoveStats.Flip]++; }
+                                    if (feasible && MoveStats.Improves(usedChange, countedMoveCost))
                                     {
                                         Stats.Improving[MoveStats.Flip]++;
                                         if (PromiseHolds(F.Id, B2.Id, countedMoveCost, sol) && PromiseHolds(B2.Id, G.Id, countedMoveCost, sol) && PromiseHolds(A.Id, C.Id, countedMoveCost, sol))

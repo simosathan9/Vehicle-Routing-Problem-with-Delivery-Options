@@ -63,8 +63,12 @@ namespace VrdpoProject
                             }
                             else
                             {
-                                if (rt1.Load - b1.Cust.Dem + b2.Cust.Dem > rt1.Capacity) { continue; }
-                                if (rt2.Load - b2.Cust.Dem + b1.Cust.Dem > rt2.Capacity) { continue; }
+                                if (rt1.Load - b1.Cust.Dem + b2.Cust.Dem > rt1.Capacity
+                                    || rt2.Load - b2.Cust.Dem + b1.Cust.Dem > rt2.Capacity)
+                                {
+                                    if (Stats != null) { Stats.Evaluated[MoveStats.Swap]++; }
+                                    continue;
+                                }
                                 double costRemoved1 = removed[firstRouteIndex][firstOptionIndex];
                                 double costAdded1 = sol.CalculateDistance(a1.Location, b2.Location) + sol.CalculateDistance(b2.Location, c1.Location);
                                 double costRemoved2 = removed[secondRouteIndex][secondOptionIndex];
@@ -85,10 +89,11 @@ namespace VrdpoProject
                             if (Stats != null)
                             {
                                 Stats.Evaluated[MoveStats.Swap]++;
-                                if (MoveStats.Improves(0, moveCost)
-                                    && sol.RespectsTimeWindow2FeasibleMemo(firstRouteIndex, rt1, firstOptionIndex, b2.Location)
+                                bool feasible = sol.RespectsTimeWindow2FeasibleMemo(firstRouteIndex, rt1, firstOptionIndex, b2.Location)
                                     && sol.RespectsTimeWindow2FeasibleMemo(secondRouteIndex, rt2, secondOptionIndex, b1.Location)
-                                    && (rt1 != rt2 || sol.RespectsTimeWindow2FeasibleWithReplacement(rt1, secondOptionIndex, b1.Location, firstOptionIndex, b2.Location)))
+                                    && (rt1 != rt2 || sol.RespectsTimeWindow2FeasibleWithReplacement(rt1, secondOptionIndex, b1.Location, firstOptionIndex, b2.Location));
+                                if (feasible) { Stats.Feasible[MoveStats.Swap]++; }
+                                if (feasible && MoveStats.Improves(0, moveCost))
                                 {
                                     Stats.Improving[MoveStats.Swap]++;
                                     if (PromiseHolds(a1.Id, b2.Id, moveCost, sol) && PromiseHolds(b2.Id, c1.Id, moveCost, sol)

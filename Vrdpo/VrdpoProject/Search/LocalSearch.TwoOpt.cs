@@ -79,8 +79,12 @@ namespace VrdpoProject
                                 double rt1SecondSegmentLoad = rt1.Load - rt1FirstSegmentLoad;
                                 double rt2FirstSegmentLoad = prefixLoad[rtInd2][optInd2];
                                 double rt2SecondSegmentLoad = rt2.Load - rt2FirstSegmentLoad;
-                                if (rt1FirstSegmentLoad + rt2SecondSegmentLoad > rt1.Capacity) { continue; }
-                                if (rt2FirstSegmentLoad + rt1SecondSegmentLoad > rt2.Capacity) { continue; }
+                                if (rt1FirstSegmentLoad + rt2SecondSegmentLoad > rt1.Capacity
+                                    || rt2FirstSegmentLoad + rt1SecondSegmentLoad > rt2.Capacity)
+                                {
+                                    if (Stats != null) { Stats.Evaluated[MoveStats.TwoOpt]++; }
+                                    continue;
+                                }
 
                                 double costAdded = sol.CalculateDistance(A.Location, L.Location) + sol.CalculateDistance(B.Location, K.Location);
                                 double costRemoved = stepDist[rtInd1][optInd1] + stepDist[rtInd2][optInd2];
@@ -112,10 +116,11 @@ namespace VrdpoProject
                                     int newStops2 = optInd2 + (n1 - 2 - optInd1);
                                     usedChange = (newStops1 > 0 ? 1 : 0) + (newStops2 > 0 ? 1 : 0) - (rt1.IsEmpty ? 0 : 1) - (rt2.IsEmpty ? 0 : 1);
                                 }
-                                if (MoveStats.Improves(usedChange, moveCost)
-                                    && (rt1 == rt2
-                                        ? SameRouteReversalFeasible(sol, rt1, optInd1, optInd2)
-                                        : sol.RespectsTimeWindowFeasible(rt1, optInd1, rt2, optInd2) && sol.RespectsTimeWindowFeasible(rt2, optInd2, rt1, optInd1)))
+                                bool feasible = rt1 == rt2
+                                    ? SameRouteReversalFeasible(sol, rt1, optInd1, optInd2)
+                                    : sol.RespectsTimeWindowFeasible(rt1, optInd1, rt2, optInd2) && sol.RespectsTimeWindowFeasible(rt2, optInd2, rt1, optInd1);
+                                if (feasible) { Stats.Feasible[MoveStats.TwoOpt]++; }
+                                if (feasible && MoveStats.Improves(usedChange, moveCost))
                                 {
                                     Stats.Improving[MoveStats.TwoOpt]++;
                                     if (PromiseHolds(A.Id, L.Id, moveCost, sol) && PromiseHolds(B.Id, K.Id, moveCost, sol))

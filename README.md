@@ -208,7 +208,7 @@ The tag defaults to the current date and time and the number of concurrent solve
 | `lockToHome` | VRPTW setup: every customer can only be served at its home option (best-priority private address; best-priority option if it has none). Service levels are not enforced. | false |
 | `routingMovesOnly` | Only relocation, swap and 2-opt: no flip, no exchange, no flip kick. | false |
 | `traceIterations` | One CSV row per iteration in `results/<tag>/traces/<instance>.csv` (applied move, current and restart-best cost and routes, service levels). | false |
-| `countMoves` | Adds per-operator counts of evaluated, improving and admissible moves to the trace, without the scans' cost-first pruning. Does not change the trajectory. Needs `traceIterations`. | false |
+| `countMoves` | Adds per-operator counts of evaluated, feasible (whatever the cost), improving and admissible moves to the trace, without the scans' cost-first pruning. Does not change the trajectory; about 2x run time. Needs `traceIterations`. | false |
 
 With the four keys above at false the solver runs exactly as before. They are used by the review experiments in `experiments/` (see `experiments/exp1-vrpdo-vs-vrptw/README.md`).
 

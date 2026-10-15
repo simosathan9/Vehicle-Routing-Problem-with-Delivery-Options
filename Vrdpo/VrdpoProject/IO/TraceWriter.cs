@@ -14,8 +14,8 @@ namespace VrdpoProject
     //                        (empty until there is one)
     //   sl0, sl1             current service levels
     // With settings.countMoves, per operator op in {swap, relocate, twoopt, flip, exchange}:
-    //   eval_<op>, imp_<op>, adm_<op>   evaluated / improving / admissible candidates (see MoveStats)
-    // and their sums eval_total, imp_total, adm_total. The counts describe the neighborhood of the solution
+    //   eval_<op>, feas_<op>, imp_<op>, adm_<op>   evaluated / feasible / improving / admissible candidates
+    // (see MoveStats) and their sums eval_total, feas_total, imp_total, adm_total. The counts describe the neighborhood of the solution
     // before the move of the row; they are empty on kick_flip rows (no scan is made there).
     public sealed class TraceWriter : IDisposable
     {
@@ -38,14 +38,14 @@ namespace VrdpoProject
             line.Append("restart,iteration,move,move_cost,cost,routes,best_cost,best_routes,sl0,sl1");
             if (withCounts)
             {
-                foreach (string kind in new[] { "eval", "imp", "adm" })
+                foreach (string kind in new[] { "eval", "feas", "imp", "adm" })
                 {
                     foreach (string op in MoveStats.Names)
                     {
                         line.Append(',').Append(kind).Append('_').Append(op);
                     }
                 }
-                line.Append(",eval_total,imp_total,adm_total");
+                line.Append(",eval_total,feas_total,imp_total,adm_total");
             }
             writer.WriteLine(line.ToString());
         }
@@ -75,14 +75,16 @@ namespace VrdpoProject
             {
                 if (stats == null)
                 {
-                    line.Append(',', 3 * MoveStats.Names.Length + 3);
+                    line.Append(',', 4 * MoveStats.Names.Length + 4);
                 }
                 else
                 {
                     AppendCounts(stats.Evaluated);
+                    AppendCounts(stats.Feasible);
                     AppendCounts(stats.Improving);
                     AppendCounts(stats.Admissible);
                     line.Append(',').Append(stats.Evaluated.Sum().ToString(Inv))
+                        .Append(',').Append(stats.Feasible.Sum().ToString(Inv))
                         .Append(',').Append(stats.Improving.Sum().ToString(Inv))
                         .Append(',').Append(stats.Admissible.Sum().ToString(Inv));
                 }
