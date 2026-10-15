@@ -132,3 +132,7 @@ $RECYCLE.BIN/
 .DS_Store
 
 _NCrunch*
+
+# Solver outputs
+results/
+log.txt
