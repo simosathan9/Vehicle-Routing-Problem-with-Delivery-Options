@@ -1,5 +1,40 @@
-# Tuning subset of the paper: one instance name per line (e.g. U_50_3, V_25medium_7).
-# '#' starts a comment. run-exp1.ps1 finds each file in the run folder, in VRPDO_instances\VRPDO_instances\<set>\<size>\
-# or in Instances\<set>\<size>\, and uses type=int for the Tilk et al. instances (small/medium/large), double otherwise.
-#
-# TODO: fill in the instances used for tuning in the paper.
+# Tuning subset of the paper: one instance name per line. '#' starts a comment.
+# run-exp1.ps1 finds each file in the run folder, in VRPDO_instances\VRPDO_instances\<set>\<size>\ or in
+# Instances\<set>\<size>\, and uses type=int for the Tilk et al. instances (small/medium/large), double otherwise.
+
+# Dumez et al. (9)
+U_50_1
+U_50_2
+UBC_50_5
+UBC_50_2
+V_50_1
+V_50_5
+U_100_1
+U_100_2
+UBC_100_7
+
+# Tilk et al. (24)
+U_25small_1
+U_25small_7
+U_25medium_5
+U_25medium_3
+U_25large_7
+U_25large_5
+U_50small_2
+U_50small_3
+U_50medium_2
+U_50medium_3
+U_50large_9
+U_50large_5
+V_25small_6
+V_25small_7
+V_25medium_8
+V_25medium_3
+V_25large_2
+V_25large_3
+V_50small_8
+V_50small_1
+V_50medium_4
+V_50medium_2
+V_50large_2
+V_50large_3
