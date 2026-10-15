@@ -66,7 +66,7 @@ namespace VrdpoProject
             for (int i = 0; i < candidates.Count; i++)
             {
                 Option candidateOpt = candidates[i];
-                if (candidateOpt.Cust.IsRouted || candidateOpt.IsServed)
+                if (candidateOpt.Cust.IsRouted || candidateOpt.IsServed || !candidateOpt.Allowed)
                 {
                     continue;
                 }

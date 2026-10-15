@@ -36,6 +36,7 @@ namespace VrdpoProject
                         foreach (Option raw in cust.Options)
                         {
                             Option o = sol.Options[raw.Id];
+                            if (!o.Allowed) { continue; }
                             if (wantDown ? o.Prio <= current.Prio : o.Prio >= current.Prio) { continue; }
                             if (wantDown)
                             {
@@ -180,6 +181,7 @@ namespace VrdpoProject
                 baseLoads[f.Route] -= f.Cust.Dem;
             }
 
+            bool countedImproving = false, countedAdmissible = false;
             for (int order = 0; order < 2; order++)
             {
                 var lists = new List<Option>[R];
@@ -203,6 +205,11 @@ namespace VrdpoProject
                 int nonEmptyAfter = 0;
                 for (int r = 0; r < R; r++) { if (lists[r].Count > 2) { nonEmptyAfter++; } }
                 double totalCost = delta + (R - nonEmptyBefore + nonEmptyAfter) * Solver.RoutePenalty;
+                if (Stats != null && MoveStats.Improves(nonEmptyAfter - nonEmptyBefore, delta) && ExchangeRoutesFeasible(sol, touched, lists))
+                {
+                    countedImproving = true;
+                    if (!ExchangePromiseBroken(sol, touched, lists, delta)) { countedAdmissible = true; }
+                }
                 if (!(totalCost < mv.TotalCost + smallDouble)) { continue; }
                 if (ExchangePromiseBroken(sol, touched, lists, delta)) { continue; }
                 if (!ExchangeRoutesFeasible(sol, touched, lists)) { continue; }
@@ -212,6 +219,12 @@ namespace VrdpoProject
                 foreach (var f in fs) { mv.Flips.Add((f.From, f.To)); }
                 mv.Changes = new List<(int route, List<Option> stops)>();
                 foreach (int r in touched) { mv.Changes.Add((r, lists[r])); }
+            }
+            if (Stats != null)
+            {
+                Stats.Evaluated[MoveStats.Exchange]++;
+                if (countedImproving) { Stats.Improving[MoveStats.Exchange]++; }
+                if (countedAdmissible) { Stats.Admissible[MoveStats.Exchange]++; }
             }
         }
 

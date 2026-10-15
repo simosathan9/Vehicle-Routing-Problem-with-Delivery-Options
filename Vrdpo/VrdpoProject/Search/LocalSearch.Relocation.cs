@@ -59,6 +59,23 @@ namespace VrdpoProject
                             double moveCost = costAdded - costRemoved;
                             double ratioCombinedMoveCost = ratio * moveCost;
 
+                            if (Stats != null)
+                            {
+                                Stats.Evaluated[MoveStats.Relocation]++;
+                                int usedChange = rt1 == rt2 ? 0 : (rt1.Load - B.Cust.Dem == 0 ? -1 : 0) + (rt2.IsEmpty ? 1 : 0);
+                                if (MoveStats.Improves(usedChange, moveCost)
+                                    && (rt1 == rt2
+                                        ? SameRouteRelocateFeasible(sol, rt1, originOptionIndex, targetOptionIndex)
+                                        : sol.RespectsTimeWindow2FeasibleMemo(targetRouteIndex, rt2, targetOptionIndex, rt1.SequenceOfLocations[originOptionIndex])))
+                                {
+                                    Stats.Improving[MoveStats.Relocation]++;
+                                    if (PromiseHolds(F.Id, B.Id, moveCost, sol) && PromiseHolds(B.Id, G.Id, moveCost, sol) && PromiseHolds(A.Id, C.Id, moveCost, sol))
+                                    {
+                                        Stats.Admissible[MoveStats.Relocation]++;
+                                    }
+                                }
+                            }
+
                             if (ratioCombinedMoveCost + openRoutes * Solver.RoutePenalty < rm.TotalCost + smallDouble & moveCost != 0)
                             {
                                 if (rt1 == rt2)

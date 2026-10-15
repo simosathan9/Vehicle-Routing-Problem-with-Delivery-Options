@@ -22,16 +22,19 @@ namespace VrdpoProject
         private readonly Instance instance;
         private readonly Settings settings;
         private readonly LocalSearch ls;
+        // Per-iteration trace (settings.traceIterations); null when off.
+        private readonly TraceWriter trace;
         // Tolerance when comparing solution values ("int" metric: exact).
         private readonly double smallDouble;
 
         public TimeSpan BestRestartTime { get; private set; } = TimeSpan.Zero;
         public TimeSpan TotalTime { get; private set; } = TimeSpan.Zero;
 
-        public Solver(Instance instance, Settings settings)
+        public Solver(Instance instance, Settings settings, TraceWriter trace = null)
         {
             this.instance = instance;
             this.settings = settings;
+            this.trace = trace;
             ls = new LocalSearch(settings);
             smallDouble = settings.IntegerMetric ? 0 : 0.001;
         }
@@ -56,7 +59,11 @@ namespace VrdpoProject
             bestSol.Cost = Math.Pow(10, 9);
             int numberOfRestarts = settings.Restarts;
             int noImprovementLimit = settings.NoImprovementLimit > 0 ? settings.NoImprovementLimit : int.MaxValue;
-            bool useExchange = settings.ExchangeCandidates > 0;
+            // Setup 2 of the review (VRPTW): routing moves only, no option changes.
+            bool useFlip = !settings.RoutingMovesOnly;
+            bool useExchange = settings.ExchangeCandidates > 0 && !settings.RoutingMovesOnly;
+            bool enforceServiceLevels = !settings.LockToHome;
+            MoveStats stats = ls.Stats;
             var restartTimer = new Stopwatch();
             int restartCounter = -1;
 
@@ -74,6 +81,10 @@ namespace VrdpoProject
                 ExchangeMove exch = new();
 
                 Solution currentSol = new(instance);
+                if (settings.LockToHome)
+                {
+                    LockToHome(currentSol);
+                }
                 SetRoutedToFalse(currentSol.Customers);
                 SetServedToFalse(currentSol.Options);
                 if (!MinimumInsertions(currentSol, constructionRnd))
@@ -111,40 +122,53 @@ namespace VrdpoProject
                     }
 
                     // Kick: when stuck, occasionally apply the best flip alone.
-                    if (i - lastImprovement > KickAfterIterations && kickRnd.NextDouble() > KickThreshold)
+                    if (useFlip && i - lastImprovement > KickAfterIterations && kickRnd.NextDouble() > KickThreshold)
                     {
                         flip = ls.FindBestFlipMove(flip, currentSol);
                         ls.ApplyFlipMove(flip, currentSol);
+                        if (trace != null)
+                        {
+                            var (ksl0, ksl1) = currentSol.ServiceLevelFromCounts();
+                            trace.Row(restartCounter, i, flip.IsValid() ? "kick_flip" : "none", flip.IsValid() ? flip.MoveCost : 0, currentSol, localBest, ksl0, ksl1, null);
+                        }
                         continue;
                     }
 
+                    stats?.Reset();
                     sm = ls.FindBestSwapMove(sm, currentSol);
                     rm = ls.FindBestRelocationMove(rm, currentSol);
                     top = ls.FindBestTwoOptMove(top, currentSol);
-                    flip = ls.FindBestFlipMove(flip, currentSol);
+                    if (useFlip) { flip = ls.FindBestFlipMove(flip, currentSol); }
                     if (useExchange) { exch = ls.FindBestExchangeMove(exch, currentSol); }
 
                     double mincost = Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
                     if (useExchange) { mincost = Math.Min(mincost, exch.TotalCost); }
 
+                    string applied = "none";
+                    double appliedCost = 0;
                     if (mincost == sm.TotalCost)
                     {
+                        if (sm.IsValid()) { applied = "swap"; appliedCost = sm.MoveCost; }
                         ls.ApplySwapMove(sm, currentSol);
                     }
                     else if (mincost == rm.TotalCost)
                     {
+                        if (rm.IsValid()) { applied = "relocate"; appliedCost = rm.MoveCost; }
                         ls.ApplyRelocationMove(rm, currentSol);
                     }
                     else if (mincost == top.TotalCost)
                     {
+                        if (top.IsValid()) { applied = "twoopt"; appliedCost = top.MoveCost; }
                         ls.ApplyTwoOptMove(top, currentSol);
                     }
                     else if (mincost == flip.TotalCost)
                     {
+                        if (flip.IsValid()) { applied = "flip"; appliedCost = flip.MoveCost; }
                         ls.ApplyFlipMove(flip, currentSol);
                     }
                     else if (useExchange && mincost == exch.TotalCost)
                     {
+                        if (exch.IsValid()) { applied = "exchange"; appliedCost = exch.MoveCost; }
                         ls.ApplyExchangeMove(exch, currentSol);
                     }
                     RemoveLastRouteIfEmpty(currentSol);
@@ -158,7 +182,7 @@ namespace VrdpoProject
                     var (sl0, sl1) = currentSol.ServiceLevelFromCounts();
                     int openRoutes = currentSol.Routes.Count(x => !x.IsEmpty);
                     if (currentSol.Cost + openRoutes * RoutePenalty < localBest.Cost + localBest.Routes.Count * RoutePenalty + smallDouble
-                        && currentSol.Cost < MaxAcceptableCost && sl0 >= MinServiceLevel0 && sl1 >= MinServiceLevel1)
+                        && currentSol.Cost < MaxAcceptableCost && (!enforceServiceLevels || (sl0 >= MinServiceLevel0 && sl1 >= MinServiceLevel1)))
                     {
                         currentSol.Repetition = i;
                         localBest = currentSol.DeepCopy();
@@ -178,6 +202,7 @@ namespace VrdpoProject
                     {
                         Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => !x.IsEmpty));
                     }
+                    trace?.Row(restartCounter, i, applied, appliedCost, currentSol, localBest, sl0, sl1, stats);
                 }
                 restartTimer.Stop();
                 PrintServiceLevel(localBest);
@@ -194,6 +219,22 @@ namespace VrdpoProject
             }
             PrintServiceLevel(bestSol);
             return bestSol;
+        }
+
+        // Setup 2 of the review: each customer may only use its home option, the best-priority private
+        // address (location type 2), or its best-priority option when it has no private address. Shared
+        // lockers then only serve customers without a home address, so their capacities always hold.
+        private static void LockToHome(Solution sol)
+        {
+            foreach (Customer c in sol.Customers)
+            {
+                Option home = c.Options.Where(o => o.Location.Type == 2).OrderBy(o => o.Prio).ThenBy(o => o.Id).FirstOrDefault()
+                              ?? c.Options.OrderBy(o => o.Prio).ThenBy(o => o.Id).First();
+                foreach (Option o in c.Options)
+                {
+                    o.Allowed = o == home;
+                }
+            }
         }
 
         // The construction keeps a spare empty route at the end; drop it.

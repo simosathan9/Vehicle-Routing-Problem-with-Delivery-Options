@@ -13,11 +13,20 @@ namespace VrdpoProject
         // Tolerance when comparing move values ("int" metric: exact).
         private readonly double smallDouble;
         private readonly int exchangeCandidates;
+        // Move counters of the current iteration (settings.countMoves); null when counting is off.
+        public MoveStats Stats { get; }
 
         public LocalSearch(Settings settings)
         {
             smallDouble = settings.IntegerMetric ? 0 : 0.00001;
             exchangeCandidates = settings.ExchangeCandidates;
+            Stats = settings.CountMoves ? new MoveStats() : null;
+        }
+
+        // The promise rule of the scans for one created arc (true = the arc is allowed).
+        private bool PromiseHolds(int a, int b, double moveCost, Solution sol)
+        {
+            return !PromiseIsBroken(a, b, moveCost + sol.Cost + smallDouble, sol);
         }
 
         // (Capacity - Load)^2 of a route, the per-route utilization term.

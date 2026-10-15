@@ -100,6 +100,31 @@ namespace VrdpoProject
                                 ratioCombinedMoveCost = ratio * moveCost;
                             }
 
+                            if (Stats != null)
+                            {
+                                Stats.Evaluated[MoveStats.TwoOpt]++;
+                                int usedChange = 0;
+                                if (rt1 != rt2)
+                                {
+                                    // Stops of each new route: head of one route plus tail of the other.
+                                    int n1 = rt1.SequenceOfOptions.Count, n2 = rt2.SequenceOfOptions.Count;
+                                    int newStops1 = optInd1 + (n2 - 2 - optInd2);
+                                    int newStops2 = optInd2 + (n1 - 2 - optInd1);
+                                    usedChange = (newStops1 > 0 ? 1 : 0) + (newStops2 > 0 ? 1 : 0) - (rt1.IsEmpty ? 0 : 1) - (rt2.IsEmpty ? 0 : 1);
+                                }
+                                if (MoveStats.Improves(usedChange, moveCost)
+                                    && (rt1 == rt2
+                                        ? SameRouteReversalFeasible(sol, rt1, optInd1, optInd2)
+                                        : sol.RespectsTimeWindowFeasible(rt1, optInd1, rt2, optInd2) && sol.RespectsTimeWindowFeasible(rt2, optInd2, rt1, optInd1)))
+                                {
+                                    Stats.Improving[MoveStats.TwoOpt]++;
+                                    if (PromiseHolds(A.Id, L.Id, moveCost, sol) && PromiseHolds(B.Id, K.Id, moveCost, sol))
+                                    {
+                                        Stats.Admissible[MoveStats.TwoOpt]++;
+                                    }
+                                }
+                            }
+
                             if (ratioCombinedMoveCost + openRoutes * Solver.RoutePenalty < top.TotalCost + smallDouble & moveCost != 0)
                             {
                                 if (rt1 == rt2)

@@ -11,7 +11,7 @@ namespace VrdpoProject
     {
         private const string CsvHeader =
             "timestamp,instance,feasible,cost,routes,sl0,sl1,restart,repetition,restart_time_s,total_time_s," +
-            "restarts,repetitions,exchange_candidates,no_improvement_limit,type";
+            "restarts,repetitions,exchange_candidates,no_improvement_limit,type,lock_to_home,routing_moves_only";
 
         public static string Write(RunOptions run, Settings settings, Instance instance, Solution sol, TimeSpan restartTime, TimeSpan totalTime)
         {
@@ -73,7 +73,9 @@ namespace VrdpoProject
                     settings.Repetitions.ToString(inv),
                     settings.ExchangeCandidates.ToString(inv),
                     settings.NoImprovementLimit.ToString(inv),
-                    settings.Type);
+                    settings.Type,
+                    settings.LockToHome ? "1" : "0",
+                    settings.RoutingMovesOnly ? "1" : "0");
             AppendCsvLine(Path.Combine(dir, "runs.csv"), csvLine);
             return reportPath;
         }

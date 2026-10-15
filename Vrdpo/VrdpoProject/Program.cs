@@ -20,8 +20,13 @@ namespace VrdpoProject
             Settings settings = Settings.Load(run.SettingsPath, run.Overrides);
             Instance instance = InstanceReader.Read(run.InstancePath, settings);
 
-            var solver = new Solver(instance, settings);
+            using TraceWriter trace = settings.TraceIterations ? new TraceWriter(run, instance, settings.CountMoves) : null;
+            var solver = new Solver(instance, settings, trace);
             Solution best = solver.Solve();
+            if (trace != null)
+            {
+                Console.WriteLine("Trace written to " + trace.Path);
+            }
 
             string report = ResultsWriter.Write(run, settings, instance, best, solver.BestRestartTime, solver.TotalTime);
             Console.WriteLine("Report written to " + report);

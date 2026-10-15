@@ -42,6 +42,7 @@ namespace VrdpoProject
                         Option B2 = custB.Options[optInd];
                         if (custBServedOption == B2) { continue; }
                         if (B2 == B1) { continue; }
+                        if (!B2.Allowed) { continue; }
                         if (B2.Location.MaxCap == B2.Location.Cap) { continue; }
                         var (newSl0, newSl1) = TempServiceLevelPair(baseP0, baseP1, baseP2, B1.Prio, B2.Prio);
                         if (newSl0 < Solver.MinServiceLevel0 || newSl1 < Solver.MinServiceLevel1)
@@ -77,6 +78,24 @@ namespace VrdpoProject
                             {
                                 Option F = rt2.SequenceOfOptions[targetOptionIndex];
                                 Option G = rt2.SequenceOfOptions[targetOptionIndex + 1];
+
+                                if (Stats != null)
+                                {
+                                    // Same arithmetic as moveCost below.
+                                    double countedMoveCost = (dAC + sol.CalculateDistance(F.Location, B2.Location) + sol.CalculateDistance(B2.Location, G.Location))
+                                        - (costRemovedBase + sol.CalculateDistance(F.Location, G.Location));
+                                    Stats.Evaluated[MoveStats.Flip]++;
+                                    int usedChange = (emptiesRt1 ? -1 : 0) + (rt2.IsEmpty ? 1 : 0);
+                                    if (MoveStats.Improves(usedChange, countedMoveCost)
+                                        && sol.RespectsTimeWindow2FeasibleMemo(rtInd2, rt2, targetOptionIndex, B2.Location))
+                                    {
+                                        Stats.Improving[MoveStats.Flip]++;
+                                        if (PromiseHolds(F.Id, B2.Id, countedMoveCost, sol) && PromiseHolds(B2.Id, G.Id, countedMoveCost, sol) && PromiseHolds(A.Id, C.Id, countedMoveCost, sol))
+                                        {
+                                            Stats.Admissible[MoveStats.Flip]++;
+                                        }
+                                    }
+                                }
 
                                 bool twChecked = false;
                                 if (emptiesRt1)

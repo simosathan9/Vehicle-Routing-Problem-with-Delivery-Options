@@ -38,6 +38,30 @@ namespace VrdpoProject
         [JsonPropertyName("exchangeCandidates")]
         public int ExchangeCandidates { get; set; } = 20;
 
+        // ---- Review experiments (all off by default; with all four false the solver runs exactly as before) ----
+
+        // VRPTW setup: every customer can only be served at its home option, i.e. its best-priority private
+        // address (location type 2); a customer without a private address keeps its best-priority option.
+        // Service-level constraints are not enforced (there is no option choice left). The construction adds
+        // routes as needed.
+        [JsonPropertyName("lockToHome")]
+        public bool LockToHome { get; set; } = false;
+
+        // Only the routing moves (relocation, swap, 2-opt): no flip, no exchange, no flip kick.
+        [JsonPropertyName("routingMovesOnly")]
+        public bool RoutingMovesOnly { get; set; } = false;
+
+        // Writes one CSV row per local search iteration to <results>/<tag>/traces/<instance>.csv
+        // (restart, iteration, applied move, move cost, current and restart-best cost and routes, service levels).
+        [JsonPropertyName("traceIterations")]
+        public bool TraceIterations { get; set; } = false;
+
+        // Counts, per operator and iteration, the candidate moves evaluated and the improving ones, without the
+        // cost-first pruning of the scans (every improving candidate is checked for feasibility, not only the
+        // ones better than the best found so far). Does not change which move is applied. Needs traceIterations.
+        [JsonPropertyName("countMoves")]
+        public bool CountMoves { get; set; } = false;
+
         [JsonIgnore]
         public bool IntegerMetric => Type == "int";
 
@@ -96,6 +120,10 @@ namespace VrdpoProject
             if (ExchangeCandidates < 0)
             {
                 throw new InvalidDataException("settings.exchangeCandidates must be >= 0");
+            }
+            if (CountMoves && !TraceIterations)
+            {
+                throw new InvalidDataException("settings.countMoves needs settings.traceIterations = true (the counts are written to the trace)");
             }
         }
     }

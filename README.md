@@ -132,8 +132,10 @@ Vrdpo/
       InstanceReader.cs        Instance file parser and distance/time matrices
       RunOptions.cs            Command line
       ResultsWriter.cs         results/<tag>/... outputs
+      TraceWriter.cs           results/<tag>/traces/... per-iteration trace (traceIterations)
     Moves/                     Move records: Relocation, Swap, TwoOpt, Flip, ExchangeMove, Insertion
     scripts/run-batch.sh       Concurrent batch over many instances under one tag
+    experiments/               Review experiments: run scripts (Windows), instance subsets, analysis
     Search/
       Solver.cs                Restart loop, move selection, acceptance, console reporting
       Construction.cs          Randomized cheapest insertion
@@ -202,6 +204,13 @@ The tag defaults to the current date and time and the number of concurrent solve
 | `type` | Distance metric: `int` (Tilk et al.: `ceil(10 * distance)` for time and cost) or `double` (Dumez et al.: raw distance as cost, 10x as time). | "double" |
 | `noImprovementLimit` | Iterations without a new restart-best after which a restart stops; `0` disables the rule. A value such as 2000 is about 5x faster with a slightly worse mean gap; until the first acceptable solution is found the count runs from iteration 0, so large instances may need a larger value or none. | 0 |
 | `exchangeCandidates` | Exchange move: the `N` cheapest down/up flip pairs (by estimate) are evaluated exactly in every iteration; `0` switches the move off. Measured with 15 x 15000 against the same runs without it (cost change, SE; instances better / worse): Dumez-50 -0.81% +/- 0.30 (19 / 2), Dumez-100 -1.14% +/- 0.20 (28 / 1), Tilk-50 small -0.19% +/- 0.22 (8 / 2). Run time about 2 to 4 times longer. | 20 |
+
+| `lockToHome` | VRPTW setup: every customer can only be served at its home option (best-priority private address; best-priority option if it has none). Service levels are not enforced. | false |
+| `routingMovesOnly` | Only relocation, swap and 2-opt: no flip, no exchange, no flip kick. | false |
+| `traceIterations` | One CSV row per iteration in `results/<tag>/traces/<instance>.csv` (applied move, current and restart-best cost and routes, service levels). | false |
+| `countMoves` | Adds per-operator counts of evaluated, improving and admissible moves to the trace, without the scans' cost-first pruning. Does not change the trajectory. Needs `traceIterations`. | false |
+
+With the four keys above at false the solver runs exactly as before. They are used by the review experiments in `experiments/` (see `experiments/exp1-vrpdo-vs-vrptw/README.md`).
 
 Any key can be overridden for one run with `--set key=value`; the effective values are saved with the results.
 

@@ -30,5 +30,7 @@ namespace VrdpoProject
         public int ServiceTime { get; set; }
         public int Cost { get; set; }
         public bool IsServed { get; set; }
+        // False for the options a customer may not use (settings.lockToHome); true otherwise.
+        public bool Allowed { get; set; } = true;
     }
 }
