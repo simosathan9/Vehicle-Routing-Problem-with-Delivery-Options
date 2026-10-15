@@ -1,61 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace VrdpoProject
 {
-
-    internal class CustomerInsertionAllPositions
+    // Candidate insertion of an option into a route during construction.
+    public class Insertion
     {
-        private Customer customer;
-        private Route route;
-        private int insertionPosition;
-        private double cost;
-        private double costPenalized;
-        private double duration;
-        private Option option;
-        private Location location;
-        private double ect;
-        private double lat;
-
-
-        public CustomerInsertionAllPositions()
+        public Insertion()
         {
-            this.customer = null;
-            this.route = null;
-            this.insertionPosition = -1000;
-            this.cost = 1000000;
-            this.costPenalized = 1000000;
-            this.duration = 10000000;
-            this.option = null;
+            Customer = null;
+            Route = null;
+            InsertionPosition = -1000;
+            Cost = 1000000;
+            Option = null;
         }
 
-        public CustomerInsertionAllPositions(CustomerInsertionAllPositions original)
+        public Insertion(Insertion original)
         {
-            this.customer = original.customer;
-            this.route = original.route;
-            this.insertionPosition = original.insertionPosition;
-            this.cost = original.cost;
-            this.costPenalized = original.costPenalized;
-            this.duration = original.duration;
-            this.option = original.option;
-            this.location = original.location;
-            
-            this.Ect = original.Ect;
-            this.Lat = original.Lat;
+            Customer = original.Customer;
+            Route = original.Route;
+            InsertionPosition = original.InsertionPosition;
+            Cost = original.Cost;
+            Option = original.Option;
+            Location = original.Location;
         }
 
-        public int InsertionPosition { get => insertionPosition; set => insertionPosition = value; }
-        public double Cost { get => cost; set => cost = value; }
-        public double CostPenalized { get => costPenalized; set => costPenalized = value; }
-        public double Duration { get => duration; set => duration = value; }
-        internal Customer Customer { get => customer; set => customer = value; }
-        internal Route Route { get => route; set => route = value; }
-        internal Option Option { get => option; set => option = value; }
-        internal Location Location { get => location; set => location = value; }
-        public double Ect { get => ect; set => ect = value; }
-        public double Lat { get => lat; set => lat = value; }
+        public int InsertionPosition { get; set; }
+        public double Cost { get; set; }
+        public Customer Customer { get; set; }
+        public Route Route { get; set; }
+        public Option Option { get; set; }
+        public Location Location { get; set; }
     }
 }

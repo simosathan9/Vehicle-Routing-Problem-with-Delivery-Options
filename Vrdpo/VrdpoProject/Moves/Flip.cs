@@ -1,52 +1,41 @@
-﻿using System;
-
-
 namespace VrdpoProject
 {
+    // Best flip found in one iteration: a customer's served option is replaced by another of its options,
+    // and the new stop is inserted at a (possibly different) position of any route.
     public class Flip
     {
-        double totalCost;
-        double moveCost;
-        int targetRoutePosition;
-        int targetOptionPosition;
-        int originRoutePosition;
-        int originOptionPosition;
-        int newOptionIndex;
-        double costChangeOriginRt;
-        double costChangeTargetRt;
-
         public Flip()
         {
-            this.TotalCost = Math.Pow(10, 9);
-            this.MoveCost =  Math.Pow(10, 9);
+            ReinitializeVariables();
         }
 
         public void ReinitializeVariables()
         {
-            totalCost = Math.Pow(10, 9);
-            moveCost =  Math.Pow(10, 9);
-            targetRoutePosition = -1;
-            targetOptionPosition = -1;
-            originRoutePosition = -1;
-            originOptionPosition = -1;
-            newOptionIndex = -1;
-            costChangeOriginRt = -1;
-            costChangeTargetRt = -1;
+            TotalCost = Math.Pow(10, 9);
+            MoveCost = Math.Pow(10, 9);
+            TargetRoutePosition = -1;
+            TargetOptionPosition = -1;
+            OriginRoutePosition = -1;
+            OriginOptionPosition = -1;
+            NewOptionIndex = -1;
+            CostChangeOriginRt = -1;
+            CostChangeTargetRt = -1;
         }
 
         public bool IsValid()
         {
-            return targetOptionPosition != -1;
+            return TargetOptionPosition != -1;
         }
 
-        public double TotalCost { get => totalCost; set => totalCost = value; }
-        public double MoveCost { get => moveCost; set => moveCost = value; }
-        public int TargetRoutePosition { get => targetRoutePosition; set => targetRoutePosition = value; }
-        public int TargetOptionPosition { get => targetOptionPosition; set => targetOptionPosition = value; }
-        public double CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
-        public double CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
-        public int OriginRoutePosition { get => originRoutePosition; set => originRoutePosition = value; }
-        public int OriginOptionPosition { get => originOptionPosition; set => originOptionPosition = value; }
-        public int NewOptionIndex { get => newOptionIndex; set => newOptionIndex = value; }
+        public double TotalCost { get; set; }
+        public double MoveCost { get; set; }
+        public int TargetRoutePosition { get; set; }
+        public int TargetOptionPosition { get; set; }
+        public double CostChangeOriginRt { get; set; }
+        public double CostChangeTargetRt { get; set; }
+        public int OriginRoutePosition { get; set; }
+        public int OriginOptionPosition { get; set; }
+        // Index of the new option in the customer's option list.
+        public int NewOptionIndex { get; set; }
     }
 }

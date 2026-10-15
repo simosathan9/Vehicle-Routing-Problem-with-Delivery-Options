@@ -1,53 +1,34 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace VrdpoProject
 {
+    // A delivery option of a customer: a location with a priority (0 = preferred). Exactly one option
+    // per customer is served.
     public class Option
     {
-        private int id;
-        private Location location;
-        private Customer cust;
-        private int prio;
-        private int serviceTime;
-        private int cost;
-        private bool isServed;
-        private int ready;
-        private int due;
-
-        public Option(int id, Location location, Customer cust, int prio, int serviceTime, int cost, int ready, int due)
+        public Option(int id, Location location, Customer cust, int prio, int serviceTime, int cost)
         {
-            this.id = id;
-            this.location = location;
-            this.cust = cust;
-            this.prio = prio;
-            this.serviceTime = (serviceTime * 10);
-            this.cost = cost;
-            isServed = false;
-            this.ready = ready;
-            this.due = due;
+            Id = id;
+            Location = location;
+            Cust = cust;
+            Prio = prio;
+            ServiceTime = serviceTime * 10;
+            Cost = cost;
+            IsServed = false;
         }
-        
-        public Option Clone(Location loc)
+
+        // Shallow copy pointing at the given (cloned) location; the caller re-points Cust afterwards.
+        public Option Clone(Location clonedLocation)
         {
-            // needs to add cloned customer seperately
-            Location locationCopy = loc;
-            var clone = (Option)this.MemberwiseClone();
-            clone.Location = locationCopy;
+            var clone = (Option)MemberwiseClone();
+            clone.Location = clonedLocation;
             return clone;
         }
 
-        public int Id { get => id; set => id = value; }
-        public Location Location { get => location; set => location = value; }
-        public Customer Cust { get => cust; set => cust = value; }
-        public int Prio { get => prio; set => prio = value; }
-        public int ServiceTime { get => serviceTime; set => serviceTime = value; }
-        public int Cost { get => cost; set => cost = value; }
-        public bool IsServed { get => isServed; set => isServed = value; }
-        public int Ready { get => ready; set => ready = value; }
-        public int Due { get => due; set => due = value; }
+        public int Id { get; set; }
+        public Location Location { get; set; }
+        public Customer Cust { get; set; }
+        public int Prio { get; set; }
+        public int ServiceTime { get; set; }
+        public int Cost { get; set; }
+        public bool IsServed { get; set; }
     }
 }

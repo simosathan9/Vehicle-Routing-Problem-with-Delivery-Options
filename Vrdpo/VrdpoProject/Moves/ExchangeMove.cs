@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace VrdpoProject
 {
-    // Two option changes done together: one customer moves to a worse priority option and another to a better one, so that the service level still
-    // holds. The stops of both customers are re-inserted at their best positions. Holds the resulting stop lists of the routes that change.
+    // Best exchange found in one iteration: two option changes done together, one customer to a worse
+    // priority option and another to a better one, so that the service level still holds. Both stops are
+    // re-inserted at their best positions. Holds the resulting stop lists of the routes that change.
     public class ExchangeMove
     {
         public List<(int route, List<Option> stops)> Changes = new();

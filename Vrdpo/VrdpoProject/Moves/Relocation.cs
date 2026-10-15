@@ -1,62 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace VrdpoProject
 {
+    // Best relocation found in one iteration: one stop moved to another position (same or other route).
     public class Relocation
     {
-        //current sol
-        //optimal sol
-        //starting sol
-        //deepcopy
-        //operators:
-        //relocate route
-        //  for route for cust
-        //      remove cust
-        //  for route for position
-        //
-        int originRoutePosition;
-        int targetRoutePosition;
-        int originOptionPosition;
-        int targetOptionPosition;
-        double costChangeOriginRt;
-        double costChangeTargetRt;
-        double moveCost;
-        double totalCost;
-
         public Relocation()
         {
-            this.totalCost = Math.Pow(10, 9);
-            this.MoveCost = Math.Pow(10, 9);
+            ReinitializeVariables();
         }
 
         public void ReinitializeVariables()
         {
-            originRoutePosition = -1;
-            targetRoutePosition = -1;
-            originOptionPosition = -1;
-            targetOptionPosition = -1;
-            costChangeOriginRt = -1;
-            costChangeTargetRt = -1;
-            totalCost = Math.Pow(10, 9);
-            moveCost = Math.Pow(10, 9);
+            OriginRoutePosition = -1;
+            TargetRoutePosition = -1;
+            OriginOptionPosition = -1;
+            TargetOptionPosition = -1;
+            CostChangeOriginRt = -1;
+            CostChangeTargetRt = -1;
+            TotalCost = Math.Pow(10, 9);
+            MoveCost = Math.Pow(10, 9);
         }
 
         public bool IsValid()
         {
-            return originRoutePosition != -1;
+            return OriginRoutePosition != -1;
         }
 
-        public int OriginRoutePosition { get => originRoutePosition; set => originRoutePosition = value; }
-        public int TargetRoutePosition { get => targetRoutePosition; set => targetRoutePosition = value; }
-        public int OriginOptionPosition { get => originOptionPosition; set => originOptionPosition = value; }
-        public int TargetOptionPosition { get => targetOptionPosition; set => targetOptionPosition = value; }
-        public double CostChangeOriginRt { get => costChangeOriginRt; set => costChangeOriginRt = value; }
-        public double CostChangeTargetRt { get => costChangeTargetRt; set => costChangeTargetRt = value; }
-        public double MoveCost { get => moveCost; set => moveCost = value; }
-        public double TotalCost { get => totalCost; set => totalCost = value; }
+        public int OriginRoutePosition { get; set; }
+        public int TargetRoutePosition { get; set; }
+        public int OriginOptionPosition { get; set; }
+        public int TargetOptionPosition { get; set; }
+        public double CostChangeOriginRt { get; set; }
+        public double CostChangeTargetRt { get; set; }
+        public double MoveCost { get; set; }
+        // MoveCost + open routes after the move * 10000: the value the moves are compared on.
+        public double TotalCost { get; set; }
     }
 }

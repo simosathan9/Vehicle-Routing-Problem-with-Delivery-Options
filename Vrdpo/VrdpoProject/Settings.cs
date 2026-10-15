@@ -1,58 +1,102 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Globalization;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace VrdpoProject
 {
-    public class Settings
+    // Run configuration, read once from settings.json (keys are the JSON names below) and optionally
+    // overridden from the command line with --set key=value.
+    public sealed class Settings
     {
-        public int restarts { get; set; }
-        public int repetitions { get; set; }
-        public bool verbal { get; set; }
-        public double promisesRestartRatio { get; set; }
-        public bool multiRestart { get; set; }
-        public string schema { get; set; }
-        public string type { get; set; }
-        public double randomness { get; set; }
-        // Number of consecutive iterations without a new best solution after which a restart stops. Optional in
-        // settings.json: when absent (or <= 0) the rule is off and every restart runs for `repetitions` iterations, as on this
-        // branch before the setting existed. A value such as 2000 stops a restart early (about 5x faster, roughly 0.7 pp
-        // worse mean gap on the 50-customer benchmarks). Until the first acceptable solution has been found the counter is
-        // measured from iteration 0, so a large instance whose service level is still climbing at iteration 2000 needs a
-        // larger value to get a solution.
-        public int noImprovementLimit { get; set; } = 0;
+        // Independent restarts (construction + local search). A restart whose construction fails is repeated.
+        [JsonPropertyName("restarts")]
+        public int Restarts { get; set; } = 15;
 
-        // The first two settings below are the model of Tilk et al., Dumez et al. and Yang et al.; the other four correct the search. All six are ON by
-        // default. Set all six to false to reproduce the results of the published tables run for run.
-        // "double" mode only: travel TIME = 10 * Euclidean distance, the same model as "int" mode without its per-arc rounding.
-        // Windows and service times are stored x10, so false - travel time = raw distance - makes travel 10 times too fast
-        // and solves a relaxed problem whose solutions often violate the real time windows.
-        public bool consistentTravelTime { get; set; } = true;
-        // The time window of a location limits when service STARTS in the Dumez et al. model (constraint 11), and the instance Readme adds the
-        // delivery duration (5 minutes single, 2 minutes shared) to the due date to the same effect. With false the solver compares the COMPLETION
-        // time with the due date, which is tighter by that duration at every stop; true adds it back to the due dates.
-        public bool windowBindsServiceStart { get; set; } = true;
+        // Local search iterations per restart.
+        [JsonPropertyName("repetitions")]
+        public int Repetitions { get; set; } = 15000;
 
-        // Corrections to the search.
-        // Customer.Clone re-pointed the ORIGINAL customer's Options at the clone's list instead of the clone's own. With PrioritySwap off (the
-        // case in this configuration) this has no visible effect on the result.
-        public bool fixCloneSideEffect { get; set; } = true;
-        // The same-route 2-opt time check rejected every candidate, so that move never did anything; with this on, the reversed route is
-        // tested for time-window feasibility and the move can be applied.
-        public bool fixSameRouteTwoOpt { get; set; } = true;
-        // Relocation never used route 0 as a target (`targetRouteIndex == 0` was skipped), so no stop could be moved into the first route. With
-        // this on, route 0 is a target like any other. The effect on the results is within noise.
-        public bool relocateIntoFirstRoute { get; set; } = true;
-        // Same-route relocation: the time windows were checked on the route that still contains the moved stop (so the stop was counted twice and
-        // some valid moves were rejected), and the utilisation ratio subtracted that route's metric twice. With this on the route that results from
-        // the move is checked and the ratio is 1. The effect on the results is within noise.
-        public bool exactRelocationFeasibility { get; set; } = true;
+        // Per-iteration console trace.
+        [JsonPropertyName("verbal")]
+        public bool Verbal { get; set; } = false;
 
-        // Exchange move. A flip to a lower priority option is blocked when it would take the share of priority-0 customers below 80% (or of priority 0 and 1
-        // below 90%), and every solution sits on that boundary. The exchange flips one customer to a worse and another to a better option together, each
-        // stop re-inserted at its best position. Each iteration the exchangeCandidates cheapest pairs (by estimate) are evaluated exactly. 0 = off, 20 by default.
-        public int exchangeCandidates { get; set; } = 20;
+        // The promise matrix is reset every |Options| * ratio iterations.
+        [JsonPropertyName("promisesRestartRatio")]
+        public double PromisesRestartRatio { get; set; } = 1.5;
+
+        // Distance metric. "int": travel time and cost are ceil(10 * Euclidean distance) (Tilk et al. instances).
+        // "double": cost is the raw Euclidean distance and travel time is 10 times it (Dumez et al. instances).
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "double";
+
+        // Consecutive iterations without a new restart-best after which the restart stops; <= 0 disables the rule.
+        [JsonPropertyName("noImprovementLimit")]
+        public int NoImprovementLimit { get; set; } = 0;
+
+        // Exchange move: number of cheapest (by estimate) down/up flip pairs evaluated exactly per iteration; 0 = off.
+        [JsonPropertyName("exchangeCandidates")]
+        public int ExchangeCandidates { get; set; } = 20;
+
+        [JsonIgnore]
+        public bool IntegerMetric => Type == "int";
+
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+            WriteIndented = true,
+        };
+
+        public static Settings Load(string path, IReadOnlyDictionary<string, string> overrides)
+        {
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException("Settings file not found: " + path);
+            }
+            Settings settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(path), JsonOptions)
+                ?? throw new InvalidDataException("Settings file is empty: " + path);
+            foreach (var (key, value) in overrides)
+            {
+                settings.Set(key, value);
+            }
+            settings.Validate();
+            return settings;
+        }
+
+        public string ToJson() => JsonSerializer.Serialize(this, JsonOptions);
+
+        // Sets a property by its JSON name (case-insensitive) from its textual value.
+        public void Set(string key, string value)
+        {
+            foreach (PropertyInfo prop in typeof(Settings).GetProperties())
+            {
+                string name = prop.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name ?? prop.Name;
+                if (!string.Equals(name, key, StringComparison.OrdinalIgnoreCase) || !prop.CanWrite)
+                {
+                    continue;
+                }
+                prop.SetValue(this, Convert.ChangeType(value, prop.PropertyType, CultureInfo.InvariantCulture));
+                return;
+            }
+            throw new ArgumentException("Unknown setting: " + key);
+        }
+
+        private void Validate()
+        {
+            if (Type != "int" && Type != "double")
+            {
+                throw new InvalidDataException("settings.type must be \"int\" or \"double\", got \"" + Type + "\"");
+            }
+            if (Restarts <= 0 || Repetitions <= 0)
+            {
+                throw new InvalidDataException("settings.restarts and settings.repetitions must be positive");
+            }
+            if (ExchangeCandidates < 0)
+            {
+                throw new InvalidDataException("settings.exchangeCandidates must be >= 0");
+            }
+        }
     }
 }
