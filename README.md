@@ -9,11 +9,11 @@
 This repository contains a research‑grade C# implementation of a (mat)heuristic solver for the Vehicle Routing Problem with Delivery Options (VRPDO). The VRPDO extends the classical Vehicle Routing Problem with Time Windows (VRPTW) by allowing each customer to specify *multiple alternative delivery options* (e.g., home, workplace, parcel locker / pickup point) each with its own location, time window, service duration and priority (preference) level. The solver assigns exactly one option per customer and builds capacity‑feasible, time‑feasible vehicle routes that satisfy *service level constraints* on customer preferences while minimizing (lexicographically) the number of active routes and then total travel cost.
 
 The codebase implements:
-* A constructive multi‑option selection and insertion procedure biased toward feasibility and high service levels.
-* A multi‑restart Local Search framework with a rich neighborhood portfolio (Relocation, Swap, Two‑Opt (intra/inter), Flip (option change), and Priority Swap (paired option exchange guided by priority structure)).
-* A promise (sparse memory) matrix acting as a lightweight adaptive memory / aspiration mechanism to avoid cycling and filter unpromising move patterns.
+* A randomized cheapest-insertion construction.
+* A multi‑restart local search with the neighborhoods Relocation, Swap, Two‑Opt (intra/inter), Flip (option change) and Exchange (paired option change at the service-level boundary).
+* A promise matrix acting as a lightweight adaptive memory to avoid cycling.
 * Penalized objective components that encourage route consolidation (implicit vehicle count minimization) prior to pure distance minimization.
-* Service level checks ensuring (for the provided experimental configuration) at least 80% of customers receive their first‑priority option and 90% receive first or second priority combined.
+* Service level checks ensuring at least 80% of customers receive their first‑priority option and 90% receive first or second priority combined.
 
 ## 2. Problem Description
 ### 2.1 Core Elements
@@ -38,14 +38,14 @@ Definitions (informal):
 * `SL0 = (# customers served with a priority-0 option) / (total served customers)`
 * `SL1 = (# customers served with a priority-0 OR priority-1 option) / (total served customers)`
 
-Default feasibility thresholds enforced in the code:
+Feasibility thresholds enforced in the code (`Solver.MinServiceLevel0/1`):
 
 | Metric | Constraint | Interpretation |
 |--------|------------|----------------|
 | SL0    | ≥ 0.80     | At least 80% of customers receive their first‑priority option |
 | SL1    | ≥ 0.90     | At least 90% receive either first or second priority |
 
-Moves that would drop the solution below these thresholds are generally rejected unless they simultaneously improve the priority mix (e.g., replace a low priority with a higher one) or are part of construction steps needed to reach feasibility.
+Moves that would drop the solution below these thresholds are rejected unless they improve the priority mix (e.g., replace a low priority with a higher one).
 
 ### 2.3 Notation
 The table below summarizes principal sets, indices, parameters, and conceptual decision elements referenced in the implementation and manuscript. (Subscripts use plain text for GitHub legibility.)
@@ -67,10 +67,10 @@ The table below summarizes principal sets, indices, parameters, and conceptual d
 | `cap_l` | Current number of options already assigned at shared location `l` (dynamic during search) |
 | `c_ij`, `t_ij` | Distance / cost and travel time between vertices `i` and `j` (symmetric, Euclidean‑derived) |
 | `SL0`, `SL1` | Service level indicators (see Section 2.2) |
-| `Promises[a,b]` | Lowest global solution cost at which directed edge (a,b) last appeared (adaptive memory) |
+| `Promises[a,b]` | Solution cost at which directed arc (a,b) was last created (adaptive memory) |
 
 Conceptual decision variables (not explicitly materialized as full matrices):
-* Option selection: for each customer `c`, exactly one option in `O_c` is chosen (enforced procedurally during construction and Flip/PrioritySwap moves).
+* Option selection: for each customer `c`, exactly one option in `O_c` is chosen (enforced procedurally during construction and by the Flip / Exchange moves).
 * Routing arcs: implicit via per‑route ordered sequences of options; feasibility (capacity, time windows, shared location usage) maintained incrementally.
 
 Lexicographic objective (implemented through penalties and ordering of acceptance criteria):
@@ -86,155 +86,149 @@ Feasibility dimensions enforced:
 
 The full mathematical programming model (in the manuscript) formalizes these with explicit binary variables and linear constraints. The code prioritizes efficient constructive and local improvement heuristics rather than exhaustive mixed‑integer enumeration, embedding constraints directly in neighborhood feasibility checks.
 
+### 2.4 Time model
+Travel times, time windows and service times are stored multiplied by 10. In `type: "int"` mode (Tilk et al. instances) travel time and cost are both `ceil(10 * Euclidean distance)`; in `type: "double"` mode (Dumez et al. instances) the cost is the raw Euclidean distance and the travel time is 10 times it. A delivery takes 5 minutes at a private address and 2 minutes at a shared location; the time window bounds the *start* of the delivery, so the delivery duration is added to every due date when the instance is loaded (`Instance.BuildModel`). The parking/handling time of a location is paid once per visit, not again for consecutive stops at the same location.
+
 ## 3. Algorithmic Framework
-### 3.1 High‑Level Flow
-1. (Optional) Multiple restarts (independent constructions) when `multiRestart = true`.
-2. Construct an initial feasible solution (option assignment + route insertion) emphasizing early satisfaction of priority service level thresholds and route consolidation.
-3. Apply Iterative Local Search with a set of neighborhoods; at each iteration evaluate best (or filtered best) move across operators.
-4. Maintain and update a promise matrix `Promises[a,b]` storing the best (lowest) global cost at which an ordered edge (option adjacency) has appeared; reject moves that would *not* improve beyond the stored promise to reduce cycling.
-5. Track the best solution (lexicographic: fewer routes, then cost) across repetitions and restarts; output detailed report.
+### 3.1 High‑Level Flow (`Search/Solver.cs`)
+For each of `restarts` restarts (seeded by the restart index, so runs are reproducible on a deterministic runtime):
+1. Construct a solution (`Search/Construction.cs`): repeatedly pick one of the three cheapest feasible (option, route, position) insertions at random until every customer is routed, keeping a spare empty route available. A failed construction is repeated with the next seed.
+2. Run `repetitions` iterations of local search. Each iteration scans the Swap, Relocation, Two‑Opt, Flip and Exchange neighborhoods, applies the best move overall (compared on `moveCost + openRoutes * 10000`), and records the solution as the restart's best when it has fewer routes, or equal routes and lower cost, and meets the service levels.
+3. Every `|Options| * promisesRestartRatio` iterations the promise matrix is reset. After 500 iterations without improvement, 1% of the iterations apply only the best Flip (a kick).
+4. The best solution over all restarts (fewer routes, then cost) is reported.
 
-### 3.2 Construction Heuristics
-* Identify customers with single options; force selection early.
-* Greedy multi‑criteria scoring for candidate first options combining: distance to already selected options (dispersion / clustering control), time window width, and temporal overlap to foster route packability.
-* Shared location capacity respected incrementally; randomization among top scoring candidates introduces diversification.
-* Incremental insertion: For each not yet routed customer, evaluate cheapest feasible insertion positions using time feasibility checks (`RespectsTimeWindow2`) and maintain the top few (e.g., three) cost candidates before choosing.
-* Penalized insertion variant augments pure travel cost with route index penalty and load factor to encourage filling earlier routes (vehicle minimization proxy).
-
-### 3.3 Neighborhood Operators
+### 3.2 Neighborhood Operators (`Search/LocalSearch.*.cs`)
 | Operator | Purpose | Key Feasibility / Cost Components |
 |----------|---------|-----------------------------------|
-| Relocation | Move single option to new position/route | Capacity, time windows, service levels, route count penalty |
-| Swap | Exchange two options (intra/inter) | Dual feasibility check with time windows & capacity |
-| Two‑Opt (generalized) | Segment reversal (intra) or tail exchange (inter) | Time rewrite using forward/backward ECT/LAT recomputation |
-| Flip | Replace served option of a customer by an alternative (possibly moving it) | Maintains service level thresholds; adjusts shared capacities |
-| PrioritySwap | Paired option substitution for two customers swapping priority patterns | Guides improvement in service distribution & cost |
+| Relocation | Move one stop to another position of any route | Capacity, time windows, promises, route count penalty |
+| Swap | Exchange two stops (intra/inter) | Capacity, time windows, promises |
+| Two‑Opt | Segment reversal (intra) or tail exchange (inter) | Capacity, time windows via forward/backward ECT/LAT recomputation, promises |
+| Flip | Replace a customer's served option by another of its options, inserted anywhere | Service level thresholds, shared location capacity, time windows, promises |
+| Exchange | One customer to a worse and another to a better priority option together, both re-inserted at their best position | Keeps the service level at its boundary; capacity, time windows, shared capacity, promises |
 
 Each operator evaluates a move cost augmented by:
 * Route opening/closing penalty: `openRoutes * 10000` (aligning with lexicographic min vehicles objective).
-* Route utilization metric: quadratic slack penalty (square of unused capacity) to bias toward balanced loads. Ratio of old/new utilization modulates move acceptance (acts like cost smoothing / secondary objective integration).
+* Route utilization metric: quadratic slack `(Cap - load)^2` summed over the routes. The ratio of old to new metric multiplies the move cost and biases the search towards consolidated loads; it is 1 once the fleet is at the demand lower bound.
 
-### 3.4 Adaptive Memory (Promises)
-`Promises[a,b]` records the global solution cost when edge (a,b) was last accepted. A candidate move introducing an adjacency (a,b) at a *higher* or equal cost is discarded (unless it yields route reduction or improved lexicographic score), mimicking a strategic oscillation / aspiration filter without full tabu tenure bookkeeping.
+### 3.3 Adaptive Memory (Promises)
+`Promises[a,b]` records the solution cost when arc (a,b) was last created by an applied move. A candidate move creating an arc (a,b) at a cost that is not below the stored promise is discarded, which suppresses cycling without tabu tenure bookkeeping.
 
-### 3.5 Service Level Handling
-During local search, moves (notably Flip) are only accepted if resulting temporary service levels remain above thresholds; if below, only improving priority replacements are considered. A temporary evaluation function recomputes adjusted service levels under hypothetical leave/enter priorities.
-
-### 3.6 Similarity & Diversification
-For multi‑restart mode, constructed solutions are compared via a simple Jaccard‑style index over ordered option IDs to quantify similarity; this can be extended to seed adaptive restart strategies (not yet automated in code but foundation present).
+### 3.4 Service Level Handling
+The counts of served options per priority are maintained incrementally. A Flip to a lower priority is only accepted if the thresholds still hold afterwards; the Exchange move pairs a down-flip with an up-flip so that the thresholds hold even at the boundary.
 
 ## 4. Project Structure
 ```
 Vrdpo/
-	VrdpoProject.sln / .csproj       Solution & project metadata
-	VrdpoProject/
-		Solver.cs                      Main orchestration (construction + local search loops)
-		Solution.cs                    Data model for a solution, deep copy, timing, feasibility checks
-		Route.cs / Customer.cs / Option.cs / Location.cs  Core entities
-		LocalSearch.cs                 Neighborhood definitions & application logic
-		*Move Classes* (Relocation, Swap, TwoOpt, Flip, PrioritySwap) – state containers & validation
-		InstanceReader.cs              Instance parsing & model building (locations, options, matrices)
-		Settings.cs / settings.json    Runtime configuration
-		Resources.*                    (If present) ancillary resources
-		Instances/                     Benchmark instance directory (subfolders by class/size)
+  Vrdpo.sln
+  VrdpoProject/
+    Program.cs                 Entry point: parses the command line, loads settings and instance, runs, writes outputs
+    Settings.cs                Run configuration (settings.json keys)
+    settings.json              Default configuration
+    Model/
+      Instance.cs              Parsed instance (immutable) and BuildModel() -> fresh mutable objects
+      Location.cs / Customer.cs / Option.cs / Route.cs
+      Solution.cs              Routes, promises, service-level counts, time-window checks, consistency checks, deep copy
+    IO/
+      InstanceReader.cs        Instance file parser and distance/time matrices
+      RunOptions.cs            Command line
+      ResultsWriter.cs         results/<tag>/... outputs
+    Moves/                     Move records: Relocation, Swap, TwoOpt, Flip, ExchangeMove, Insertion
+    Search/
+      Solver.cs                Restart loop, move selection, acceptance, console reporting
+      Construction.cs          Randomized cheapest insertion
+      LocalSearch.cs           Shared helpers (promises, utilization, feasibility assertion)
+      LocalSearch.Relocation.cs / .Swap.cs / .TwoOpt.cs / .Flip.cs / .Exchange.cs
+    Instances/                 Benchmark instances (U, V, UBC = Dumez et al.; 25/50 small/medium/large = Tilk et al.)
 ```
 
 ## 5. Building & Running
 ### Prerequisites
-* .NET SDK 8.0+
+* .NET SDK 8.0+ (the project targets `net8.0`).
 
 ### Quick Start
 ```bash
-dotnet build Vrdpo/VrdpoProject/VrdpoProject.csproj -c Release
-dotnet run --project Vrdpo/VrdpoProject/VrdpoProject.csproj
+cd Vrdpo/VrdpoProject
+dotnet build -c Release
+dotnet run -c Release -- Instances/U/50/U_50_1.txt --tag baseline
 ```
 
-The solver reads `settings.json` and (by default) expects an instance file path to be configured inside the code (`InstanceReader`), or you can modify `Solver` to set `solver.Instance = "path/to/instance.txt"` before calling `Solve()`.
-
-By default the active instance file is passed through the launch profile in `Vrdpo/VrdpoProject/Properties/launchSettings.json` under `commandLineArgs`. Example:
-
-```json
-{
-	"profiles": {
-		"VrdpoProject": {
-			"commandName": "Project",
-			"commandLineArgs": "instances/U/25large/U_25large_1.txt"
-		}
-	}
-}
+### Command line
 ```
-Update that path (or override on the command line) to switch instances without touching source code.
+VrdpoProject <instance.txt> [--settings <file>] [--tag <name>] [--results <dir>] [--set <key>=<value>]...
+  --settings  settings file (default: settings.json)
+  --tag       experiment name; outputs go to <results>/<tag>/ (default: current timestamp)
+  --results   results root directory (default: results)
+  --set       override one setting, e.g. --set exchangeCandidates=0 (repeatable)
+```
+Paths are relative to the working directory (the project directory when using `dotnet run` or the launch profiles in `Properties/launchSettings.json` and `.vscode/launch.json`).
+
+Example experiment over a set of instances:
+```bash
+for f in Instances/U/50/*.txt; do
+  dotnet bin/Release/net8.0/VrdpoProject.dll "$f" --tag exchange20
+done
+for f in Instances/U/50/*.txt; do
+  dotnet bin/Release/net8.0/VrdpoProject.dll "$f" --tag exchange0 --set exchangeCandidates=0
+done
+```
 
 ### Output
-* Console log: progress per restart / repetition, service levels, incremental best.
-* Text report per instance: summary, per‑route listing, final cost, service levels.
-* `log.txt`: append‑only log of best solutions found (instance, cost, route count, timestamp).
+Everything a run produces goes under `results/<tag>/` (git-ignored):
+```
+results/
+  exchange20/
+    settings.json          the effective settings of the experiment (written once per tag)
+    runs.csv               one row per solve: timestamp, instance, feasible, cost, routes, sl0, sl1,
+                           restart, repetition, restart_time_s, total_time_s, and the main settings
+    U/50/U_50_1.txt        full solution: summary and per-route listing (location, option, customer)
+```
+The console shows the progress per restart and, with `verbal: true`, one line per iteration (`iteration cost restartBestCost restartBestRoutes`). Numbers use a dot as decimal separator on every machine.
 
 ## 6. Configuration (`settings.json`)
-Runtime behaviour is controlled via this JSON file placed alongside the executable. Current keys and intent (with representative defaults from the repository) are below.
+| Key | Description | Default |
+|-----|-------------|---------|
+| `restarts` | Number of independent construction + local search restarts. | 15 |
+| `repetitions` | Local search iterations per restart. | 15000 |
+| `verbal` | Per-iteration console trace. Set `false` for batch experiments. | true |
+| `promisesRestartRatio` | The promise matrix is reset every `|Options| * ratio` iterations. | 1.5 |
+| `type` | Distance metric: `int` (Tilk et al.: `ceil(10 * distance)` for time and cost) or `double` (Dumez et al.: raw distance as cost, 10x as time). | "double" |
+| `noImprovementLimit` | Iterations without a new restart-best after which a restart stops; `0` disables the rule. A value such as 2000 is about 5x faster with a slightly worse mean gap; until the first acceptable solution is found the count runs from iteration 0, so large instances may need a larger value or none. | 0 |
+| `exchangeCandidates` | Exchange move: the `N` cheapest down/up flip pairs (by estimate) are evaluated exactly in every iteration; `0` switches the move off. Measured with 15 x 15000 against the same runs without it (cost change, SE; instances better / worse): Dumez-50 -0.81% +/- 0.30 (19 / 2), Dumez-100 -1.14% +/- 0.20 (28 / 1), Tilk-50 small -0.19% +/- 0.22 (8 / 2). Run time about 2 to 4 times longer. | 20 |
 
-| Field | Description | Typical Effect / Guidance | Default* |
-|-------|-------------|---------------------------|----------|
-| `restarts` | Number of independent construction + local search restarts (only if `multiRestart=true`). | Increase for diversification on harder / larger instances. | 15 |
-| `repetitions` | Maximum local search iterations per restart. | Higher values deepen intensification; time grows roughly linearly. | 15000 |
-| `verbal` | Toggle verbose console logging. | Set `false` for batch experiments to reduce I/O overhead. | true |
-| `promisesRestartRatio` | Multiple determining how often the promise (edge memory) matrix is re‑initialized: trigger after `|Options| * ratio` iterations. | Larger value = longer memory (more aggressive pruning), smaller = more flexibility. | 1.5 |
-| `multiRestart` | Enable multi‑restart strategy. | Use `true` for robustness; `false` for quick single run. | false |
-| `schema` | Move selection scheme. Currently only `greedy` implemented (future: adaptive, randomized variants). | Controls how the best move among operators is chosen. | "greedy" |
-| `type` | Distance/time metric mode: `int` (rounded/scaled) or `double` (raw Euclidean). | Use `int` for speed, `double` for precision / final polishing. | "int" |
-| `noImprovementLimit` | Optional. Iterations without a new best solution after which a restart stops (`<= 0` or absent disables the rule). | With the rule off every restart runs the full `repetitions`. A value such as 2000 is about 5x faster with a slightly worse mean gap. Until the first acceptable solution is found the count runs from iteration 0, so large instances (e.g. 400 customers) may need a larger value or none. | 0 (off) |
-| `consistentTravelTime` | Optional, `type: "double"` only. Travel time = 10 x Euclidean distance instead of the raw distance. | Windows and service times are stored x10, so the raw distance makes travel 10x too fast and solves a relaxed problem whose solutions often violate the real windows. `true` is the model of Dumez et al. (a unit of distance takes a unit of time) and of Yang et al.; `int` mode already does this with the Tilk rounding. | true |
-| `windowBindsServiceStart` | Optional. The time window limits when service STARTS (adds the delivery duration, 5 min single / 2 min shared, to every due date). | The solver compares the completion time with the due date, which is tighter than Dumez et al. (constraint 11), Tilk et al. (instance Readme: due date + 5 / + 2) and Yang et al., whose published solutions all satisfy the start rule. `true` solves the same problem as those papers. | true |
-| `fixCloneSideEffect` | Optional. Corrects `Customer.Clone`, which re-pointed the original customer's option list instead of the clone's. | No visible effect on the results in this configuration (PrioritySwap off): identical output on the 60 Dumez-50/100 and 60 Tilk-50 instances tested. | true |
-| `fixSameRouteTwoOpt` | Optional. Makes 2-opt moves inside a single route possible (the time check used to reject every candidate). | With the faithful model (`windowBindsServiceStart`, and `consistentTravelTime` for Dumez) it lowers the cost by about 0.3-0.6% on the 50- and 100-customer benchmarks (Tilk-50 -0.33%, Dumez-50 -0.57%, Dumez-100 -0.41%); no change on Tilk-25. Results no longer reproduce the published tables. | true |
-| `relocateIntoFirstRoute` | Optional. Lets the relocation move put a stop into the first route (route 0). | Relocation used to skip route 0 as a target, so no stop could ever be moved into it. Measured effect is within noise (paired cost change: Dumez-50 -0.28% +/- 0.28, Dumez-100 -0.09% +/- 0.14, Tilk-50 small +0.26% +/- 0.26), so the default follows from correctness, not from a gain; with it on the results no longer reproduce the published tables. | true |
-| `exactRelocationFeasibility` | Optional. Same-route relocation: checks the time windows of the route that results from the move and uses a utilisation ratio of 1. | Before, the check put the moved stop into the route that still contained it (the stop counted twice, so some valid moves were rejected) and the ratio subtracted that route's metric twice. Measured on top of `relocateIntoFirstRoute`, the paired cost change is within noise (Dumez-50 +0.29% +/- 0.30, Dumez-100 +0.05% +/- 0.13, Tilk-50 small -0.17% +/- 0.23), so the default follows from correctness, not from a gain; with it on the results no longer reproduce the published tables. | true |
-| `exchangeCandidates` | Optional. Exchange move: a flip of one customer to a worse priority option together with a flip of another customer to a better one, each stop re-inserted at its best position of any route. `0` switches it off; `N > 0` evaluates the `N` cheapest pairs (by estimate) exactly in every iteration and lets the best of them compete with the other moves. | A flip to a worse priority class is blocked at the service-level boundary (80% of the customers at priority 0), where every solution sits, so this is the only way the search can trade one customer's class for another's in one step. Measured with 15 x 15000 and all six corrections on, paired against the same runs without it (cost change, SE; instances better / worse): Dumez-50 -0.81% +/- 0.30 (19 / 2), Dumez-100 -1.14% +/- 0.20 (28 / 1), Tilk-50 small -0.19% +/- 0.22 (8 / 2). Mean gap to the best known solution on the instances with the best-known fleet: Dumez-50 1.16% to 0.31%, Dumez-100 1.48% to 0.33%, Tilk-50 small 0.55% to 0.35%. Costs run time: about 2 to 4 times longer per solve in a first measurement on a loaded machine. With `0` the results are identical to before. | 20 |
+Any key can be overridden for one run with `--set key=value`; the effective values are saved with the results.
 
-*Defaults shown are those in the committed `settings.json` at the time of writing.
+### Reproducing the published tables
+The published results (Tilk 25/50 and Dumez 50/100/200/400 tables) were produced by an earlier model of the problem (completion-time windows, travel time equal to the raw distance in `double` mode) and an earlier search (relocation never targeting the first route, no same-route 2-opt, no exchange move). This version solves the model of Tilk et al., Dumez et al. and Yang et al. and includes the search corrections, so it does not reproduce those tables run for run. To reproduce them, check out commit `b3bc63b` (the last one with the compatibility switches) and set `consistentTravelTime`, `windowBindsServiceStart`, `fixCloneSideEffect`, `fixSameRouteTwoOpt`, `relocateIntoFirstRoute`, `exactRelocationFeasibility` to `false` and `exchangeCandidates` to `0` in its `settings.json`.
 
-The six settings `consistentTravelTime`, `windowBindsServiceStart`, `fixCloneSideEffect`, `fixSameRouteTwoOpt`, `relocateIntoFirstRoute` and `exactRelocationFeasibility` are **on** by default, and the exchange move is on with `exchangeCandidates` = 20. Set the six to `false` and `exchangeCandidates` to `0` in `settings.json` to reproduce the published results (Tilk 25/50 and Dumez 50/100/200/400 tables) run for run.
+Note on the runtime: on an arm64 Mac with the .NET 8.0.2 runtime the solver is not reproducible run for run (same seed, same binary, different trajectories after about 1000 iterations). Built for .NET 10 the runs are bit-identical. Measure any change on a current runtime, e.g. with `dotnet build -c Release -p:TargetFramework=net10.0`.
 
-After changing `settings.json`, simply re‑run the executable; no rebuild is required unless you modified source code.
-
-## 7. Instance Format (Abstract)
-While full specification resides in the manuscript, the parser (`InstanceReader`) expects a structured plain text file containing:
-1. Header lines including capacity, counts: number of locations, customers, options.
+## 7. Instance Format
+The parser (`IO/InstanceReader.cs`) expects a structured plain text file containing (see `Instances/README.txt` for the time conventions of the Tilk et al. instances):
+1. Header line (line 4) with vehicle count, capacity and the numbers of locations, customers and options.
 2. A block of customer definitions: customer id, demand.
-3. A block of location definitions: id, coordinates, time window bounds, service / parking / type indicators, capacity (for shared locations), preparation times.
-4. A block of option definitions: option id, location reference, customer reference, priority, (possibly) service / delivery times, and induced time window.
-5. (Implicit) Distance & time matrices are *not* provided; they are computed on the fly via Euclidean distance and stored in an upper triangular compact form.
+3. The depot line, then a block of location definitions: id, coordinates, capacity (shared locations), ready, due, type (1 shared, 2 private), service time.
+4. A block of option definitions: option id, location, customer, priority, service time, cost.
+5. Distance & time matrices are *not* provided; they are computed from the coordinates and stored in an upper triangular compact form.
 
-Extend / adapt `InstanceReader.BuildModel()` if your data diverges (e.g., explicit travel times, asymmetric costs, multiple depots, heterogeneous fleet).
+Extend `InstanceReader` / `Instance.BuildModel()` if your data diverges (e.g., explicit travel times, asymmetric costs, multiple depots, heterogeneous fleet).
 
 ## 8. Extending the Solver
-Potential enhancements:
-* Add Large Neighborhood Search (ruin & recreate) layer atop existing neighborhoods.
-* Introduce adaptive penalty adjustment for service level violations enabling soft constraints.
-* Integrate exact pricing (column generation) for route set refinement (matheuristic hybridization).
-* Multi‑objective weighting of carbon footprint (e.g., distance vs. locker usage) with Pareto archive.
-* Parallel evaluation of neighborhoods (ensure thread‑safe clones of solution state).
+* New move: add a record class under `Moves/`, a `LocalSearch.<Name>.cs` partial with `FindBest<Name>Move` / `Apply<Name>Move`, and wire it into the move selection in `Solver.RunRestarts`.
+* New setting: add a property with a `JsonPropertyName` to `Settings.cs`; it is then readable from `settings.json`, overridable with `--set`, and saved with the results.
+* Telemetry: the restart loop in `Solver.RunRestarts` is the single place where moves are selected and accepted; `ResultsWriter` is the single place that writes outputs.
 
 ## 9. Performance & Tuning Tips
 * Increase `restarts` for diversification; moderate `repetitions` to control runtime.
-* Start with `type = "int"` (coarser metric) for faster move evaluation; refine with `double` for final polishing.
-* Adjust route penalty (currently hard‑coded 10000) if instance scale (total distance magnitude) changes significantly.
-* For large instances, consider pruning candidate insertion positions beyond top‑k (already partially implemented) to reduce O(n²) loops.
+* `noImprovementLimit` trades a little quality for a large time saving on small instances.
+* Adjust the route penalty (`Solver.RoutePenalty`, 10000) if the total distance magnitude of your instances is of a different order.
 
-## 10. Reproducing Experiments
-1. Collect benchmark instances into `Instances/` preserving subfolder taxonomy.
-2. Set `multiRestart = true`; choose `restarts` (e.g., 10–30) and `repetitions` (e.g., 10000–20000) per instance size.
-3. Run the solver sequentially or script batch executions (e.g., shell loop invoking `dotnet run`).
-4. Parse generated reports and aggregate KPIs: cost, route count, `SL0`, `SL1`.
-5. (Optional) Compare against reference best‑known solutions from literature (cited in manuscript) for validation.
+## 10. Code Quality & Design Notes
+* `Instance` is immutable; every `Solution` gets a fresh mutable copy of the locations, customers and options because their capacity-use and served flags change during the search.
+* `Solution.DeepCopy` clones the whole object graph and re-links it by id; the promise matrix is shared on purpose (copies are never searched).
+* Time window feasibility uses earliest / latest completion passes (`Solution.UpdateTimes`, `RespectsTimeWindow*`), memoized per neighborhood scan.
+* Every applied move is followed by a route feasibility assertion that prints the violation (`[check] ...`); `Infeasible Solution!!!` on the console means a bug.
 
-## 11. Code Quality & Design Notes
-* Deep copy mechanisms in `Solution.DeepCopy` ensure isolation of candidate states across moves / restarts.
-* Time window feasibility uses earliest completion (ECT) / latest allowable (LAT) forward/backward passes after hypothetical insertions (`RespectsTimeWindow2`).
-* The *promise matrix* is a sparse memory comparable conceptually to edge-based tabu tenure but deterministic and cost‑threshold driven.
-* Quadratic capacity slack fosters consolidation without explicit penalty tuning (acts similar to ejection chain biasing).
-
-## 12. Citation
+## 11. Citation
 If you use this code or ideas, please cite the associated manuscript (preprint forthcoming). Placeholder BibTeX entry:
 ```bibtex
 @article{Author2025VRPDO,
@@ -246,13 +240,13 @@ If you use this code or ideas, please cite the associated manuscript (preprint f
 }
 ```
 
-## 13. License
+## 12. License
 Distributed under the terms of the repository `LICENSE` (see file). Ensure compatibility if integrating into closed-source systems.
 
-## 14. Disclaimer
+## 13. Disclaimer
 This is research software: correctness and performance have been validated on internal benchmarks but no warranty is provided. Review and adapt before production deployment.
 
-## 15. Contact
+## 14. Contact
 For questions regarding algorithms, instances, or experimental reproduction, open an issue or submit a pull request.
 
 ---
