@@ -38,7 +38,7 @@ namespace VrdpoProject
         [JsonPropertyName("exchangeCandidates")]
         public int ExchangeCandidates { get; set; } = 20;
 
-        // ---- Review experiments (all off by default; with all four false the solver runs exactly as before) ----
+        // ---- Review experiments (all off by default; with all five false the solver runs exactly as before) ----
 
         // VRPTW setup: every customer can only be served at its home option, i.e. its best-priority private
         // address (location type 2); a customer without a private address keeps its best-priority option.
@@ -61,6 +61,13 @@ namespace VrdpoProject
         // candidate is checked for feasibility). Does not change which move is applied. Needs traceIterations.
         [JsonPropertyName("countMoves")]
         public bool CountMoves { get; set; } = false;
+
+        // Counts, per iteration, the inter-route relocation and swap candidates by the type of the transferred
+        // delivery location(s) (private address vs shared locker) and how many of them pass the capacity and
+        // time-window checks, whatever their cost (no cost-first pruning for the counters). Written to
+        // <results>/<tag>/coupling/<instance>.csv and coupling_totals.csv. Does not change which move is applied.
+        [JsonPropertyName("countCoupling")]
+        public bool CountCoupling { get; set; } = false;
 
         [JsonIgnore]
         public bool IntegerMetric => Type == "int";

@@ -43,6 +43,9 @@ namespace VrdpoProject
                             double costChangeFirstRoute = 0;
                             double costChangeSecondRoute = 0;
                             double ratio = 1;
+                            // Coupling counters: inter-route candidates only.
+                            bool countCoupling = Coupling != null && rt1 != rt2;
+                            int couplingCategory = countCoupling ? CouplingStats.SwapCategory(b1.Location, b2.Location) : 0;
 
                             if (rt1 == rt2)
                             {
@@ -67,6 +70,7 @@ namespace VrdpoProject
                                     || rt2.Load - b2.Cust.Dem + b1.Cust.Dem > rt2.Capacity)
                                 {
                                     if (Stats != null) { Stats.Evaluated[MoveStats.Swap]++; }
+                                    if (countCoupling) { Coupling.RecordCapacityInfeasible(CouplingStats.Swap, couplingCategory, 1); }
                                     continue;
                                 }
                                 double costRemoved1 = removed[firstRouteIndex][firstOptionIndex];
@@ -86,20 +90,25 @@ namespace VrdpoProject
                                 }
                             }
 
-                            if (Stats != null)
+                            if (Stats != null || countCoupling)
                             {
-                                Stats.Evaluated[MoveStats.Swap]++;
+                                // Feasibility of every candidate, whatever its cost (the counters only).
                                 bool feasible = sol.RespectsTimeWindow2FeasibleMemo(firstRouteIndex, rt1, firstOptionIndex, b2.Location)
                                     && sol.RespectsTimeWindow2FeasibleMemo(secondRouteIndex, rt2, secondOptionIndex, b1.Location)
                                     && (rt1 != rt2 || sol.RespectsTimeWindow2FeasibleWithReplacement(rt1, secondOptionIndex, b1.Location, firstOptionIndex, b2.Location));
-                                if (feasible) { Stats.Feasible[MoveStats.Swap]++; }
-                                if (feasible && MoveStats.Improves(0, moveCost))
+                                if (countCoupling) { Coupling.Record(CouplingStats.Swap, couplingCategory, feasible); }
+                                if (Stats != null)
                                 {
-                                    Stats.Improving[MoveStats.Swap]++;
-                                    if (PromiseHolds(a1.Id, b2.Id, moveCost, sol) && PromiseHolds(b2.Id, c1.Id, moveCost, sol)
-                                        && PromiseHolds(a2.Id, b1.Id, moveCost, sol) && PromiseHolds(b1.Id, c2.Id, moveCost, sol))
+                                    Stats.Evaluated[MoveStats.Swap]++;
+                                    if (feasible) { Stats.Feasible[MoveStats.Swap]++; }
+                                    if (feasible && MoveStats.Improves(0, moveCost))
                                     {
-                                        Stats.Admissible[MoveStats.Swap]++;
+                                        Stats.Improving[MoveStats.Swap]++;
+                                        if (PromiseHolds(a1.Id, b2.Id, moveCost, sol) && PromiseHolds(b2.Id, c1.Id, moveCost, sol)
+                                            && PromiseHolds(a2.Id, b1.Id, moveCost, sol) && PromiseHolds(b1.Id, c2.Id, moveCost, sol))
+                                        {
+                                            Stats.Admissible[MoveStats.Swap]++;
+                                        }
                                     }
                                 }
                             }

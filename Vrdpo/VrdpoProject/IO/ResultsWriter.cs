@@ -76,7 +76,7 @@ namespace VrdpoProject
                     settings.Type,
                     settings.LockToHome ? "1" : "0",
                     settings.RoutingMovesOnly ? "1" : "0");
-            AppendCsvLine(Path.Combine(dir, "runs.csv"), csvLine);
+            AppendCsvLine(Path.Combine(dir, "runs.csv"), CsvHeader, csvLine);
             return reportPath;
         }
 
@@ -101,13 +101,13 @@ namespace VrdpoProject
         }
 
         // One line per solve; the header is written by whoever creates the file.
-        private static void AppendCsvLine(string path, string line)
+        internal static void AppendCsvLine(string path, string header, string line)
         {
             using FileStream fs = OpenExclusive(path);
             using var w = new StreamWriter(fs);
             if (fs.Length == 0)
             {
-                w.WriteLine(CsvHeader);
+                w.WriteLine(header);
             }
             else
             {

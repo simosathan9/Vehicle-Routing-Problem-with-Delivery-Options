@@ -15,12 +15,15 @@ namespace VrdpoProject
         private readonly int exchangeCandidates;
         // Move counters of the current iteration (settings.countMoves); null when counting is off.
         public MoveStats Stats { get; }
+        // Inter-route coupling counters of the current iteration (settings.countCoupling); null when off.
+        public CouplingStats Coupling { get; }
 
         public LocalSearch(Settings settings)
         {
             smallDouble = settings.IntegerMetric ? 0 : 0.00001;
             exchangeCandidates = settings.ExchangeCandidates;
             Stats = settings.CountMoves ? new MoveStats() : null;
+            Coupling = settings.CountCoupling ? new CouplingStats() : null;
         }
 
         // The promise rule of the scans for one created arc (true = the arc is allowed).

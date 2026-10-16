@@ -24,17 +24,20 @@ namespace VrdpoProject
         private readonly LocalSearch ls;
         // Per-iteration trace (settings.traceIterations); null when off.
         private readonly TraceWriter trace;
+        // Per-iteration inter-route coupling counts (settings.countCoupling); null when off.
+        private readonly CouplingWriter coupling;
         // Tolerance when comparing solution values ("int" metric: exact).
         private readonly double smallDouble;
 
         public TimeSpan BestRestartTime { get; private set; } = TimeSpan.Zero;
         public TimeSpan TotalTime { get; private set; } = TimeSpan.Zero;
 
-        public Solver(Instance instance, Settings settings, TraceWriter trace = null)
+        public Solver(Instance instance, Settings settings, TraceWriter trace = null, CouplingWriter coupling = null)
         {
             this.instance = instance;
             this.settings = settings;
             this.trace = trace;
+            this.coupling = coupling;
             ls = new LocalSearch(settings);
             smallDouble = settings.IntegerMetric ? 0 : 0.001;
         }
@@ -64,6 +67,7 @@ namespace VrdpoProject
             bool useExchange = settings.ExchangeCandidates > 0 && !settings.RoutingMovesOnly;
             bool enforceServiceLevels = !settings.LockToHome;
             MoveStats stats = ls.Stats;
+            CouplingStats couplingStats = ls.Coupling;
             var restartTimer = new Stopwatch();
             int restartCounter = -1;
 
@@ -135,11 +139,14 @@ namespace VrdpoProject
                     }
 
                     stats?.Reset();
+                    couplingStats?.Reset();
                     sm = ls.FindBestSwapMove(sm, currentSol);
                     rm = ls.FindBestRelocationMove(rm, currentSol);
                     top = ls.FindBestTwoOptMove(top, currentSol);
                     if (useFlip) { flip = ls.FindBestFlipMove(flip, currentSol); }
                     if (useExchange) { exch = ls.FindBestExchangeMove(exch, currentSol); }
+                    // The counts describe the neighbourhood of the solution the scans were made on.
+                    coupling?.Row(restartCounter, i, currentSol.Routes.Count(r => !r.IsEmpty), couplingStats);
 
                     double mincost = Math.Min(Math.Min(Math.Min(sm.TotalCost, rm.TotalCost), top.TotalCost), flip.TotalCost);
                     if (useExchange) { mincost = Math.Min(mincost, exch.TotalCost); }

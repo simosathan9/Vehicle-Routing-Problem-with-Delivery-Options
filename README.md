@@ -133,6 +133,7 @@ Vrdpo/
       RunOptions.cs            Command line
       ResultsWriter.cs         results/<tag>/... outputs
       TraceWriter.cs           results/<tag>/traces/... per-iteration trace (traceIterations)
+      CouplingWriter.cs        results/<tag>/coupling/... inter-route feasibility counts (countCoupling)
     Moves/                     Move records: Relocation, Swap, TwoOpt, Flip, ExchangeMove, Insertion
     scripts/run-batch.sh       Concurrent batch over many instances under one tag
     experiments/               Review experiments: run scripts (Windows), instance subsets, analysis
@@ -141,6 +142,8 @@ Vrdpo/
       Construction.cs          Randomized cheapest insertion
       LocalSearch.cs           Shared helpers (promises, utilization, feasibility assertion)
       LocalSearch.Relocation.cs / .Swap.cs / .TwoOpt.cs / .Flip.cs / .Exchange.cs
+      MoveStats.cs             Per-operator move counts (countMoves)
+      CouplingStats.cs         Inter-route candidates by location type, capacity and time-window pass (countCoupling)
     Instances/                 Benchmark instances (U, V, UBC = Dumez et al.; 25/50 small/medium/large = Tilk et al.)
 ```
 
@@ -209,8 +212,9 @@ The tag defaults to the current date and time and the number of concurrent solve
 | `routingMovesOnly` | Only relocation, swap and 2-opt: no flip, no exchange, no flip kick. | false |
 | `traceIterations` | One CSV row per iteration in `results/<tag>/traces/<instance>.csv` (applied move, current and restart-best cost and routes, service levels). | false |
 | `countMoves` | Adds per-operator counts of evaluated, feasible (whatever the cost), improving and admissible moves to the trace, without the scans' cost-first pruning. Does not change the trajectory; about 2x run time. Needs `traceIterations`. | false |
+| `countCoupling` | Counts the inter-route relocation and swap candidates by the type of the transferred location(s) (private address vs shared locker) and how many pass the capacity and the time-window checks, whatever their cost. Written to `results/<tag>/coupling/<instance>.csv` (one row per scanned iteration) and `coupling_totals.csv` (one row per solve). Does not change the trajectory. | false |
 
-With the four keys above at false the solver runs exactly as before. They are used by the review experiments in `experiments/` (see `experiments/exp1-vrpdo-vs-vrptw/README.md`).
+With the five keys above at false the solver runs exactly as before. They are used by the review experiments in `experiments/` (see `experiments/exp1-vrpdo-vs-vrptw/README.md` and `experiments/exp2-inter-route-coupling/README.md`).
 
 Any key can be overridden for one run with `--set key=value`; the effective values are saved with the results.
 

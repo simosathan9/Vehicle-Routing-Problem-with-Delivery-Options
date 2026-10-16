@@ -21,11 +21,16 @@ namespace VrdpoProject
             Instance instance = InstanceReader.Read(run.InstancePath, settings);
 
             using TraceWriter trace = settings.TraceIterations ? new TraceWriter(run, instance, settings.CountMoves) : null;
-            var solver = new Solver(instance, settings, trace);
+            using CouplingWriter coupling = settings.CountCoupling ? new CouplingWriter(run, instance) : null;
+            var solver = new Solver(instance, settings, trace, coupling);
             Solution best = solver.Solve();
             if (trace != null)
             {
                 Console.WriteLine("Trace written to " + trace.Path);
+            }
+            if (coupling != null)
+            {
+                Console.WriteLine("Coupling counts written to " + coupling.Path);
             }
 
             string report = ResultsWriter.Write(run, settings, instance, best, solver.BestRestartTime, solver.TotalTime);
