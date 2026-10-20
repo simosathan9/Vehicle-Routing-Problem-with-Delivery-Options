@@ -3,7 +3,8 @@
     "repetitions": 15000,
     "verbal": true,
     "promisesRestartRatio": 1.5,
-    "type": "double",
+    "type": "int",
     "noImprovementLimit": 0,
-    "exchangeCandidates": 20
+    "exchangeCandidates": 20,
+    "countCoupling": true
 }
