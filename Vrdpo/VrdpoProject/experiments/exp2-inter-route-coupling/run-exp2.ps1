@@ -10,14 +10,20 @@
 #   powershell -ExecutionPolicy Bypass -File .\run-exp2.ps1
 #   powershell -ExecutionPolicy Bypass -File .\run-exp2.ps1 -Jobs 6 -Repetitions 30000
 #   powershell -ExecutionPolicy Bypass -File .\run-exp2.ps1 -CheckOnly      # only check that every instance is found
+#   powershell -ExecutionPolicy Bypass -File .\run-exp2.ps1 -NoAnalysis     # skip the analysis at the end
 # The subset file is subset.txt next to this script, or experiment 1's subset.txt when there is none.
+# When all solves are done, analyze_exp2.py (next to this script) is run on the results folder and writes
+# results\exp2_<date>_coupling\analysis\ (summary.md, summary.csv, plots\). This needs Python 3 with pandas,
+# matplotlib and tabulate (pip install pandas matplotlib tabulate); when they are missing the script says so and
+# prints the command to run the analysis later.
 param(
     [string]$Base = $PSScriptRoot,                 # folder with VrdpoProject.exe and settings.json
     [string]$Subset = "",
     [int]$Jobs = [Environment]::ProcessorCount,    # solves running at the same time
     [int]$Restarts = 0,                            # 0 = value of settings.json (15)
     [int]$Repetitions = 0,                         # 0 = value of settings.json (15000)
-    [switch]$CheckOnly
+    [switch]$CheckOnly,
+    [switch]$NoAnalysis                            # do not run analyze_exp2.py when the solves are done
 )
 $ErrorActionPreference = "Stop"
 
@@ -113,4 +119,33 @@ while ($queue.Count -gt 0 -or $running.Count -gt 0) {
 }
 
 Add-Content (Join-Path $dir "batch.txt") "finished:   $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+# Analysis: tables and plots from the coupling counts, into results\<tag>\analysis\.
+$analyze = Join-Path $PSScriptRoot "analyze_exp2.py"
+$analysisDir = Join-Path $dir "analysis"
+$analysisCmd = "python `"$analyze`" --results `"$dir`" --out `"$analysisDir`""
+if ($NoAnalysis) {
+    Write-Host "Analysis skipped (-NoAnalysis). To run it later: $analysisCmd" -ForegroundColor Yellow
+} elseif (-not (Test-Path $analyze)) {
+    Write-Host "analyze_exp2.py not found next to this script; copy it there and run: $analysisCmd" -ForegroundColor Yellow
+} else {
+    $python = $null
+    foreach ($c in @("python", "python3", "py")) {
+        if (Get-Command $c -ErrorAction SilentlyContinue) { $python = $c; break }
+    }
+    if (-not $python) {
+        Write-Host "Python not found; install Python 3 with pandas, matplotlib and tabulate, then run: $analysisCmd" -ForegroundColor Yellow
+    } else {
+        Write-Host "$(Get-Date -Format HH:mm:ss)  Running the analysis ($python)..." -ForegroundColor Cyan
+        $ErrorActionPreference = "Continue"
+        & $python $analyze --results $dir --out $analysisDir 2>&1 | Tee-Object -FilePath (Join-Path $dir "logs/analysis.log")
+        if ($LASTEXITCODE -eq 0) {
+            Add-Content (Join-Path $dir "batch.txt") "analysis:   $analysisDir"
+            Write-Host "Analysis written to $analysisDir (summary.md, summary.csv, plots\)." -ForegroundColor Green
+        } else {
+            Write-Host "Analysis failed (see logs\analysis.log; missing packages? pip install pandas matplotlib tabulate)." -ForegroundColor Red
+            Write-Host "To run it later: $analysisCmd" -ForegroundColor Yellow
+        }
+    }
+}
 Write-Host "All done. Send the folder results\$tag (zip it)." -ForegroundColor Yellow

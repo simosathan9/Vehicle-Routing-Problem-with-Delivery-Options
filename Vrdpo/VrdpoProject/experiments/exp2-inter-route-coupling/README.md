@@ -50,7 +50,8 @@ feasibility checks.
 
 1. Publish the `exp2-inter-route-coupling` branch and copy `VrdpoProject.exe`, `VrdpoProject.dll`,
    `VrdpoProject.runtimeconfig.json` and `settings.json` to the run folder (e.g. `Desktop\VRPDO`).
-2. Copy `run-exp2.ps1` and experiment 1's `subset.txt` to the same folder.
+2. Copy `run-exp2.ps1`, `analyze_exp2.py` and experiment 1's `subset.txt` to the same folder. For the analysis
+   at the end of the run the VM needs Python 3 with `pip install pandas matplotlib tabulate`.
 3. Check that every instance is found, then run:
    ```powershell
    cd $HOME\Desktop\VRPDO
@@ -64,7 +65,9 @@ feasibility checks.
 Results go to `results\exp2_<date>_<time>_coupling`. Nothing is overwritten: every run gets its own date
 and time. The folder holds `runs.csv` (final solutions), `coupling\<instance>.csv` (one row per scanned
 iteration, about 15 MB per instance at 15 x 15000), `coupling_totals.csv` (one row per instance with the
-sums), `logs\`, `settings.json` and `batch.txt` (what ran).
+sums), `logs\`, `settings.json` and `batch.txt` (what ran). When the last solve is done the script runs
+`analyze_exp2.py` on the folder and writes `analysis\` (the outputs listed below) next to it, so the run folder
+holds the formatted result as well. `-NoAnalysis` skips this step; the command to run it later is printed.
 
 On macOS/Linux the same runs can be made with the batch script (one batch per `type`):
 ```bash
