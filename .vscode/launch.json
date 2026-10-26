@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "VRPDO (choose instance)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/Vrdpo/VrdpoProject/bin/Release/net8.0/VrdpoProject.dll",
+      "args": ["${input:instance}", "--tag", "dev"],
+      "cwd": "${workspaceFolder}/Vrdpo/VrdpoProject",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "VRPDO (default: U_25small_1)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/Vrdpo/VrdpoProject/bin/Release/net8.0/VrdpoProject.dll",
+      "args": ["Instances/U/25small/U_25small_1.txt", "--tag", "dev"],
+      "cwd": "${workspaceFolder}/Vrdpo/VrdpoProject",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    }
+  ],
+  "inputs": [
+    {
+      "id": "instance",
+      "type": "promptString",
+      "description": "Instance path, relative to Vrdpo/VrdpoProject (e.g. Instances/U/50/U_50_3.txt)",
+      "default": "Instances/U/25small/U_25small_1.txt"
+    }
+  ]
+}

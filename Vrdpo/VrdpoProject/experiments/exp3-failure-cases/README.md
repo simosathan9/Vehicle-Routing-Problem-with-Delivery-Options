@@ -113,8 +113,8 @@ file, recomputes the schedule with the solver's time model (the distance metric 
 1. Publish the `exp3-failure-cases` branch (the solver is the one of `exp2-inter-route-coupling`; no solver
    change is needed) and copy `VrdpoProject.exe`, `VrdpoProject.dll`, `VrdpoProject.runtimeconfig.json` and
    `settings.json` to the run folder (e.g. `Desktop\VRPDO`).
-2. Copy `run-exp3.ps1`, `outliers.txt`, `case_study.py`, `vrpdo.py` and `paper_results.csv` to the same folder.
-   For the case studies at the end the VM needs Python 3 with `pip install numpy pandas matplotlib`.
+2. Copy `run-exp3.ps1` and `outliers.txt` to the same folder. Nothing else is needed on the VM: the case
+   studies are run locally on the results.
 3. If the UBC_400 / V_400 files are on the VM, uncomment their lines in `outliers.txt`.
 4. Check that every instance is found, then run:
    ```powershell
@@ -123,10 +123,18 @@ file, recomputes the schedule with the solver's time model (the distance metric 
    powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1
    ```
    Options: `-Jobs N`, `-Restarts N`, `-Repetitions N` (default: settings.json, 15 x 15000; a 400-customer
-   instance takes about 3 hours), `-RoutesTested k`, `-NoAnalysis`.
+   instance takes about 3 hours).
 
 Results go to `results\exp3_<date>_<time>_outliers\` (`runs.csv`, solution reports, `traces\`, `logs\`,
-`batch.txt`) and the case studies to `case_studies\<instance>\` in the same folder.
+`batch.txt`). Zip that folder, copy it here under `results/`, and run the case study per instance:
+```bash
+cd Vrdpo/VrdpoProject
+for n in U_400_4 U_400_7 U_400_9; do set=${n%%_*}; size=$(echo $n | cut -d_ -f2)
+  python experiments/exp3-failure-cases/case_study.py --report results/exp3_<date>_outliers/$set/$size/$n.txt \
+         --trace results/exp3_<date>_outliers/traces/$set/$size/$n.csv --out results/exp3b/$n
+done
+```
+Each run writes `case.md` and the plots under `results/exp3b/<instance>/`.
 
 On macOS/Linux:
 ```bash

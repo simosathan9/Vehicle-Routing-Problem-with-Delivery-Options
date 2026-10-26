@@ -4,16 +4,12 @@
 # (--set traceIterations=true) -> results\exp3_<date>_outliers\
 # The results folder holds runs.csv, settings.json, one solution report per instance, traces\<instance>.csv
 # (one row per iteration) and logs\. A new run never overwrites an old one: the date and time are in the tag.
-# When all solves are done, case_study.py (next to this script) is run on every solution and writes
-# results\exp3_<date>_outliers\case_studies\<instance>\ (case.md, routes.csv, absorption.csv, elimination.csv,
-# plots\). This needs Python 3 with numpy, pandas and matplotlib; when they are missing the script says so and
-# prints the commands to run later.
+# Nothing is analysed on the VM: zip the results folder and run case_study.py on it locally (see README.md).
 #
 # Usage (PowerShell, in the folder with VrdpoProject.exe, settings.json and this script):
 #   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1
 #   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1 -Jobs 6
 #   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1 -CheckOnly      # only check that every instance is found
-#   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1 -NoAnalysis     # skip the case studies at the end
 # The 400-customer instances take about 3 hours each at 15 x 15000 (the paper's budget); -Restarts / -Repetitions
 # shorten a trial run.
 param(
@@ -22,9 +18,7 @@ param(
     [int]$Jobs = [Environment]::ProcessorCount,    # solves running at the same time
     [int]$Restarts = 0,                            # 0 = value of settings.json (15)
     [int]$Repetitions = 0,                         # 0 = value of settings.json (15000)
-    [int]$RoutesTested = 3,                        # lightest routes given the absorption test in the case study
-    [switch]$CheckOnly,
-    [switch]$NoAnalysis                            # do not run case_study.py when the solves are done
+    [switch]$CheckOnly
 )
 $ErrorActionPreference = "Stop"
 
@@ -117,40 +111,4 @@ while ($queue.Count -gt 0 -or $running.Count -gt 0) {
 
 Add-Content (Join-Path $dir "batch.txt") "finished:   $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 
-# Case studies: one folder per instance under results\<tag>\case_studies\.
-$study = Join-Path $PSScriptRoot "case_study.py"
-$studiesDir = Join-Path $dir "case_studies"
-function Study-Command([pscustomobject]$w) {
-    $parts = $w.Name -split "_"
-    $report = Join-Path $dir "$($parts[0])/$($parts[1])/$($w.Name).txt"
-    $trace = Join-Path $dir "traces/$($parts[0])/$($parts[1])/$($w.Name).csv"
-    return @("`"$study`"", "--report", "`"$report`"", "--trace", "`"$trace`"", "--instance", "`"$($w.File)`"",
-             "--routes-tested", $RoutesTested, "--out", "`"$(Join-Path $studiesDir $w.Name)`"")
-}
-if ($NoAnalysis) {
-    Write-Host "Case studies skipped (-NoAnalysis). To run them later, for each instance:" -ForegroundColor Yellow
-    $work | ForEach-Object { Write-Host "  python $(Study-Command $_)" }
-} elseif (-not (Test-Path $study)) {
-    Write-Host "case_study.py not found next to this script; copy it (with vrpdo.py and paper_results.csv) there and run it per instance." -ForegroundColor Yellow
-} else {
-    $python = $null
-    foreach ($c in @("python", "python3", "py")) {
-        if (Get-Command $c -ErrorAction SilentlyContinue) { $python = $c; break }
-    }
-    if (-not $python) {
-        Write-Host "Python not found; install Python 3 with numpy, pandas and matplotlib, then run case_study.py per instance." -ForegroundColor Yellow
-    } else {
-        Write-Host "$(Get-Date -Format HH:mm:ss)  Running the case studies ($python)..." -ForegroundColor Cyan
-        $ErrorActionPreference = "Continue"
-        New-Item -ItemType Directory -Force -Path $studiesDir | Out-Null
-        $failed = 0
-        foreach ($w in $work) {
-            $cmd = Study-Command $w
-            & $python $cmd 2>&1 | Tee-Object -FilePath (Join-Path $dir "logs/case_$($w.Name).log")
-            if ($LASTEXITCODE -ne 0) { $failed++; Write-Host "case study failed: $($w.Name) (see logs\case_$($w.Name).log)" -ForegroundColor Red }
-        }
-        Add-Content (Join-Path $dir "batch.txt") "case studies: $studiesDir ($failed failed)"
-        Write-Host "Case studies written to $studiesDir ($failed failed)." -ForegroundColor Green
-    }
-}
-Write-Host "All done. Send the folder results\$tag (zip it)." -ForegroundColor Yellow
+Write-Host "All done. Zip the folder results\$tag and copy it back for the case studies (case_study.py)." -ForegroundColor Yellow
