@@ -1,0 +1,26 @@
+# Experiment 3B: instances to solve again for the case study, one name per line; '#' starts a comment.
+# run-exp3.ps1 finds each file in the run folder, in VRPDO_instances\VRPDO_instances\<set>\<size>\ or in
+# Instances\<set>\<size>\ (type=int for small/medium/large names, double otherwise).
+
+# Fleet failures of the paper (one vehicle more than the BKS), from paper_results.csv
+U_200_9
+U_400_2
+U_400_4
+U_400_7
+U_400_9
+V_100_2
+V_100_3
+V_100_9
+V_200_2
+V_200_8
+# Fleet failures whose instance files are not in the repository (add them to the run folder and uncomment)
+# UBC_400_3
+# V_400_3
+# V_400_4
+# V_400_7
+
+# Controls: same classes, BKS fleet reached
+U_200_1
+U_400_1
+V_100_1
+V_200_1
