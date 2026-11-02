@@ -136,3 +136,6 @@ _NCrunch*
 # Solver outputs
 results/
 log.txt
+# Experiment run folders copied out of results/ (exp1_<date>_*, exp2_<date>_*): 450 MB of solver output
+exp1_*/
+exp2_*/

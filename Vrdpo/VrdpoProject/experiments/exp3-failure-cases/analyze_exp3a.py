@@ -30,8 +30,15 @@ Degradation metrics (one row per instance with a BKS):
 Derived features that need the BKS: fill_bks = demand_total / (capacity * bks_routes), fleet_slack_bks =
 bks_routes - demand_lb (0: the BKS fleet is at the bin-packing bound), customers_per_vehicle = n / bks_routes.
 
+Solver side: by default the paper's results (paper_results.csv, from the submitted spreadsheets). With
+--runs results/<tag>/runs.csv the solver's cost, fleet and service levels come from that run instead (the
+last solve of every instance), the BKS side stays the one of paper_results.csv, and instances the run did
+not solve are left out. The joined table is written to results.csv in --out, in the paper_results.csv
+format: that is the per-instance result table of the revised solver.
+
 Usage (from Vrdpo/VrdpoProject):
   python experiments/exp3-failure-cases/analyze_exp3a.py [--results ...paper_results.csv] [--features ...instance_features.csv] [--out exp3a_analysis]
+  python experiments/exp3-failure-cases/analyze_exp3a.py --runs results/exp3_<date>_all/runs.csv --out results/exp3_<date>_all/exp3a
 """
 import argparse
 import os
@@ -51,8 +58,35 @@ METRICS = ["delta_veh", "gap_cost", "gap_cost_same"]
 COLORS = {"tilk": "#d9822b", "dumez": "#2a6fdb"}
 
 
-def load(results, features):
+def with_run(r, runs):
+    """Replaces the solver side of the paper's results with a run's runs.csv (last solve per instance)."""
+    u = pd.read_csv(runs)
+    u["instance"] = u["instance"].astype(str).str.replace("\\", "/", regex=False).str.split("/").str[-1]
+    u = u.drop_duplicates("instance", keep="last").set_index("instance")
+    if "feasible" in u.columns and (u["feasible"] == 0).any():
+        print(f"warning: infeasible solves in the run: {', '.join(u.index[u['feasible'] == 0])}")
+    missing = [n for n in r["instance"] if n not in u.index]
+    if missing:
+        print(f"{len(missing)} instances of the result tables not in the run, left out: {', '.join(missing)}")
+    r = r[r["instance"].isin(u.index)].copy()
+    extra = [n for n in u.index if n not in set(r["instance"])]
+    if extra:
+        print(f"{len(extra)} solves of the run have no row in the result tables (no BKS), left out: {', '.join(extra)}")
+    r["ls_cost"] = u.loc[r["instance"], "cost"].to_numpy()
+    r["ls_routes"] = u.loc[r["instance"], "routes"].to_numpy()
+    r["sl0"] = u.loc[r["instance"], "sl0"].to_numpy()
+    r["sl1"] = u.loc[r["instance"], "sl1"].to_numpy()
+    r["result"] = np.select([r["ls_routes"] > r["bks_routes"], r["ls_routes"] < r["bks_routes"],
+                             r["ls_cost"] > r["bks_cost"] + 1e-9, r["ls_cost"] < r["bks_cost"] - 1e-9],
+                            ["MoreVehicles", "FewerVehicles", "Worse", "Better"], default="Optimal")
+    r.loc[r["bks_cost"].isna(), "result"] = ""
+    return r
+
+
+def load(results, features, runs=None):
     r = pd.read_csv(results)
+    if runs:
+        r = with_run(r, runs)
     f = pd.read_csv(features)
     d = r.merge(f.drop(columns=["benchmark", "set"]), on="instance", how="left")
     d["has_features"] = d["n_customers"].notna()
@@ -118,7 +152,7 @@ def corr_table(d, feats):
                     sr, sp = stats.spearmanr(x[f], x[m])
                 rows.append({"scope": scope, "metric": m, "feature": f, "n": len(x),
                              "pearson_r": pr, "pearson_p": pp, "spearman_rho": sr, "spearman_p": sp})
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=["scope", "metric", "feature", "n", "pearson_r", "pearson_p", "spearman_rho", "spearman_p"])
 
 
 def group_table(d, feats):
@@ -139,7 +173,7 @@ def group_table(d, feats):
                 p = stats.mannwhitneyu(xa, xb, alternative="two-sided").pvalue if xa.nunique() + xb.nunique() > 2 else np.nan
             rows.append({"case": label, "feature": f, "n_fail": len(xa), "n_ok": len(xb),
                          "median_fail": xa.median(), "median_ok": xb.median(), "mannwhitney_p": p})
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=["case", "feature", "n_fail", "n_ok", "median_fail", "median_ok", "mannwhitney_p"])
 
 
 def tightness_table(d):
@@ -157,8 +191,8 @@ def md(df, floatfmt=".3f"):
     return df.to_markdown(index=False, floatfmt=floatfmt)
 
 
-def write_summary(out, claim, corr, groups, tight, d):
-    lines = ["# Experiment 3A: instance features against the failures", ""]
+def write_summary(out, claim, corr, groups, tight, d, source):
+    lines = ["# Experiment 3A: instance features against the failures", "", f"Solver results: {source}.", ""]
     lines += ["## The referee's claim, re-derived from the result tables", "",
               "Same-fleet cases are the instances whose solution has the BKS number of vehicles; worse / equal / better",
               "compare the distance on those cases. Tilk et al. instances without a reference solution are excluded.", "",
@@ -213,6 +247,8 @@ def scatter(out, d, corr, m, k=8):
 
 
 def heatmap(out, corr, feats):
+    if corr.empty:
+        return
     scopes = ["all", "dumez", "tilk"]
     fig, axes = plt.subplots(1, len(scopes), figsize=(4.5 * len(scopes), 0.28 * len(feats) + 1.5), sharey=True)
     for ax, scope in zip(axes, scopes):
@@ -238,11 +274,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=os.path.join(HERE, "paper_results.csv"))
     ap.add_argument("--features", default=os.path.join(HERE, "instance_features.csv"))
+    ap.add_argument("--runs", help="runs.csv of a run: its cost / fleet replace the paper's solver side")
     ap.add_argument("--out", default="exp3a_analysis")
     a = ap.parse_args()
     os.makedirs(os.path.join(a.out, "plots"), exist_ok=True)
 
-    d = load(a.results, a.features)
+    d = load(a.results, a.features, a.runs)
+    source = f"the run {a.runs}, BKS from {a.results}" if a.runs else f"the paper's tables ({a.results})"
+    if a.runs:
+        cols = ["instance", "benchmark", "set", "size", "tw_class", "ls_cost", "ls_routes", "bks_cost", "bks_routes", "sl0", "sl1", "result"]
+        d[cols].to_csv(os.path.join(a.out, "results.csv"), index=False)
     missing = d[~d["has_features"]]["instance"].tolist()
     if missing:
         print(f"{len(missing)} instances without features (no instance file): {', '.join(missing)}")
@@ -260,7 +301,7 @@ def main():
     groups.to_csv(os.path.join(a.out, "groups.csv"), index=False)
     tight = tightness_table(dd)
     tight.to_csv(os.path.join(a.out, "tightness.csv"), index=False)
-    write_summary(a.out, claim, corr, groups, tight, dd)
+    write_summary(a.out, claim, corr, groups, tight, dd, source)
     for m in METRICS:
         scatter(a.out, dd, corr, m)
     heatmap(a.out, corr, feats)

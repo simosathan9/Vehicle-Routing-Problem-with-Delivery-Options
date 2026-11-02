@@ -7,10 +7,15 @@ option density, or something else?* Two parts:
 * **3A, feature correlation.** Structural features of every benchmark instance, extracted from the instance
   files, against the degradation of the paper's result on it (vehicle inflation, cost gap to the BKS).
   Needs no solver run: it uses the paper's result tables.
-* **3B, case study.** The fleet-failure instances (e.g. U_400_4, U_400_7, U_400_9) solved again with the
-  trace on, then the final solution is dissected: load profile, time-window and spatial structure, and an
-  absorption test of the lightest route that shows whether the extra vehicle is a bin-packing tail that no
-  single relocation or flip can remove.
+* **3B, case study.** The failure instances solved with the trace on, then the final solution is dissected:
+  load profile, time-window and spatial structure, and an absorption test of the lightest routes that shows
+  whether the extra vehicle is a bin-packing tail that no single relocation or flip can remove.
+
+Since the solver changed after the submission, the revision reports the new results, so both parts run on
+**one full run of the benchmark** (`run-exp3.ps1 -All` on the VM, 240 instances): 3A takes the solver side
+from that run's `runs.csv` (`--runs`), and 3B picks the failures out of the same run (`run_case_studies.py`).
+The analysis of the submitted tables (default inputs, no run needed) stays for the response letter, which
+has to answer the referee's numbers as they stand.
 
 ## Files
 
@@ -22,8 +27,9 @@ option density, or something else?* Two parts:
 | `instance_features.py` | Writes `instance_features.csv`: one row of structural features per instance file |
 | `instance_features.csv` | The features of the 220 instances in `Instances/` (UBC_400 and V_400 files are not in the repository) |
 | `analyze_exp3a.py` | 3A: joins features and results, correlation tables, group comparisons, plots |
-| `outliers.txt` | 3B: the fleet-failure instances and controls of the same classes |
-| `run-exp3.ps1` | 3B: solves `outliers.txt` on the VM with the trace on, then runs the case studies |
+| `run-exp3.ps1` | VM: solves the whole benchmark (`-All`) or `outliers.txt` with the trace on |
+| `outliers.txt` | the fleet failures of the submitted tables and controls of the same classes (the subset mode of `run-exp3.ps1`) |
+| `run_case_studies.py` | 3B: picks the failures of a run (fleet failures, worst cost gaps, controls) and runs `case_study.py` on each |
 | `case_study.py` | 3B: dissects one solution report (tables, absorption test, plots) |
 
 ## 3A: features
@@ -52,6 +58,8 @@ features; a Spearman heat map. The result tables also give the referee's counts 
 
 ### Running 3A
 
+On the submitted tables (the response letter):
+
 ```bash
 cd Vrdpo/VrdpoProject
 pip install numpy pandas scipy matplotlib tabulate openpyxl
@@ -63,8 +71,16 @@ When the UBC_400 and V_400 instance files are available, put them under `Instanc
 `Instances/V/400/` and run the last two commands again: they are 20 of the 120 Dumez et al. instances, among
 them 4 of the 14 fleet failures.
 
+On a run of the revised solver (the paper): the same with `--runs`, which takes the cost, fleet and service
+levels from the run's `runs.csv` (last solve per instance), keeps the BKS of `paper_results.csv`, and leaves
+out the instances the run did not solve:
+```bash
+python experiments/exp3-failure-cases/analyze_exp3a.py --runs results/exp3_<date>_all/runs.csv --out results/exp3_<date>_all/exp3a
+```
+
 Outputs in `--out`: `summary.md` (everything, ready to read), `claim_check.csv`, `merged.csv`,
-`correlations.csv`, `groups.csv`, `tightness.csv`, `plots/scatter_<metric>.png`, `plots/heatmap.png`.
+`correlations.csv`, `groups.csv`, `tightness.csv`, `plots/scatter_<metric>.png`, `plots/heatmap.png`; with
+`--runs` also `results.csv`, the per-instance result table of the run in the `paper_results.csv` format.
 
 ### What the tables say so far (from the result spreadsheets, 207 instances with features and a BKS)
 
@@ -108,33 +124,49 @@ file, recomputes the schedule with the solver's time model (the distance metric 
   every route's duration and slack), and with `--trace` `trace.png` (vehicles of the current and the
   restart-best solution per iteration: when the fleet stalls one above the BKS).
 
-### Running 3B on the VM
+### The run on the VM
 
-1. Publish the `exp3-failure-cases` branch (the solver is the one of `exp2-inter-route-coupling`; no solver
-   change is needed) and copy `VrdpoProject.exe`, `VrdpoProject.dll`, `VrdpoProject.runtimeconfig.json` and
-   `settings.json` to the run folder (e.g. `Desktop\VRPDO`).
-2. Copy `run-exp3.ps1` and `outliers.txt` to the same folder. Nothing else is needed on the VM: the case
-   studies are run locally on the results.
-3. If the UBC_400 / V_400 files are on the VM, uncomment their lines in `outliers.txt`.
-4. Check that every instance is found, then run:
+1. Publish the current solver and copy `VrdpoProject.exe`, `VrdpoProject.dll`,
+   `VrdpoProject.runtimeconfig.json` and `settings.json` to the run folder (e.g. `Desktop\VRPDO`). The
+   experiment adds nothing to the solver: it only switches the per-iteration trace on.
+2. Copy `run-exp3.ps1` (and `outliers.txt` for the subset mode) to the same folder. Nothing else is needed on
+   the VM: the analysis runs locally on the results.
+3. The instance files are looked up in `VRPDO_instances\VRPDO_instances\<set>\<size>\` and
+   `Instances\<set>\<size>\` under the run folder; `-All` takes every instance file found there, so the
+   UBC_400 and V_400 files must be present for the full benchmark.
+4. Check what is found, then run:
    ```powershell
    cd $HOME\Desktop\VRPDO
-   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1 -CheckOnly
-   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1
+   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1 -All -CheckOnly
+   powershell -ExecutionPolicy Bypass -File .\run-exp3.ps1 -All
    ```
-   Options: `-Jobs N`, `-Restarts N`, `-Repetitions N` (default: settings.json, 15 x 15000; a 400-customer
-   instance takes about 3 hours).
+   Options: `-Jobs N`, `-NoTrace` (no per-iteration trace, see below), `-Restarts N`, `-Repetitions N` (default: settings.json, 15 x 15000; a 400-customer
+   instance takes about 3 hours, the whole benchmark one to two days on 8 cores). Without `-All` only
+   `outliers.txt` is solved.
 
-Results go to `results\exp3_<date>_<time>_outliers\` (`runs.csv`, solution reports, `traces\`, `logs\`,
-`batch.txt`). Zip that folder, copy it here under `results/`, and run the case study per instance:
+Results go to `results\exp3_<date>_<time>_all\` (`runs.csv`, `settings.json`, one solution report per
+instance, `traces\`, `logs\`, `batch.txt`). Zip that folder and copy it here under `results/`; also copy
+back the UBC_400 / V_400 instance files if they are not in the repository yet (3A needs their features).
+
+### Running 3B
+
 ```bash
 cd Vrdpo/VrdpoProject
-for n in U_400_4 U_400_7 U_400_9; do set=${n%%_*}; size=$(echo $n | cut -d_ -f2)
-  python experiments/exp3-failure-cases/case_study.py --report results/exp3_<date>_outliers/$set/$size/$n.txt \
-         --trace results/exp3_<date>_outliers/traces/$set/$size/$n.csv --out results/exp3b/$n
-done
+python experiments/exp3-failure-cases/run_case_studies.py --run results/exp3_<date>_all
 ```
-Each run writes `case.md` and the plots under `results/exp3b/<instance>/`.
+picks, from the run's `runs.csv` against the BKS: every fleet failure, the 3 worst same-fleet cost gaps per
+benchmark (`--worst-cost`), one control per class with a fleet failure (the instance of that class with the
+BKS fleet and the best gap; `--no-controls`), plus anything named in `--also`. It runs `case_study.py` on
+each (report, trace, BKS fleet) into `<run>/case_studies/<instance>/` and writes `selection.csv` and
+`case_studies.md`, one row per instance with the fleet against the BKS and the absorption and greedy
+elimination counts of the lightest routes, linking to each `case.md`. The failures should show stops that
+fit by capacity but cannot be placed one at a time; the controls should show the lightest routes emptying.
+
+A single report can still be dissected by hand:
+```bash
+python experiments/exp3-failure-cases/case_study.py --report results/<tag>/U/400/U_400_4.txt \
+       --trace results/<tag>/traces/U/400/U_400_4.csv --out results/<tag>/case_studies/U_400_4
+```
 
 On macOS/Linux:
 ```bash
@@ -143,6 +175,5 @@ python experiments/exp3-failure-cases/case_study.py --report results/exp3_outlie
        --trace results/exp3_outliers/traces/U/400/U_400_4.csv --out results/exp3_outliers/case_studies/U_400_4
 ```
 
-The solutions behind the paper's tables are not stored (only their cost and fleet), so 3B solves the
-instances again; the runs are deterministic on a current .NET runtime but the trajectory differs from the
-paper's runs if the solver changed since (see the README's note on reproducing the tables).
+The solutions behind the submitted tables are not stored (only their cost and fleet), which is the other
+reason the analysis is done on a new full run rather than on the submitted results.
