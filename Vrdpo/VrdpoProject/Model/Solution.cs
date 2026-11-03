@@ -219,16 +219,38 @@ namespace VrdpoProject
             return TimeMatrix[n1.Id, n2.Id - n1.Id];
         }
 
-        public void InitPromises()
+        // Promise memory: double.MaxValue (no promise). Tabu memory: 0 (no arc is tabu; the matrix then holds,
+        // per arc, the iteration from which it may be re-created).
+        public void InitPromises(double value = double.MaxValue)
         {
             int n = Options.Count + 1;
             for (int i = 0; i < n; i++)
             {
                 for (int j = 0; j < n; j++)
                 {
-                    Promises[i, j] = double.MaxValue;
+                    Promises[i, j] = value;
                 }
             }
+        }
+
+        // Order-independent hash of the solution state: the set of arcs (option ids), i.e. the routes and the
+        // options served. Used to count distinct states visited (settings.countStates).
+        public ulong StateHash()
+        {
+            int n = Options.Count + 1;
+            ulong h = 0;
+            foreach (Route rt in Routes)
+            {
+                var seq = rt.SequenceOfOptions;
+                for (int i = 0; i < seq.Count - 1; i++)
+                {
+                    ulong z = (ulong)(seq[i].Id * n + seq[i + 1].Id) + 0x9E3779B97F4A7C15UL;
+                    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+                    z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+                    h += z ^ (z >> 31);
+                }
+            }
+            return h;
         }
 
         public double CalculateUtilizationMetric()

@@ -295,15 +295,16 @@ namespace VrdpoProject
             if (!mv.IsValid()) { return; }
             sol.LastMove = "exchange";
             var newArcs = new List<(int, int)>();
+            var oldArcs = new List<(int, int)>();
             foreach (var (r, stops) in mv.Changes)
             {
                 var oldList = sol.Routes[r].SequenceOfOptions;
                 var old = new HashSet<(int, int)>();
+                var fresh = new HashSet<(int, int)>();
                 for (int j = 0; j < oldList.Count - 1; j++) { old.Add((oldList[j].Id, oldList[j + 1].Id)); }
-                for (int j = 0; j < stops.Count - 1; j++)
-                {
-                    if (!old.Contains((stops[j].Id, stops[j + 1].Id))) { newArcs.Add((stops[j].Id, stops[j + 1].Id)); }
-                }
+                for (int j = 0; j < stops.Count - 1; j++) { fresh.Add((stops[j].Id, stops[j + 1].Id)); }
+                foreach (var arc in fresh) { if (!old.Contains(arc)) { newArcs.Add(arc); } }
+                foreach (var arc in old) { if (!fresh.Contains(arc)) { oldArcs.Add(arc); } }
                 RebuildRoute(sol.Routes[r], stops, sol);
             }
             sol.Cost += mv.MoveCost;
@@ -315,7 +316,7 @@ namespace VrdpoProject
                 to.Location.Cap++;
                 from.Location.Cap--;
             }
-            foreach (var (a, b) in newArcs) { sol.Promises[a, b] = sol.Cost; }
+            UpdateMemory(sol, newArcs.ToArray(), oldArcs.ToArray());
         }
 
         // Replaces the stop sequence of a route (depots included) and refreshes everything derived from it.

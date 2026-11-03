@@ -13,6 +13,9 @@ namespace VrdpoProject
     //   elapsed_s            wall time since the search started, at the end of the restart
     //   improved             1 when the restart replaced the incumbent (fleet first, then cost)
     //   incumbent_cost, incumbent_routes, incumbent_restart  the best solution over restarts 0..restart
+    //   states_unique, states_revisits, states_stalls  distinct solution states visited in the restart, iterations that
+    //                        revisited one, and iterations in which no admissible move existed (the solution stayed;
+    //                        these are revisits too) (settings.countStates; empty when off)
     public sealed class RestartWriter : IDisposable
     {
         private readonly StreamWriter writer;
@@ -25,10 +28,11 @@ namespace VrdpoProject
             Path = System.IO.Path.Combine(run.ResultsDir, run.Tag, "restarts", instance.RelativeName + ".csv");
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path));
             writer = new StreamWriter(Path, append: false, new UTF8Encoding(false));
-            writer.WriteLine("restart,best_cost,best_routes,found_iteration,restart_time_s,elapsed_s,improved,incumbent_cost,incumbent_routes,incumbent_restart");
+            writer.WriteLine("restart,best_cost,best_routes,found_iteration,restart_time_s,elapsed_s,improved,incumbent_cost,incumbent_routes,incumbent_restart,states_unique,states_revisits,states_stalls");
         }
 
-        public void Row(int restart, Solution restartBest, TimeSpan restartTime, TimeSpan elapsed, bool improved, Solution incumbent)
+        public void Row(int restart, Solution restartBest, TimeSpan restartTime, TimeSpan elapsed, bool improved, Solution incumbent,
+                        int statesUnique = -1, int statesRevisits = -1, int stalls = -1)
         {
             var line = new StringBuilder();
             line.Append(restart.ToString(Inv)).Append(',');
@@ -55,6 +59,9 @@ namespace VrdpoProject
             {
                 line.Append(",,");
             }
+            line.Append(',').Append(statesUnique >= 0 ? statesUnique.ToString(Inv) : "")
+                .Append(',').Append(statesRevisits >= 0 ? statesRevisits.ToString(Inv) : "")
+                .Append(',').Append(stalls >= 0 ? stalls.ToString(Inv) : "");
             writer.WriteLine(line.ToString());
             writer.Flush();
         }

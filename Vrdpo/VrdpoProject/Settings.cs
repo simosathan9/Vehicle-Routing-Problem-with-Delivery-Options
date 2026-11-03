@@ -38,7 +38,7 @@ namespace VrdpoProject
         [JsonPropertyName("exchangeCandidates")]
         public int ExchangeCandidates { get; set; } = 20;
 
-        // ---- Review experiments (all off by default; with all six false the solver runs exactly as before) ----
+        // ---- Review experiments (all off by default; with all of them off the solver runs exactly as before) ----
 
         // VRPTW setup: every customer can only be served at its home option, i.e. its best-priority private
         // address (location type 2); a customer without a private address keeps its best-priority option.
@@ -74,6 +74,39 @@ namespace VrdpoProject
         // restart (experiment 5: diminishing returns of the restarts). Tiny file; does not change the search.
         [JsonPropertyName("logRestarts")]
         public bool LogRestarts { get; set; } = false;
+
+        // ---- Experiment 4 (promise memory vs. tabu tenure) ----
+
+        // Arc memory of the local search. "promise": an arc the move creates is allowed only if the solution after the
+        // move is better than the solution in which the arc was last created (the paper's rule; reset every
+        // |Options| * promisesRestartRatio iterations). "tabu": an arc a move removes may not be re-created for
+        // tabuTenure iterations (standard attribute tabu), unless the move beats the restart's best cost (aspiration).
+        [JsonPropertyName("memory")]
+        public string Memory { get; set; } = "promise";
+
+        // Fixed tabu tenure in iterations; 0 = dynamic tenure, drawn per forbidden arc uniformly from
+        // [tabuTenureMin * |N|, tabuTenureMax * |N|] (|N| = customers). -1 = no memory at all (plain best-improvement descent).
+        [JsonPropertyName("tabuTenure")]
+        public int TabuTenure { get; set; } = 10;
+
+        [JsonPropertyName("tabuTenureMin")]
+        public double TabuTenureMin { get; set; } = 0.1;
+
+        [JsonPropertyName("tabuTenureMax")]
+        public double TabuTenureMax { get; set; } = 0.2;
+
+        // Aspiration criterion of the tabu memory: a tabu arc is allowed when the move's solution is cheaper than the
+        // restart's best solution so far.
+        [JsonPropertyName("tabuAspiration")]
+        public bool TabuAspiration { get; set; } = true;
+
+        // Counts the distinct solution states visited per restart (hash of the arc set) and the revisits; written to the
+        // restart log (needs logRestarts). Search mobility measure of experiment 4.
+        [JsonPropertyName("countStates")]
+        public bool CountStates { get; set; } = false;
+
+        [JsonIgnore]
+        public bool TabuMemory => Memory == "tabu";
 
         [JsonIgnore]
         public bool IntegerMetric => Type == "int";
@@ -133,6 +166,18 @@ namespace VrdpoProject
             if (ExchangeCandidates < 0)
             {
                 throw new InvalidDataException("settings.exchangeCandidates must be >= 0");
+            }
+            if (Memory != "promise" && Memory != "tabu")
+            {
+                throw new InvalidDataException("settings.memory must be \"promise\" or \"tabu\", got \"" + Memory + "\"");
+            }
+            if (TabuTenure == 0 && (TabuTenureMin <= 0 || TabuTenureMax < TabuTenureMin))
+            {
+                throw new InvalidDataException("settings.tabuTenureMin/Max must satisfy 0 < min <= max for the dynamic tenure");
+            }
+            if (CountStates && !LogRestarts)
+            {
+                throw new InvalidDataException("settings.countStates needs settings.logRestarts = true (the counts are written to the restart log)");
             }
             if (CountMoves && !TraceIterations)
             {

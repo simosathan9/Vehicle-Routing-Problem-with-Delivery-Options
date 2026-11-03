@@ -184,9 +184,7 @@ namespace VrdpoProject
                 UpdateRouteCostAndLoad(targetRt, sol);
             }
             sol.Cost += rm.MoveCost;
-            sol.Promises[A.Id, C.Id] = sol.Cost;
-            sol.Promises[F.Id, B.Id] = sol.Cost;
-            sol.Promises[B.Id, G.Id] = sol.Cost;
+            UpdateMemory(sol, new[] { (A.Id, C.Id), (F.Id, B.Id), (B.Id, G.Id) }, new[] { (A.Id, B.Id), (B.Id, C.Id), (F.Id, G.Id) });
             AssertRouteFeasible(sol, originRt, "after relocate");
             AssertRouteFeasible(sol, targetRt, "after relocate");
         }

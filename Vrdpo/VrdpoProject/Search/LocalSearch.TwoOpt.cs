@@ -141,8 +141,11 @@ namespace VrdpoProject
                                 {
                                     continue;
                                 }
-                                if (PromiseIsBroken(A.Id, L.Id, moveCost + sol.Cost + smallDouble, sol)) { continue; }
-                                if (PromiseIsBroken(B.Id, K.Id, moveCost + sol.Cost + smallDouble, sol)) { continue; }
+                                // A same-route reversal creates (A, K) and (B, L); the tabu memory checks those arcs
+                                // (the promise rule keeps the paper's (A, L), (B, K), whose cost rule blocks the undo anyway).
+                                int x = tabu && rt1 == rt2 ? K.Id : L.Id, y = tabu && rt1 == rt2 ? L.Id : K.Id;
+                                if (PromiseIsBroken(A.Id, x, moveCost + sol.Cost + smallDouble, sol)) { continue; }
+                                if (PromiseIsBroken(B.Id, y, moveCost + sol.Cost + smallDouble, sol)) { continue; }
 
                                 top.TotalCost = moveCost + openRoutes * Solver.RoutePenalty;
                                 top.PositionOfFirstRoute = rtInd1;
@@ -238,8 +241,10 @@ namespace VrdpoProject
                 rt2.SequenceOfLat = top.Lat2.ToList();
             }
             sol.Cost += top.MoveCost;
-            sol.Promises[A.Id, L.Id] = sol.Cost;
-            sol.Promises[B.Id, K.Id] = sol.Cost;
+            // Promise: the paper's arcs (A, L), (B, K). Tabu: the arcs that disappear, (A, B) and (K, L); a same-route
+            // reversal creates (A, K), (B, L) instead, which is what the scan checks in tabu mode.
+            var createdArcs = rt1 == rt2 ? new[] { (A.Id, K.Id), (B.Id, L.Id) } : new[] { (A.Id, L.Id), (B.Id, K.Id) };
+            UpdateMemory(sol, tabu ? createdArcs : new[] { (A.Id, L.Id), (B.Id, K.Id) }, new[] { (A.Id, B.Id), (K.Id, L.Id) });
             AssertRouteFeasible(sol, rt1, "after two opt");
             AssertRouteFeasible(sol, rt2, "after two opt");
         }

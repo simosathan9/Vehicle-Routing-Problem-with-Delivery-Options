@@ -183,10 +183,8 @@ namespace VrdpoProject
                 sol.UpdateTimes(rt2);
             }
             sol.Cost += sm.MoveCost;
-            sol.Promises[a1.Id, b2.Id] = sol.Cost;
-            sol.Promises[b2.Id, c1.Id] = sol.Cost;
-            sol.Promises[a2.Id, b1.Id] = sol.Cost;
-            sol.Promises[b1.Id, c2.Id] = sol.Cost;
+            UpdateMemory(sol, new[] { (a1.Id, b2.Id), (b2.Id, c1.Id), (a2.Id, b1.Id), (b1.Id, c2.Id) },
+                         new[] { (a1.Id, b1.Id), (b1.Id, c1.Id), (a2.Id, b2.Id), (b2.Id, c2.Id) });
             AssertRouteFeasible(sol, rt1, "after swap");
             AssertRouteFeasible(sol, rt2, "after swap");
         }

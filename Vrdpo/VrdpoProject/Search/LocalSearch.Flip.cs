@@ -214,9 +214,7 @@ namespace VrdpoProject
             B2.IsServed = true;
             B2.Location.Cap++;
             B1.Location.Cap--;
-            sol.Promises[A.Id, C.Id] = sol.Cost;
-            sol.Promises[F.Id, B2.Id] = sol.Cost;
-            sol.Promises[B2.Id, G.Id] = sol.Cost;
+            UpdateMemory(sol, new[] { (A.Id, C.Id), (F.Id, B2.Id), (B2.Id, G.Id) }, new[] { (A.Id, B1.Id), (B1.Id, C.Id), (F.Id, G.Id) });
             AssertRouteFeasible(sol, targetRt, "after flip");
             AssertRouteFeasible(sol, originRt, "after flip");
         }

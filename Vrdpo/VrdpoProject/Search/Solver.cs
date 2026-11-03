@@ -90,6 +90,16 @@ namespace VrdpoProject
                 ExchangeMove exch = new();
 
                 Solution currentSol = new(instance);
+                if (settings.TabuMemory)
+                {
+                    currentSol.InitPromises(0);
+                }
+                ls.Customers = currentSol.Customers.Count;
+                ls.TenureRandom = new Random(restart);
+                ls.AspirationCost = double.MaxValue;
+                HashSet<ulong> states = settings.CountStates ? new HashSet<ulong>() : null;
+                int stateRevisits = 0;
+                int stalls = 0;   // iterations in which no admissible move was found (the solution did not change)
                 if (settings.LockToHome)
                 {
                     LockToHome(currentSol);
@@ -117,6 +127,9 @@ namespace VrdpoProject
                         break;
                     }
 
+                    ls.Iteration = i;
+                    if (currentSol.Cost < ls.AspirationCost) { ls.AspirationCost = currentSol.Cost; }
+                    if (states != null && !states.Add(currentSol.StateHash())) { stateRevisits++; }
                     reinitCount++;
                     rm.ReinitializeVariables();
                     sm.ReinitializeVariables();
@@ -124,7 +137,7 @@ namespace VrdpoProject
                     flip.ReinitializeVariables();
                     if (useExchange) { exch.ReinitializeVariables(); }
 
-                    if (reinitCount == currentSol.Options.Count * settings.PromisesRestartRatio)
+                    if (!settings.TabuMemory && reinitCount == currentSol.Options.Count * settings.PromisesRestartRatio)
                     {
                         currentSol.InitPromises();
                         reinitCount = 0;
@@ -135,6 +148,7 @@ namespace VrdpoProject
                     {
                         flip = ls.FindBestFlipMove(flip, currentSol);
                         ls.ApplyFlipMove(flip, currentSol);
+                        if (!flip.IsValid()) { stalls++; }
                         if (trace != null)
                         {
                             var (ksl0, ksl1) = currentSol.ServiceLevelFromCounts();
@@ -214,6 +228,7 @@ namespace VrdpoProject
                     {
                         Console.WriteLine("{0} {1} {2} {3}", i, currentSol.Cost, localBest.Cost, localBest.Routes.Count(x => !x.IsEmpty));
                     }
+                    if (applied == "none") { stalls++; }
                     trace?.Row(restartCounter, i, applied, appliedCost, currentSol, localBest, sl0, sl1, stats);
                 }
                 restartTimer.Stop();
@@ -229,7 +244,8 @@ namespace VrdpoProject
                     bestSol.Repetition = localBest.Repetition;
                     BestRestartTime = restartTimer.Elapsed;
                 }
-                restartLog?.Row(restartCounter, localBest, restartTimer.Elapsed, searchTimer.Elapsed, improved, bestSol);
+                restartLog?.Row(restartCounter, localBest, restartTimer.Elapsed, searchTimer.Elapsed, improved, bestSol,
+                                states?.Count ?? -1, states != null ? stateRevisits : -1, states != null ? stalls : -1);
             }
             PrintServiceLevel(bestSol);
             return bestSol;
