@@ -38,7 +38,7 @@ namespace VrdpoProject
         [JsonPropertyName("exchangeCandidates")]
         public int ExchangeCandidates { get; set; } = 20;
 
-        // ---- Review experiments (all off by default; with all five false the solver runs exactly as before) ----
+        // ---- Review experiments (all off by default; with all six false the solver runs exactly as before) ----
 
         // VRPTW setup: every customer can only be served at its home option, i.e. its best-priority private
         // address (location type 2); a customer without a private address keeps its best-priority option.
@@ -68,6 +68,12 @@ namespace VrdpoProject
         // <results>/<tag>/coupling/<instance>.csv and coupling_totals.csv. Does not change which move is applied.
         [JsonPropertyName("countCoupling")]
         public bool CountCoupling { get; set; } = false;
+
+        // Writes one CSV row per restart to <results>/<tag>/restarts/<instance>.csv: the restart's best cost and
+        // routes, the iteration it was found at, the restart's time, the elapsed time and the incumbent after the
+        // restart (experiment 5: diminishing returns of the restarts). Tiny file; does not change the search.
+        [JsonPropertyName("logRestarts")]
+        public bool LogRestarts { get; set; } = false;
 
         [JsonIgnore]
         public bool IntegerMetric => Type == "int";

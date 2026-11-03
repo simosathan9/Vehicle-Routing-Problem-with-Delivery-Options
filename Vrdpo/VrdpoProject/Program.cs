@@ -22,7 +22,8 @@ namespace VrdpoProject
 
             using TraceWriter trace = settings.TraceIterations ? new TraceWriter(run, instance, settings.CountMoves) : null;
             using CouplingWriter coupling = settings.CountCoupling ? new CouplingWriter(run, instance) : null;
-            var solver = new Solver(instance, settings, trace, coupling);
+            using RestartWriter restartLog = settings.LogRestarts ? new RestartWriter(run, instance) : null;
+            var solver = new Solver(instance, settings, trace, coupling, restartLog);
             Solution best = solver.Solve();
             if (trace != null)
             {
@@ -31,6 +32,10 @@ namespace VrdpoProject
             if (coupling != null)
             {
                 Console.WriteLine("Coupling counts written to " + coupling.Path);
+            }
+            if (restartLog != null)
+            {
+                Console.WriteLine("Restart log written to " + restartLog.Path);
             }
 
             string report = ResultsWriter.Write(run, settings, instance, best, solver.BestRestartTime, solver.TotalTime);

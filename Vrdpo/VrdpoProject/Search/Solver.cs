@@ -14,7 +14,7 @@ namespace VrdpoProject
         public const double MinServiceLevel0 = 0.8;
         public const double MinServiceLevel1 = 0.9;
         // A solution with a cost at or above this is treated as unacceptable (empty solutions cost 1e9).
-        private const double MaxAcceptableCost = 100000;
+        public const double MaxAcceptableCost = 100000;
         // After this many iterations without a new restart-best, 1% of the iterations apply a flip only.
         private const int KickAfterIterations = 500;
         private const double KickThreshold = 0.99;
@@ -26,18 +26,22 @@ namespace VrdpoProject
         private readonly TraceWriter trace;
         // Per-iteration inter-route coupling counts (settings.countCoupling); null when off.
         private readonly CouplingWriter coupling;
+        // Per-restart log (settings.logRestarts); null when off.
+        private readonly RestartWriter restartLog;
         // Tolerance when comparing solution values ("int" metric: exact).
         private readonly double smallDouble;
 
         public TimeSpan BestRestartTime { get; private set; } = TimeSpan.Zero;
         public TimeSpan TotalTime { get; private set; } = TimeSpan.Zero;
 
-        public Solver(Instance instance, Settings settings, TraceWriter trace = null, CouplingWriter coupling = null)
+        public Solver(Instance instance, Settings settings, TraceWriter trace = null, CouplingWriter coupling = null,
+                      RestartWriter restartLog = null)
         {
             this.instance = instance;
             this.settings = settings;
             this.trace = trace;
             this.coupling = coupling;
+            this.restartLog = restartLog;
             ls = new LocalSearch(settings);
             smallDouble = settings.IntegerMetric ? 0 : 0.001;
         }
@@ -69,6 +73,7 @@ namespace VrdpoProject
             MoveStats stats = ls.Stats;
             CouplingStats couplingStats = ls.Coupling;
             var restartTimer = new Stopwatch();
+            var searchTimer = Stopwatch.StartNew();
             int restartCounter = -1;
 
             for (int restart = 0; restart < numberOfRestarts; restart++)
@@ -215,14 +220,16 @@ namespace VrdpoProject
                 PrintServiceLevel(localBest);
                 PrintSolution(localBest);
 
-                if (localBest.Cost + localBest.Routes.Count * RoutePenalty < bestSol.Cost + bestSol.Routes.Count * RoutePenalty + smallDouble
-                    && localBest.Cost < MaxAcceptableCost)
+                bool improved = localBest.Cost + localBest.Routes.Count * RoutePenalty < bestSol.Cost + bestSol.Routes.Count * RoutePenalty + smallDouble
+                    && localBest.Cost < MaxAcceptableCost;
+                if (improved)
                 {
                     bestSol = localBest.DeepCopy();
                     bestSol.Restart = restartCounter;
                     bestSol.Repetition = localBest.Repetition;
                     BestRestartTime = restartTimer.Elapsed;
                 }
+                restartLog?.Row(restartCounter, localBest, restartTimer.Elapsed, searchTimer.Elapsed, improved, bestSol);
             }
             PrintServiceLevel(bestSol);
             return bestSol;
