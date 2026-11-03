@@ -28,6 +28,7 @@ import sys
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+COST_TOL = 0.002  # same cost within the BKS tables' 3 decimals (as in analyze_exp3a.py)
 SKIP_DIRS = {"logs", "traces", "coupling", "case_studies", "exp3a"}
 
 
@@ -48,8 +49,8 @@ def select(run, results, worst_cost, controls, also):
     u = pd.read_csv(os.path.join(run, "runs.csv"))
     u["instance"] = u["instance"].astype(str).str.replace("\\", "/", regex=False).str.split("/").str[-1]
     u = u.drop_duplicates("instance", keep="last")
-    d = r.merge(u[["instance", "cost", "routes", "sl0", "sl1"]].rename(columns={"sl0": "run_sl0", "sl1": "run_sl1"}),
-                on="instance", how="inner")
+    cols = ["instance", "cost", "routes", "sl0", "sl1"] + (["type"] if "type" in u.columns else [])
+    d = r.merge(u[cols].rename(columns={"sl0": "run_sl0", "sl1": "run_sl1", "type": "metric"}), on="instance", how="inner")
     d = d[d["bks_routes"].notna()].copy()
     d["delta_veh"] = d["routes"] - d["bks_routes"]
     d["gap_cost"] = 100 * (d["cost"] - d["bks_cost"]) / d["bks_cost"]
@@ -62,7 +63,7 @@ def select(run, results, worst_cost, controls, also):
     fleet = d[d["delta_veh"] > 0]
     for n in fleet["instance"]:
         add(n, "fleet failure")
-    same = d[(d["delta_veh"] == 0) & (d["gap_cost"] > 1e-9)]
+    same = d[(d["delta_veh"] == 0) & (d["cost"] - d["bks_cost"] > COST_TOL)]
     for b, g in same.groupby("benchmark"):
         for n in g.sort_values("gap_cost", ascending=False)["instance"].head(worst_cost):
             add(n, f"worst same-fleet cost gap ({b})")
@@ -82,7 +83,8 @@ def select(run, results, worst_cost, controls, also):
         x = x.iloc[0]
         rows.append({"instance": n, "class": x["class"], "benchmark": x["benchmark"], "why": "; ".join(reasons),
                      "run_routes": int(x["routes"]), "bks_routes": int(x["bks_routes"]), "delta_veh": int(x["delta_veh"]),
-                     "run_cost": x["cost"], "bks_cost": x["bks_cost"], "gap_cost_%": round(x["gap_cost"], 3)})
+                     "run_cost": x["cost"], "bks_cost": x["bks_cost"], "gap_cost_%": round(x["gap_cost"], 3),
+                     "metric": x.get("metric", "")})
     return pd.DataFrame(rows).sort_values(["delta_veh", "gap_cost_%"], ascending=False), d
 
 
@@ -125,7 +127,7 @@ def main():
     sel, d = select(a.run, a.results, a.worst_cost, not a.no_controls, a.also)
     sel.to_csv(os.path.join(out, "selection.csv"), index=False)
     print(f"{len(d)} solved instances with a BKS; {int((d['delta_veh'] > 0).sum())} fleet failures, "
-          f"{int(((d['delta_veh'] == 0) & (d['gap_cost'] > 1e-9)).sum())} same-fleet cost failures")
+          f"{int(((d['delta_veh'] == 0) & (d['cost'] - d['bks_cost'] > COST_TOL)).sum())} same-fleet cost failures")
     print(sel.to_string(index=False))
     if a.select_only:
         return
@@ -143,6 +145,8 @@ def main():
                "--bks-routes", str(int(s["bks_routes"])), "--routes-tested", str(a.routes_tested), "--out", case_out]
         if trace:
             cmd += ["--trace", trace]
+        if s.get("metric") in ("int", "double"):
+            cmd += ["--type", s["metric"]]  # the metric of this solve (the folder's settings.json has only the default)
         print(f"\n== {n}: {' '.join(cmd[1:])}")
         res = subprocess.run(cmd, capture_output=True, text=True)
         print(res.stdout.strip())

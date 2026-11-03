@@ -25,7 +25,7 @@ Degradation metrics (one row per instance with a BKS):
   delta_veh       = ls_routes - bks_routes (vehicle inflation; > 0 is a fleet failure)
   gap_cost        = 100 * (ls_cost - bks_cost) / bks_cost, every instance (a fleet failure has a large gap)
   gap_cost_same   = gap_cost on the same-fleet cases only (NaN otherwise); > 0 is a cost failure
-  fail_fleet      = delta_veh > 0;   fail_cost = same fleet and gap_cost > 0
+  fail_fleet      = delta_veh > 0;   fail_cost = same fleet and ls_cost > bks_cost + 0.002 (the BKS is quoted to 3 decimals)
 
 Derived features that need the BKS: fill_bks = demand_total / (capacity * bks_routes), fleet_slack_bks =
 bks_routes - demand_lb (0: the BKS fleet is at the bin-packing bound), customers_per_vehicle = n / bks_routes.
@@ -55,6 +55,9 @@ from scipy import stats  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 ID_COLS = {"instance", "benchmark", "set", "size", "tw_class", "result"}
 METRICS = ["delta_veh", "gap_cost", "gap_cost_same"]
+# The BKS costs of the tables are quoted to 3 decimals and the solver's cost is a double: a difference within
+# this is the same cost (the run reproduces the paper's costs to 0.0005).
+COST_TOL = 0.002
 COLORS = {"tilk": "#d9822b", "dumez": "#2a6fdb"}
 
 
@@ -77,7 +80,7 @@ def with_run(r, runs):
     r["sl0"] = u.loc[r["instance"], "sl0"].to_numpy()
     r["sl1"] = u.loc[r["instance"], "sl1"].to_numpy()
     r["result"] = np.select([r["ls_routes"] > r["bks_routes"], r["ls_routes"] < r["bks_routes"],
-                             r["ls_cost"] > r["bks_cost"] + 1e-9, r["ls_cost"] < r["bks_cost"] - 1e-9],
+                             r["ls_cost"] > r["bks_cost"] + COST_TOL, r["ls_cost"] < r["bks_cost"] - COST_TOL],
                             ["MoreVehicles", "FewerVehicles", "Worse", "Better"], default="Optimal")
     r.loc[r["bks_cost"].isna(), "result"] = ""
     return r
@@ -96,8 +99,8 @@ def load(results, features, runs=None):
     d["same_fleet"] = d["delta_veh"] == 0
     d["gap_cost_same"] = d["gap_cost"].where(d["same_fleet"])
     d["fail_fleet"] = d["delta_veh"] > 0
-    d["fail_cost"] = d["same_fleet"] & (d["gap_cost"] > 1e-9)
-    d["better_cost"] = d["same_fleet"] & (d["gap_cost"] < -1e-9)
+    d["fail_cost"] = d["same_fleet"] & (d["ls_cost"] - d["bks_cost"] > COST_TOL)
+    d["better_cost"] = d["same_fleet"] & (d["ls_cost"] - d["bks_cost"] < -COST_TOL)
     d["fill_bks"] = d["demand_total"] / (d["vehicle_capacity"] * d["bks_routes"])
     d["fleet_slack_bks"] = d["bks_routes"] - d["demand_lb"]
     d["customers_per_vehicle"] = d["n_customers"] / d["bks_routes"]
